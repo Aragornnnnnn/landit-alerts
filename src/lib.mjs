@@ -1,21 +1,21 @@
 // 스토어 알림의 순수 로직 — 피드 파싱, 새 리뷰·평점 변동 감지, 디스코드 embed 생성
-export const APP_STORE_ID = "6787414201";
-export const PLAY_PACKAGE = "com.saynow.app";
+export const APP_STORE_ID = '6787414201';
+export const PLAY_PACKAGE = 'com.saynow.app';
 
 export const APP_STORE_URL = `https://apps.apple.com/kr/app/id${APP_STORE_ID}`;
 export const PLAY_STORE_URL = `https://play.google.com/store/apps/details?id=${PLAY_PACKAGE}`;
 const ASC_URL = `https://appstoreconnect.apple.com/apps/${APP_STORE_ID}/distribution`;
-const PLAY_CONSOLE_URL = "https://play.google.com/console";
+const PLAY_CONSOLE_URL = 'https://play.google.com/console';
 
 const ICONS = {
-  appStore: "https://cdn.discordapp.com/emojis/1535598212247978044.png",
-  playStore: "https://cdn.discordapp.com/emojis/1535598213959000115.png",
+  appStore: 'https://cdn.discordapp.com/emojis/1535598212247978044.png',
+  playStore: 'https://cdn.discordapp.com/emojis/1535598213959000115.png',
 };
 const EMOJIS = {
-  appStore: "<:appstore:1535598212247978044>",
-  playStore: "<:playstore:1535598213959000115>",
+  appStore: '<:appstore:1535598212247978044>',
+  playStore: '<:playstore:1535598213959000115>',
 };
-const NAMES = { appStore: "App Store", playStore: "Play Store" };
+const NAMES = { appStore: 'App Store', playStore: 'Play Store' };
 
 const COLORS = {
   green: 0x57f287,
@@ -26,7 +26,7 @@ const COLORS = {
   orange: 0xef9f27,
 };
 
-export const starLine = (rating) => "⭐".repeat(rating);
+export const starLine = (rating) => '⭐'.repeat(rating);
 
 export const ratingColor = (rating) => {
   if (rating >= 4) return COLORS.green;
@@ -44,12 +44,12 @@ export const parseAppStoreFeed = (json) => {
   const entries = json?.feed?.entry;
   if (!entries) return [];
   return (Array.isArray(entries) ? entries : [entries]).map((e) => ({
-    id: e.id?.label ?? "",
-    author: e.author?.name?.label ?? "",
-    rating: Number(e["im:rating"]?.label ?? 0),
-    title: e.title?.label ?? "",
-    body: e.content?.label ?? "",
-    version: e["im:version"]?.label ?? "",
+    id: e.id?.label ?? '',
+    author: e.author?.name?.label ?? '',
+    rating: Number(e['im:rating']?.label ?? 0),
+    title: e.title?.label ?? '',
+    body: e.content?.label ?? '',
+    version: e['im:version']?.label ?? '',
   }));
 };
 
@@ -98,15 +98,15 @@ export const detectRatingChanges = (prev, curr) => {
     }
 
     return {
-      direction: before === after ? null : after < before ? "down" : "up",
+      direction: before === after ? null : after < before ? 'down' : 'up',
       from: before,
       countDelta,
       ...(estimatedStars != null && { estimatedStars }),
     };
   };
 
-  const appStore = changeOf("appStore");
-  const playStore = changeOf("playStore");
+  const appStore = changeOf('appStore');
+  const playStore = changeOf('playStore');
   if (!appStore && !playStore) return null;
   return { appStore, playStore };
 };
@@ -115,13 +115,13 @@ const reviewMeta = (store, review) => {
   const parts = [review.author, `v${review.version}`];
   if (review.device) parts.push(review.device);
   if (review.osVersion) parts.push(review.osVersion);
-  const replyUrl = store === "appStore" ? ASC_URL : PLAY_CONSOLE_URL;
+  const replyUrl = store === 'appStore' ? ASC_URL : PLAY_CONSOLE_URL;
   parts.push(`[답글 달기](${replyUrl})`);
-  return parts.join(" · ");
+  return parts.join(' · ');
 };
 
 export const buildReviewEmbed = (store, review) => {
-  const title = review.title ? `**${review.title}**\n` : "";
+  const title = review.title ? `**${review.title}**\n` : '';
   return {
     author: { name: NAMES[store], icon_url: ICONS[store] },
     title: starLine(review.rating),
@@ -132,9 +132,9 @@ export const buildReviewEmbed = (store, review) => {
 };
 
 export const buildReleaseEmbed = (store, { version, releaseNotes }) => {
-  const notes = releaseNotes ? `**릴리즈 노트**\n${releaseNotes}\n\n` : "";
+  const notes = releaseNotes ? `**릴리즈 노트**\n${releaseNotes}\n\n` : '';
   const link =
-    store === "appStore"
+    store === 'appStore'
       ? `[App Store에서 보기](${APP_STORE_URL})`
       : `[Play Store에서 보기](${PLAY_STORE_URL})`;
   return {
@@ -168,25 +168,25 @@ export const buildRatingChangeMessage = (changes, curr) => {
     if (rating == null) return `${EMOJIS[store]} ${NAMES[store]} 평점 집계 전`;
     const change = changes[store];
     const value = change?.direction
-      ? `**${change.from} → ${rating}** ${change.direction === "down" ? "▼" : "▲"} ${
+      ? `**${change.from} → ${rating}** ${change.direction === 'down' ? '▼' : '▲'} ${
           Math.round(Math.abs(rating - change.from) * 10) / 10
         }`
       : `**${rating}** 변동 없음`;
     const stars =
       change?.estimatedStars != null
-        ? `, ${change.countDelta > 1 ? "평균 " : ""}${change.estimatedStars}점 추정`
-        : "";
+        ? `, ${change.countDelta > 1 ? '평균 ' : ''}${change.estimatedStars}점 추정`
+        : '';
     const delta = change?.countDelta
-      ? ` (${change.countDelta > 0 ? "+" : ""}${change.countDelta}${stars})`
-      : "";
+      ? ` (${change.countDelta > 0 ? '+' : ''}${change.countDelta}${stars})`
+      : '';
     return `${EMOJIS[store]} ${NAMES[store]} ${value} · 리뷰 ${ratingCount}개${delta}`;
   };
 
   const hasRatingChange = Object.values(changes).some((c) => c?.direction);
-  const hasDown = Object.values(changes).some((c) => c?.direction === "down");
+  const hasDown = Object.values(changes).some((c) => c?.direction === 'down');
   return {
-    title: hasRatingChange ? "평점 변동이 있어요" : "새 평가가 들어왔어요",
-    description: `${line("appStore")}\n${line("playStore")}`,
+    title: hasRatingChange ? '평점 변동이 있어요' : '새 평가가 들어왔어요',
+    description: `${line('appStore')}\n${line('playStore')}`,
     color: hasDown ? COLORS.orange : COLORS.green,
     timestamp: new Date().toISOString(),
   };
