@@ -1,0 +1,49 @@
+# 스토어 리뷰·릴리즈를 30분마다 확인해 디스코드로 알린다
+name: store-alerts
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: store-alerts
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 단위 테스트
+        run: node --test src/*.test.mjs
+
+      - name: 이전 상태 복원
+        uses: actions/cache/restore@v4
+        with:
+          path: .state
+          key: store-alerts-state-${{ github.run_id }}
+          restore-keys: store-alerts-state-
+
+      - name: 스토어 확인·알림 전송
+        run: node src/run.mjs
+        env:
+          DISCORD_WEBHOOK_REVIEW: ${{ secrets.DISCORD_WEBHOOK_REVIEW }}
+          DISCORD_WEBHOOK_UPDATE: ${{ secrets.DISCORD_WEBHOOK_UPDATE }}
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+
+      - name: 상태 저장
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .state
+          key: store-alerts-state-${{ github.run_id }}
