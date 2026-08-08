@@ -43,6 +43,68 @@ const fetchAccessToken = async (serviceAccount) => {
   return (await res.json()).access_token;
 };
 
+// API 레벨 → 사용자에게 익숙한 Android 버전 표기
+const OS_NAMES = {
+  31: '12',
+  32: '12L',
+  33: '13',
+  34: '14',
+  35: '15',
+  36: '16',
+  37: '17',
+};
+const osLabel = (apiLevel) =>
+  apiLevel == null
+    ? null
+    : `Android ${OS_NAMES[apiLevel] ?? `API ${apiLevel}`}`;
+
+// 따옴표를 존중하며 CSV 한 줄을 나눈다 (마케팅 이름에 쉼표가 들어가는 경우가 있다)
+const splitCsvLine = (line) => {
+  const out = [];
+  let cur = '';
+  let quoted = false;
+  for (const ch of line) {
+    if (ch === '"') quoted = !quoted;
+    else if (ch === ',' && !quoted) {
+      out.push(cur);
+      cur = '';
+    } else cur += ch;
+  }
+  out.push(cur);
+  return out;
+};
+
+// 구글 공식 지원 기기 CSV에서 모델 코드·코드명 → 마케팅 이름 맵을 만든다
+export const parseDeviceNames = (csvText) => {
+  const names = new Map();
+  for (const line of csvText.split('\n').slice(1)) {
+    const [, marketing, device, model] = splitCsvLine(line.trim());
+    if (!marketing) continue;
+    if (model && !names.has(model)) names.set(model, marketing);
+    if (device && !names.has(device)) names.set(device, marketing);
+  }
+  return names;
+};
+
+export const deviceLabel = (names, device) =>
+  device == null ? null : (names.get(device) ?? device);
+
+// 못 받아와도 모델 코드 그대로 표시하면 되므로 실패는 조용히 넘어간다
+const fetchDeviceNames = async () => {
+  try {
+    const res = await fetch(
+      'https://storage.googleapis.com/play_public/supported_devices.csv',
+    );
+    if (!res.ok) return new Map();
+    const csv = Buffer.from(await res.arrayBuffer())
+      .toString('utf16le')
+      .replace(/^﻿/, '');
+    return parseDeviceNames(csv);
+  } catch {
+    return new Map();
+  }
+};
+
 export const fetchPlayReviews = async (serviceAccountJson) => {
   const serviceAccount = JSON.parse(serviceAccountJson);
   const token = await fetchAccessToken(serviceAccount);
@@ -53,6 +115,7 @@ export const fetchPlayReviews = async (serviceAccountJson) => {
   if (!res.ok)
     throw new Error(`플레이 리뷰 조회 실패 ${res.status}: ${await res.text()}`);
   const { reviews = [] } = await res.json();
+  const names = reviews.length ? await fetchDeviceNames() : new Map();
 
   return reviews.map((r) => {
     const c = r.comments?.[0]?.userComment ?? {};
@@ -63,7 +126,11 @@ export const fetchPlayReviews = async (serviceAccountJson) => {
       title: null,
       body: (c.text ?? '').trim(),
       version: c.appVersionName ?? '?',
-      device: c.deviceMetadata?.productName ?? c.device ?? null,
+      device: deviceLabel(
+        names,
+        c.deviceMetadata?.productName ?? c.device ?? null,
+      ),
+      osVersion: osLabel(c.androidOsVersion),
     };
   });
 };

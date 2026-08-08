@@ -89,6 +89,7 @@ export const detectRatingChanges = (prev, curr) => {
 const reviewMeta = (review) => {
   const parts = [review.author, `v${review.version}`];
   if (review.device) parts.push(review.device);
+  if (review.osVersion) parts.push(review.osVersion);
   return parts.join(' · ');
 };
 

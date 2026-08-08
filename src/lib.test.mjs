@@ -177,7 +177,7 @@ test('리뷰 embed는 별점 줄 아래 제목과 본문, 메타 순으로 담�
   assert.equal(embed.author.name, 'App Store');
 });
 
-test('플레이 리뷰 embed는 기기 메타를 함께 담는다', () => {
+test('플레이 리뷰 embed는 기기·OS 메타를 함께 담는다', () => {
   const embed = buildReviewEmbed('playStore', {
     id: 'r2',
     author: '닉네임',
@@ -185,10 +185,14 @@ test('플레이 리뷰 embed는 기기 메타를 함께 담는다', () => {
     title: null,
     body: '좋아요',
     version: '1.5.0',
-    device: 'SM-S926N',
+    device: 'Galaxy S24+',
+    osVersion: 'Android 15',
   });
 
-  assert.match(embed.description, /닉네임 · v1\.5\.0 · SM-S926N/);
+  assert.match(
+    embed.description,
+    /닉네임 · v1\.5\.0 · Galaxy S24\+ · Android 15/,
+  );
   assert.equal(embed.author.name, 'Play Store');
 });
 
