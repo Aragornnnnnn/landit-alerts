@@ -5,7 +5,6 @@ export const PLAY_PACKAGE = 'com.saynow.app';
 export const APP_STORE_URL = `https://apps.apple.com/kr/app/id${APP_STORE_ID}`;
 export const PLAY_STORE_URL = `https://play.google.com/store/apps/details?id=${PLAY_PACKAGE}`;
 const ASC_URL = `https://appstoreconnect.apple.com/apps/${APP_STORE_ID}/distribution`;
-const PLAY_CONSOLE_URL = 'https://play.google.com/console';
 
 const ICONS = {
   appStore: 'https://cdn.discordapp.com/emojis/1535598212247978044.png',
@@ -86,12 +85,11 @@ export const detectRatingChanges = (prev, curr) => {
   return { appStore, playStore };
 };
 
-const reviewMeta = (store, review) => {
+// 답글 링크는 콘솔 리뷰 페이지의 정확한 URL이 확보되면 메타 줄에 추가한다
+const reviewMeta = (review) => {
   const parts = [review.author, `v${review.version}`];
   if (review.device) parts.push(review.device);
   if (review.osVersion) parts.push(review.osVersion);
-  const replyUrl = store === 'appStore' ? ASC_URL : PLAY_CONSOLE_URL;
-  parts.push(`[답글 달기](${replyUrl})`);
   return parts.join(' · ');
 };
 
@@ -100,7 +98,7 @@ export const buildReviewEmbed = (store, review) => {
   return {
     author: { name: NAMES[store], icon_url: ICONS[store] },
     title: starLine(review.rating),
-    description: `${title}${review.body}\n\n${reviewMeta(store, review)}`,
+    description: `${title}${review.body}\n\n${reviewMeta(review)}`,
     color: ratingColor(review.rating),
     timestamp: new Date().toISOString(),
   };
