@@ -1,14 +1,8 @@
 // App Store Connect API 클라이언트 — 최신 버전의 심사 상태를 조회한다
 import { createPrivateKey, sign } from 'node:crypto';
 
-import { APP_STORE_ID } from './lib.mjs';
-
-const base64url = (input) =>
-  Buffer.from(input)
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
+import { assertOk } from './http.mjs';
+import { APP_STORE_ID, base64url } from './lib.mjs';
 
 const makeToken = ({ issuerId, keyId, privateKey }) => {
   const now = Math.floor(Date.now() / 1000);
@@ -37,8 +31,7 @@ export const fetchAscVersionState = async (credentials) => {
     `https://api.appstoreconnect.apple.com/v1/apps/${APP_STORE_ID}/appStoreVersions?limit=1`,
     { headers: { Authorization: `Bearer ${token}` } },
   );
-  if (!res.ok)
-    throw new Error(`ASC 버전 조회 실패 ${res.status}: ${await res.text()}`);
+  await assertOk(res, 'ASC 버전 조회');
   const { data = [] } = await res.json();
   const latest = data[0];
   if (!latest) return null;

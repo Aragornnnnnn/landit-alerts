@@ -11,7 +11,8 @@ const CSV = [
   'Samsung,Galaxy S24+ 중복,e2q,SM-S926N',
 ].join('\n');
 
-test('CSV에서 모델 코드로 마케팅 이름을 찾는다', () => {
+test('모델 코드가 여러 줄과 겹치면 첫 항목의 마케팅 이름을 쓴다', () => {
+  // given — CSV에 SM-S926N 행이 두 개 (두 번째는 다른 이름)
   const names = parseDeviceNames(CSV);
 
   assert.equal(deviceLabel(names, 'SM-S926N'), 'Galaxy S24+');
@@ -27,12 +28,6 @@ test('따옴표로 감싼 쉼표 포함 이름을 온전히 읽는다', () => {
   const names = parseDeviceNames(CSV);
 
   assert.equal(deviceLabel(names, 'LG-V495'), 'G Pad 8.0, LTE');
-});
-
-test('같은 모델이 여러 줄이면 첫 항목을 쓴다', () => {
-  const names = parseDeviceNames(CSV);
-
-  assert.equal(deviceLabel(names, 'SM-S926N'), 'Galaxy S24+');
 });
 
 test('매핑에 없는 모델은 코드 그대로 돌려준다', () => {

@@ -4,6 +4,7 @@ import { dirname } from 'node:path';
 
 import { fetchAscVersionState } from './asc.mjs';
 import { sendEmbed } from './discord.mjs';
+import { fetchOk } from './http.mjs';
 import {
   APP_STORE_ID,
   buildRatingChangeMessage,
@@ -11,6 +12,7 @@ import {
   buildReviewApprovedEmbed,
   buildReviewEmbed,
   buildReviewRejectedEmbed,
+  classifyAscTransition,
   detectRatingChanges,
   diffNewReviews,
   parseAppStoreFeed,
@@ -41,23 +43,11 @@ const loadState = async () => {
   }
 };
 
-const fetchJson = async (url) => {
-  const res = await fetch(url, {
-    headers: { 'User-Agent': 'LanditAlerts/1.0' },
-  });
-  if (!res.ok) throw new Error(`요청 실패 ${res.status}: ${url}`);
-  return res.json();
-};
+const fetchJson = async (url) => (await fetchOk(url)).json();
+const fetchText = async (url) =>
+  (await fetchOk(url, 'Mozilla/5.0 (LanditAlerts)')).text();
 
-const fetchText = async (url) => {
-  const res = await fetch(url, {
-    headers: { 'User-Agent': 'Mozilla/5.0 (LanditAlerts)' },
-  });
-  if (!res.ok) throw new Error(`요청 실패 ${res.status}: ${url}`);
-  return res.text();
-};
-
-// ---- 수집 ----
+// ---- 수집 (서로 독립이라 병렬로 돈다) ----
 const state = (await loadState()) ?? {};
 const firstRun = !state.initialized;
 const errors = [];
@@ -71,38 +61,48 @@ const collect = async (label, fn) => {
   }
 };
 
-const appStoreFeed = await collect('앱스토어 RSS', async () =>
-  parseAppStoreFeed(
-    await fetchJson(
-      `https://itunes.apple.com/kr/rss/customerreviews/id=${APP_STORE_ID}/sortBy=mostRecent/json`,
-    ),
-  ),
-);
-const appStoreInfo = await collect('앱스토어 lookup', async () =>
-  parseAppStoreLookup(
-    await fetchJson(`https://itunes.apple.com/kr/lookup?id=${APP_STORE_ID}`),
-  ),
-);
-const playPage = await collect('플레이 페이지', async () =>
-  parsePlayStorePage(await fetchText(`${PLAY_STORE_URL}&hl=ko`)),
-);
-const playReviews = process.env.PLAY_SERVICE_ACCOUNT_JSON
-  ? await collect('플레이 리뷰', () =>
-      fetchPlayReviews(process.env.PLAY_SERVICE_ACCOUNT_JSON),
-    )
-  : null;
-const ascState =
+const hasAscKeys =
   process.env.ASC_ISSUER_ID &&
   process.env.ASC_KEY_ID &&
-  process.env.ASC_PRIVATE_KEY
-    ? await collect('ASC 심사 상태', () =>
-        fetchAscVersionState({
-          issuerId: process.env.ASC_ISSUER_ID,
-          keyId: process.env.ASC_KEY_ID,
-          privateKey: process.env.ASC_PRIVATE_KEY,
-        }),
-      )
-    : null;
+  process.env.ASC_PRIVATE_KEY;
+
+const [appStoreFeed, appStoreInfo, playPage, playReviews, ascState] =
+  await Promise.all([
+    collect('앱스토어 RSS', async () =>
+      parseAppStoreFeed(
+        await fetchJson(
+          `https://itunes.apple.com/kr/rss/customerreviews/id=${APP_STORE_ID}/sortBy=mostRecent/json`,
+        ),
+      ),
+    ),
+    collect('앱스토어 lookup', async () =>
+      parseAppStoreLookup(
+        await fetchJson(
+          `https://itunes.apple.com/kr/lookup?id=${APP_STORE_ID}`,
+        ),
+      ),
+    ),
+    collect('플레이 페이지', async () =>
+      parsePlayStorePage(await fetchText(`${PLAY_STORE_URL}&hl=ko`)),
+    ),
+    process.env.PLAY_SERVICE_ACCOUNT_JSON
+      ? collect('플레이 리뷰', () =>
+          fetchPlayReviews(
+            process.env.PLAY_SERVICE_ACCOUNT_JSON,
+            state.playSeenIds ?? [],
+          ),
+        )
+      : null,
+    hasAscKeys
+      ? collect('ASC 심사 상태', () =>
+          fetchAscVersionState({
+            issuerId: process.env.ASC_ISSUER_ID,
+            keyId: process.env.ASC_KEY_ID,
+            privateKey: process.env.ASC_PRIVATE_KEY,
+          }),
+        )
+      : null,
+  ]);
 
 // ---- 알림 (첫 실행은 기준점만 저장) ----
 let posted = 0;
@@ -113,11 +113,15 @@ const post = async (webhook, embed) => {
 };
 
 const notifyNewReviews = async (store, reviews, seenIds) => {
-  if (!reviews) return seenIds ?? [];
-  for (const review of diffNewReviews(reviews, seenIds ?? [])) {
+  seenIds ??= [];
+  if (!reviews) return seenIds;
+  for (const review of diffNewReviews(reviews, seenIds)) {
     await post(REVIEW_WEBHOOK, buildReviewEmbed(store, review));
   }
-  return [...reviews.map((r) => r.id), ...(seenIds ?? [])].slice(0, SEEN_LIMIT);
+  return [...new Set([...reviews.map((r) => r.id), ...seenIds])].slice(
+    0,
+    SEEN_LIMIT,
+  );
 };
 
 state.appStoreSeenIds = await notifyNewReviews(
@@ -154,10 +158,7 @@ const currentRatings = {
     rating: appStoreInfo?.rating,
     ratingCount: appStoreInfo?.ratingCount,
   },
-  playStore: {
-    rating: playPage?.rating,
-    ratingCount: playPage?.ratingCount ?? null,
-  },
+  playStore: { rating: playPage?.rating },
 };
 const ratingChanges = detectRatingChanges(state.ratings, currentRatings);
 if (ratingChanges) {
@@ -167,13 +168,14 @@ if (ratingChanges) {
   );
 }
 
-if (ascState && state.ascState && ascState.state !== state.ascState.state) {
-  if (ascState.state === 'PENDING_DEVELOPER_RELEASE') {
+if (ascState) {
+  const transition = classifyAscTransition(
+    state.ascState?.state,
+    ascState.state,
+  );
+  if (transition === 'approved') {
     await post(UPDATE_WEBHOOK, buildReviewApprovedEmbed(ascState.version));
-  } else if (
-    ascState.state === 'REJECTED' ||
-    ascState.state === 'METADATA_REJECTED'
-  ) {
+  } else if (transition === 'rejected') {
     await post(UPDATE_WEBHOOK, buildReviewRejectedEmbed(ascState.version));
   }
 }
@@ -182,21 +184,16 @@ if (ascState && state.ascState && ascState.state !== state.ascState.state) {
 state.initialized = true;
 if (appStoreInfo) state.appStoreVersion = appStoreInfo.version;
 if (playPage?.version) state.playVersion = playPage.version;
-if (
-  currentRatings.appStore.rating != null ||
-  currentRatings.playStore.rating != null
-) {
-  state.ratings = {
-    appStore:
-      currentRatings.appStore.rating != null
-        ? currentRatings.appStore
-        : state.ratings?.appStore,
-    playStore:
-      currentRatings.playStore.rating != null
-        ? currentRatings.playStore
-        : state.ratings?.playStore,
-  };
-}
+state.ratings = {
+  appStore:
+    currentRatings.appStore.rating != null
+      ? currentRatings.appStore
+      : state.ratings?.appStore,
+  playStore:
+    currentRatings.playStore.rating != null
+      ? currentRatings.playStore
+      : state.ratings?.playStore,
+};
 if (ascState) state.ascState = ascState;
 
 await mkdir(dirname(STATE_FILE), { recursive: true });

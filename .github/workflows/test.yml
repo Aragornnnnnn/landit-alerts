@@ -1,0 +1,19 @@
+# 코드가 바뀔 때만 단위 테스트를 돌린다 (cron 실행과 분리)
+name: test
+
+on:
+  push:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 단위 테스트
+        run: node --test src/*.test.mjs

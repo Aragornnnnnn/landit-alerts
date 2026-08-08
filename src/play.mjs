@@ -1,17 +1,11 @@
 // Google Play Developer API 클라이언트 — 서비스 계정 JWT로 리뷰를 조회한다
 import { createSign } from 'node:crypto';
 
-import { PLAY_PACKAGE } from './lib.mjs';
+import { assertOk } from './http.mjs';
+import { base64url, PLAY_PACKAGE } from './lib.mjs';
 
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const SCOPE = 'https://www.googleapis.com/auth/androidpublisher';
-
-const base64url = (input) =>
-  Buffer.from(input)
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
 
 const fetchAccessToken = async (serviceAccount) => {
   const now = Math.floor(Date.now() / 1000);
@@ -38,8 +32,7 @@ const fetchAccessToken = async (serviceAccount) => {
       assertion: jwt,
     }),
   });
-  if (!res.ok)
-    throw new Error(`구글 토큰 발급 실패 ${res.status}: ${await res.text()}`);
+  await assertOk(res, '구글 토큰 발급');
   return (await res.json()).access_token;
 };
 
@@ -105,17 +98,20 @@ const fetchDeviceNames = async () => {
   }
 };
 
-export const fetchPlayReviews = async (serviceAccountJson) => {
+export const fetchPlayReviews = async (serviceAccountJson, seenIds = []) => {
   const serviceAccount = JSON.parse(serviceAccountJson);
   const token = await fetchAccessToken(serviceAccount);
   const res = await fetch(
     `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PLAY_PACKAGE}/reviews?maxResults=50`,
     { headers: { Authorization: `Bearer ${token}` } },
   );
-  if (!res.ok)
-    throw new Error(`플레이 리뷰 조회 실패 ${res.status}: ${await res.text()}`);
+  await assertOk(res, '플레이 리뷰 조회');
   const { reviews = [] } = await res.json();
-  const names = reviews.length ? await fetchDeviceNames() : new Map();
+
+  // 기기 이름 CSV(20MB)는 새 리뷰가 있을 때만 받는다
+  const seen = new Set(seenIds);
+  const hasFresh = reviews.some((r) => !seen.has(r.reviewId));
+  const names = hasFresh ? await fetchDeviceNames() : new Map();
 
   return reviews.map((r) => {
     const c = r.comments?.[0]?.userComment ?? {};

@@ -6,6 +6,7 @@ import {
   buildRatingChangeMessage,
   buildReleaseEmbed,
   buildReviewEmbed,
+  classifyAscTransition,
   detectRatingChanges,
   diffNewReviews,
   parseAppStoreFeed,
@@ -235,6 +236,50 @@ test('평점이 아직 없는 스토어는 집계 전으로 표기한다', () =>
   const embed = buildRatingChangeMessage(changes, curr);
 
   assert.match(embed.description, /Play Store 평점 집계 전/);
+});
+
+test('리뷰 수를 모르는 스토어는 리뷰 수 표기를 생략한다', () => {
+  // given — 플레이는 페이지에서 평점만 읽혀서 리뷰 수가 없다
+  const changes = { appStore: null, playStore: { direction: 'up', from: 4.4 } };
+  const curr = {
+    appStore: { rating: 4.8, ratingCount: 132 },
+    playStore: { rating: 4.6 },
+  };
+
+  const embed = buildRatingChangeMessage(changes, curr);
+
+  assert.match(embed.description, /Play Store \*\*4\.4 → 4\.6\*\*/);
+  assert.doesNotMatch(embed.description, /리뷰 null개/);
+});
+
+test('ASC 상태가 출시 대기로 바뀌면 승인으로 분류한다', () => {
+  assert.equal(
+    classifyAscTransition('IN_REVIEW', 'PENDING_DEVELOPER_RELEASE'),
+    'approved',
+  );
+});
+
+test('ASC 상태가 거절류로 바뀌면 거절로 분류한다', () => {
+  assert.equal(classifyAscTransition('IN_REVIEW', 'REJECTED'), 'rejected');
+  assert.equal(
+    classifyAscTransition('IN_REVIEW', 'METADATA_REJECTED'),
+    'rejected',
+  );
+});
+
+test('ASC 상태가 그대로거나 이전 기록이 없으면 분류하지 않는다', () => {
+  assert.equal(
+    classifyAscTransition(
+      'PENDING_DEVELOPER_RELEASE',
+      'PENDING_DEVELOPER_RELEASE',
+    ),
+    null,
+  );
+  assert.equal(classifyAscTransition(undefined, 'REJECTED'), null);
+});
+
+test('ASC 상태가 알림 대상 아닌 값으로 바뀌면 분류하지 않는다', () => {
+  assert.equal(classifyAscTransition('IN_REVIEW', 'READY_FOR_SALE'), null);
 });
 
 test('평점 변동 메시지는 두 스토어 현황을 모두 담는다', () => {

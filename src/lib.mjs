@@ -1,20 +1,31 @@
 // 스토어 알림의 순수 로직 — 피드 파싱, 새 리뷰·평점 변동 감지, 디스코드 embed 생성
 export const APP_STORE_ID = '6787414201';
 export const PLAY_PACKAGE = 'com.saynow.app';
-
-export const APP_STORE_URL = `https://apps.apple.com/kr/app/id${APP_STORE_ID}`;
-export const PLAY_STORE_URL = `https://play.google.com/store/apps/details?id=${PLAY_PACKAGE}`;
 const ASC_URL = `https://appstoreconnect.apple.com/apps/${APP_STORE_ID}/distribution`;
 
-const ICONS = {
-  appStore: 'https://cdn.discordapp.com/emojis/1535598212247978044.png',
-  playStore: 'https://cdn.discordapp.com/emojis/1535598213959000115.png',
+// 스토어 등록부 — 스토어의 정체성(이름·이모지·링크)은 전부 여기서 나온다
+const STORES = {
+  appStore: {
+    name: 'App Store',
+    emojiName: 'appstore',
+    emojiId: '1535598212247978044',
+    url: `https://apps.apple.com/kr/app/id${APP_STORE_ID}`,
+  },
+  playStore: {
+    name: 'Play Store',
+    emojiName: 'playstore',
+    emojiId: '1535598213959000115',
+    url: `https://play.google.com/store/apps/details?id=${PLAY_PACKAGE}`,
+  },
 };
-const EMOJIS = {
-  appStore: '<:appstore:1535598212247978044>',
-  playStore: '<:playstore:1535598213959000115>',
-};
-const NAMES = { appStore: 'App Store', playStore: 'Play Store' };
+export const PLAY_STORE_URL = STORES.playStore.url;
+
+const emoji = (store) =>
+  `<:${STORES[store].emojiName}:${STORES[store].emojiId}>`;
+const author = (store) => ({
+  name: STORES[store].name,
+  icon_url: `https://cdn.discordapp.com/emojis/${STORES[store].emojiId}.png`,
+});
 
 const COLORS = {
   green: 0x57f287,
@@ -24,6 +35,16 @@ const COLORS = {
   purple: 0x9b59b6,
   orange: 0xef9f27,
 };
+
+const round1 = (n) => Math.round(n * 10) / 10;
+
+// JWT 클라이언트(play·asc)가 공유하는 base64url 인코딩
+export const base64url = (input) =>
+  Buffer.from(input)
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
 
 export const starLine = (rating) => '⭐'.repeat(rating);
 
@@ -58,7 +79,7 @@ export const parseAppStoreLookup = (json) => {
   return {
     version: app.version,
     releaseNotes: app.releaseNotes ?? null,
-    rating: Math.round(app.averageUserRating * 10) / 10,
+    rating: round1(app.averageUserRating),
     ratingCount: app.userRatingCount,
   };
 };
@@ -67,7 +88,7 @@ export const parseAppStoreLookup = (json) => {
 export const parsePlayStorePage = (html) => {
   const version = html.match(/\[\[\["([\d.]+)"\]\]/)?.[1] ?? null;
   const ratingRaw = html.match(/"starRating":([\d.]+)/)?.[1];
-  const rating = ratingRaw ? Math.round(Number(ratingRaw) * 10) / 10 : null;
+  const rating = ratingRaw ? round1(Number(ratingRaw)) : null;
   return { version, rating };
 };
 
@@ -85,6 +106,15 @@ export const detectRatingChanges = (prev, curr) => {
   return { appStore, playStore };
 };
 
+// ASC 심사 상태 전이를 알림 종류로 해석한다. 알림 대상이 아니면 null
+export const classifyAscTransition = (prevState, currState) => {
+  if (!prevState || prevState === currState) return null;
+  if (currState === 'PENDING_DEVELOPER_RELEASE') return 'approved';
+  if (currState === 'REJECTED' || currState === 'METADATA_REJECTED')
+    return 'rejected';
+  return null;
+};
+
 // 답글 링크는 콘솔 리뷰 페이지의 정확한 URL이 확보되면 메타 줄에 추가한다
 const reviewMeta = (review) => {
   const parts = [review.author, `v${review.version}`];
@@ -96,7 +126,7 @@ const reviewMeta = (review) => {
 export const buildReviewEmbed = (store, review) => {
   const title = review.title ? `**${review.title}**\n` : '';
   return {
-    author: { name: NAMES[store], icon_url: ICONS[store] },
+    author: author(store),
     title: starLine(review.rating),
     description: `${title}${review.body}\n\n${reviewMeta(review)}`,
     color: ratingColor(review.rating),
@@ -106,21 +136,17 @@ export const buildReviewEmbed = (store, review) => {
 
 export const buildReleaseEmbed = (store, { version, releaseNotes }) => {
   const notes = releaseNotes ? `**릴리즈 노트**\n${releaseNotes}\n\n` : '';
-  const link =
-    store === 'appStore'
-      ? `[App Store에서 보기](${APP_STORE_URL})`
-      : `[Play Store에서 보기](${PLAY_STORE_URL})`;
   return {
-    author: { name: NAMES[store], icon_url: ICONS[store] },
+    author: author(store),
     title: `🚀 랜딧 ${version} 공개됨`,
-    description: `${notes}${link}`,
+    description: `${notes}[${STORES[store].name}에서 보기](${STORES[store].url})`,
     color: COLORS.blue,
     timestamp: new Date().toISOString(),
   };
 };
 
 export const buildReviewApprovedEmbed = (version) => ({
-  author: { name: NAMES.appStore, icon_url: ICONS.appStore },
+  author: author('appStore'),
   title: `✅ ${version} 심사 통과 — 출시 대기 중`,
   description: `출시 버튼을 누르면 배포됩니다. [App Store Connect 열기](${ASC_URL})`,
   color: COLORS.purple,
@@ -128,7 +154,7 @@ export const buildReviewApprovedEmbed = (version) => ({
 });
 
 export const buildReviewRejectedEmbed = (version) => ({
-  author: { name: NAMES.appStore, icon_url: ICONS.appStore },
+  author: author('appStore'),
   title: `❌ ${version} 심사 거절`,
   description: `사유는 App Store Connect에서 확인하세요. [열기](${ASC_URL})`,
   color: COLORS.red,
@@ -138,20 +164,22 @@ export const buildReviewRejectedEmbed = (version) => ({
 export const buildRatingChangeMessage = (changes, curr) => {
   const line = (store) => {
     const { rating, ratingCount } = curr[store];
-    if (rating == null) return `${EMOJIS[store]} ${NAMES[store]} 평점 집계 전`;
+    if (rating == null)
+      return `${emoji(store)} ${STORES[store].name} 평점 집계 전`;
     const change = changes[store];
     const value = change
-      ? `**${change.from} → ${rating}** ${change.direction === 'down' ? '▼' : '▲'} ${
-          Math.round(Math.abs(rating - change.from) * 10) / 10
-        }`
+      ? `**${change.from} → ${rating}** ${change.direction === 'down' ? '▼' : '▲'} ${round1(
+          Math.abs(rating - change.from),
+        )}`
       : `**${rating}** 변동 없음`;
-    return `${EMOJIS[store]} ${NAMES[store]} ${value} · 리뷰 ${ratingCount}개`;
+    const count = ratingCount != null ? ` · 리뷰 ${ratingCount}개` : '';
+    return `${emoji(store)} ${STORES[store].name} ${value}${count}`;
   };
 
   const hasDown = Object.values(changes).some((c) => c?.direction === 'down');
   return {
     title: '평점 변동이 있어요',
-    description: `${line('appStore')}\n${line('playStore')}`,
+    description: Object.keys(STORES).map(line).join('\n'),
     color: hasDown ? COLORS.orange : COLORS.green,
     timestamp: new Date().toISOString(),
   };

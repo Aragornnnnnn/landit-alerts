@@ -1,4 +1,6 @@
 // 디스코드 웹훅으로 embed를 전송하는 얇은 클라이언트
+import { assertOk } from './http.mjs';
+
 export const sendEmbed = async (webhookUrl, embed) => {
   const res = await fetch(webhookUrl, {
     method: 'POST',
@@ -8,7 +10,5 @@ export const sendEmbed = async (webhookUrl, embed) => {
     },
     body: JSON.stringify({ embeds: [embed] }),
   });
-  if (!res.ok) {
-    throw new Error(`디스코드 전송 실패 ${res.status}: ${await res.text()}`);
-  }
+  await assertOk(res, '디스코드 전송');
 };

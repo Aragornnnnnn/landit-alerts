@@ -21,9 +21,6 @@ jobs:
         with:
           node-version: 22
 
-      - name: 단위 테스트
-        run: node --test src/*.test.mjs
-
       - name: 이전 상태 복원
         uses: actions/cache/restore@v4
         with:
