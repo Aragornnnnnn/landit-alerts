@@ -43,21 +43,6 @@ const fetchAccessToken = async (serviceAccount) => {
   return (await res.json()).access_token;
 };
 
-// API 레벨 → 사용자에게 익숙한 Android 버전 표기
-const OS_NAMES = {
-  31: '12',
-  32: '12L',
-  33: '13',
-  34: '14',
-  35: '15',
-  36: '16',
-  37: '17',
-};
-const osLabel = (apiLevel) =>
-  apiLevel == null
-    ? null
-    : `Android ${OS_NAMES[apiLevel] ?? `API ${apiLevel}`}`;
-
 export const fetchPlayReviews = async (serviceAccountJson) => {
   const serviceAccount = JSON.parse(serviceAccountJson);
   const token = await fetchAccessToken(serviceAccount);
@@ -79,7 +64,6 @@ export const fetchPlayReviews = async (serviceAccountJson) => {
       body: (c.text ?? '').trim(),
       version: c.appVersionName ?? '?',
       device: c.deviceMetadata?.productName ?? c.device ?? null,
-      osVersion: osLabel(c.androidOsVersion),
     };
   });
 };
