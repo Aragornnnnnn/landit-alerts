@@ -1,9 +1,9 @@
 // 스토어 알림 실행부 — 상태 파일과 비교해 새 리뷰·릴리즈·평점 변동을 디스코드로 보낸다
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
 
-import { fetchAscVersionState } from './asc.mjs';
-import { sendEmbed } from './discord.mjs';
+import { fetchAscVersionState } from "./asc.mjs";
+import { sendEmbed } from "./discord.mjs";
 import {
   APP_STORE_ID,
   buildRatingChangeMessage,
@@ -17,10 +17,10 @@ import {
   parseAppStoreLookup,
   parsePlayStorePage,
   PLAY_STORE_URL,
-} from './lib.mjs';
-import { fetchPlayReviews } from './play.mjs';
+} from "./lib.mjs";
+import { fetchPlayReviews } from "./play.mjs";
 
-const STATE_FILE = process.env.STATE_FILE ?? '.state/store-alerts.json';
+const STATE_FILE = process.env.STATE_FILE ?? ".state/store-alerts.json";
 const REVIEW_WEBHOOK = process.env.DISCORD_WEBHOOK_REVIEW;
 const UPDATE_WEBHOOK = process.env.DISCORD_WEBHOOK_UPDATE;
 const MAX_POSTS_PER_RUN = 10;
@@ -28,14 +28,14 @@ const SEEN_LIMIT = 300;
 
 if (!REVIEW_WEBHOOK || !UPDATE_WEBHOOK) {
   console.error(
-    'DISCORD_WEBHOOK_REVIEW / DISCORD_WEBHOOK_UPDATE 환경변수가 필요합니다.',
+    "DISCORD_WEBHOOK_REVIEW / DISCORD_WEBHOOK_UPDATE 환경변수가 필요합니다.",
   );
   process.exit(1);
 }
 
 const loadState = async () => {
   try {
-    return JSON.parse(await readFile(STATE_FILE, 'utf8'));
+    return JSON.parse(await readFile(STATE_FILE, "utf8"));
   } catch {
     return null;
   }
@@ -43,7 +43,7 @@ const loadState = async () => {
 
 const fetchJson = async (url) => {
   const res = await fetch(url, {
-    headers: { 'User-Agent': 'LanditAlerts/1.0' },
+    headers: { "User-Agent": "LanditAlerts/1.0" },
   });
   if (!res.ok) throw new Error(`요청 실패 ${res.status}: ${url}`);
   return res.json();
@@ -51,7 +51,7 @@ const fetchJson = async (url) => {
 
 const fetchText = async (url) => {
   const res = await fetch(url, {
-    headers: { 'User-Agent': 'Mozilla/5.0 (LanditAlerts)' },
+    headers: { "User-Agent": "Mozilla/5.0 (LanditAlerts)" },
   });
   if (!res.ok) throw new Error(`요청 실패 ${res.status}: ${url}`);
   return res.text();
@@ -71,23 +71,23 @@ const collect = async (label, fn) => {
   }
 };
 
-const appStoreFeed = await collect('앱스토어 RSS', async () =>
+const appStoreFeed = await collect("앱스토어 RSS", async () =>
   parseAppStoreFeed(
     await fetchJson(
       `https://itunes.apple.com/kr/rss/customerreviews/id=${APP_STORE_ID}/sortBy=mostRecent/json`,
     ),
   ),
 );
-const appStoreInfo = await collect('앱스토어 lookup', async () =>
+const appStoreInfo = await collect("앱스토어 lookup", async () =>
   parseAppStoreLookup(
     await fetchJson(`https://itunes.apple.com/kr/lookup?id=${APP_STORE_ID}`),
   ),
 );
-const playPage = await collect('플레이 페이지', async () =>
+const playPage = await collect("플레이 페이지", async () =>
   parsePlayStorePage(await fetchText(`${PLAY_STORE_URL}&hl=ko`)),
 );
 const playReviews = process.env.PLAY_SERVICE_ACCOUNT_JSON
-  ? await collect('플레이 리뷰', () =>
+  ? await collect("플레이 리뷰", () =>
       fetchPlayReviews(process.env.PLAY_SERVICE_ACCOUNT_JSON),
     )
   : null;
@@ -95,7 +95,7 @@ const ascState =
   process.env.ASC_ISSUER_ID &&
   process.env.ASC_KEY_ID &&
   process.env.ASC_PRIVATE_KEY
-    ? await collect('ASC 심사 상태', () =>
+    ? await collect("ASC 심사 상태", () =>
         fetchAscVersionState({
           issuerId: process.env.ASC_ISSUER_ID,
           keyId: process.env.ASC_KEY_ID,
@@ -121,12 +121,12 @@ const notifyNewReviews = async (store, reviews, seenIds) => {
 };
 
 state.appStoreSeenIds = await notifyNewReviews(
-  'appStore',
+  "appStore",
   appStoreFeed,
   state.appStoreSeenIds,
 );
 state.playSeenIds = await notifyNewReviews(
-  'playStore',
+  "playStore",
   playReviews,
   state.playSeenIds,
 );
@@ -136,7 +136,7 @@ if (
   state.appStoreVersion &&
   appStoreInfo.version !== state.appStoreVersion
 ) {
-  await post(UPDATE_WEBHOOK, buildReleaseEmbed('appStore', appStoreInfo));
+  await post(UPDATE_WEBHOOK, buildReleaseEmbed("appStore", appStoreInfo));
 }
 if (
   playPage?.version &&
@@ -145,13 +145,14 @@ if (
 ) {
   await post(
     UPDATE_WEBHOOK,
-    buildReleaseEmbed('playStore', { version: playPage.version }),
+    buildReleaseEmbed("playStore", { version: playPage.version }),
   );
 }
 
 const currentRatings = {
   appStore: {
     rating: appStoreInfo?.rating,
+    rawRating: appStoreInfo?.rawRating,
     ratingCount: appStoreInfo?.ratingCount,
   },
   playStore: {
@@ -168,11 +169,11 @@ if (ratingChanges) {
 }
 
 if (ascState && state.ascState && ascState.state !== state.ascState.state) {
-  if (ascState.state === 'PENDING_DEVELOPER_RELEASE') {
+  if (ascState.state === "PENDING_DEVELOPER_RELEASE") {
     await post(UPDATE_WEBHOOK, buildReviewApprovedEmbed(ascState.version));
   } else if (
-    ascState.state === 'REJECTED' ||
-    ascState.state === 'METADATA_REJECTED'
+    ascState.state === "REJECTED" ||
+    ascState.state === "METADATA_REJECTED"
   ) {
     await post(UPDATE_WEBHOOK, buildReviewRejectedEmbed(ascState.version));
   }
@@ -204,7 +205,7 @@ await writeFile(STATE_FILE, JSON.stringify(state, null, 2));
 
 console.log(
   firstRun
-    ? '첫 실행 — 기준점만 저장했습니다.'
-    : `완료 — 알림 ${posted}건 전송.${errors.length ? ` 수집 실패: ${errors.join(' / ')}` : ''}`,
+    ? "첫 실행 — 기준점만 저장했습니다."
+    : `완료 — 알림 ${posted}건 전송.${errors.length ? ` 수집 실패: ${errors.join(" / ")}` : ""}`,
 );
-if (errors.length && !firstRun) console.error(errors.join('\n'));
+if (errors.length && !firstRun) console.error(errors.join("\n"));
