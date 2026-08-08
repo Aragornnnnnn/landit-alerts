@@ -60,7 +60,6 @@ export const parseAppStoreLookup = (json) => {
     version: app.version,
     releaseNotes: app.releaseNotes ?? null,
     rating: Math.round(app.averageUserRating * 10) / 10,
-    rawRating: app.averageUserRating,
     ratingCount: app.userRatingCount,
   };
 };
@@ -77,32 +76,8 @@ export const detectRatingChanges = (prev, curr) => {
   const changeOf = (store) => {
     const before = prev?.[store]?.rating;
     const after = curr[store]?.rating;
-    if (before == null || after == null) return null;
-
-    const countBefore = prev?.[store]?.ratingCount;
-    const countAfter = curr[store]?.ratingCount;
-    const countDelta =
-      countBefore != null && countAfter != null ? countAfter - countBefore : 0;
-
-    if (before === after && countDelta === 0) return null;
-
-    // 정밀 평균이 있으면 새로 들어온 평가의 별점을 역산한다 (합계 차이 ÷ 증가분)
-    const rawBefore = prev?.[store]?.rawRating;
-    const rawAfter = curr[store]?.rawRating;
-    let estimatedStars;
-    if (countDelta > 0 && rawBefore != null && rawAfter != null) {
-      const sumDiff = rawAfter * countAfter - rawBefore * countBefore;
-      const average = Math.min(5, Math.max(1, sumDiff / countDelta));
-      estimatedStars =
-        countDelta === 1 ? Math.round(average) : Math.round(average * 10) / 10;
-    }
-
-    return {
-      direction: before === after ? null : after < before ? 'down' : 'up',
-      from: before,
-      countDelta,
-      ...(estimatedStars != null && { estimatedStars }),
-    };
+    if (before == null || after == null || before === after) return null;
+    return { direction: after < before ? 'down' : 'up', from: before };
   };
 
   const appStore = changeOf('appStore');
@@ -167,25 +142,17 @@ export const buildRatingChangeMessage = (changes, curr) => {
     const { rating, ratingCount } = curr[store];
     if (rating == null) return `${EMOJIS[store]} ${NAMES[store]} 평점 집계 전`;
     const change = changes[store];
-    const value = change?.direction
+    const value = change
       ? `**${change.from} → ${rating}** ${change.direction === 'down' ? '▼' : '▲'} ${
           Math.round(Math.abs(rating - change.from) * 10) / 10
         }`
       : `**${rating}** 변동 없음`;
-    const stars =
-      change?.estimatedStars != null
-        ? `, ${change.countDelta > 1 ? '평균 ' : ''}${change.estimatedStars}점 추정`
-        : '';
-    const delta = change?.countDelta
-      ? ` (${change.countDelta > 0 ? '+' : ''}${change.countDelta}${stars})`
-      : '';
-    return `${EMOJIS[store]} ${NAMES[store]} ${value} · 리뷰 ${ratingCount}개${delta}`;
+    return `${EMOJIS[store]} ${NAMES[store]} ${value} · 리뷰 ${ratingCount}개`;
   };
 
-  const hasRatingChange = Object.values(changes).some((c) => c?.direction);
   const hasDown = Object.values(changes).some((c) => c?.direction === 'down');
   return {
-    title: hasRatingChange ? '평점 변동이 있어요' : '새 평가가 들어왔어요',
+    title: '평점 변동이 있어요',
     description: `${line('appStore')}\n${line('playStore')}`,
     color: hasDown ? COLORS.orange : COLORS.green,
     timestamp: new Date().toISOString(),

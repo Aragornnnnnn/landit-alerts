@@ -152,7 +152,6 @@ if (
 const currentRatings = {
   appStore: {
     rating: appStoreInfo?.rating,
-    rawRating: appStoreInfo?.rawRating,
     ratingCount: appStoreInfo?.ratingCount,
   },
   playStore: {

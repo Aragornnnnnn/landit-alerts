@@ -101,7 +101,6 @@ test('lookup 응답에서 버전·릴리즈 노트·평점을 뽑아낸다', () 
     version: '1.5.0',
     releaseNotes: '버그 수정',
     rating: 4.8,
-    rawRating: 4.812,
     ratingCount: 132,
   });
 });
@@ -217,97 +216,6 @@ test('릴리즈 노트가 없으면 릴리즈 노트 단락을 뺀다', () => {
   });
 
   assert.doesNotMatch(embed.description, /릴리즈 노트/);
-});
-
-test('평점은 그대로여도 평가 수가 늘면 변동으로 감지한다', () => {
-  // given — 별점만 남긴 평가가 1건 추가된 상황
-  const prev = {
-    appStore: { rating: 4.0, ratingCount: 4 },
-    playStore: {},
-  };
-  const curr = {
-    appStore: { rating: 4.0, ratingCount: 5 },
-    playStore: { rating: null, ratingCount: null },
-  };
-
-  const changes = detectRatingChanges(prev, curr);
-
-  assert.equal(changes.appStore.direction, null);
-  assert.equal(changes.appStore.countDelta, 1);
-});
-
-test('평가 수만 늘었을 땐 새 평가 제목을 쓰고 증가분을 표기한다', () => {
-  const changes = {
-    appStore: { direction: null, countDelta: 2 },
-    playStore: null,
-  };
-  const curr = {
-    appStore: { rating: 4.0, ratingCount: 6 },
-    playStore: { rating: null, ratingCount: null },
-  };
-
-  const embed = buildRatingChangeMessage(changes, curr);
-
-  assert.equal(embed.title, '새 평가가 들어왔어요');
-  assert.match(embed.description, /리뷰 6개 \(\+2\)/);
-});
-
-test('새 평가가 1건이면 정밀 평균으로 별점을 역산한다', () => {
-  // given — 평균 4.0(4건)에서 4.2(5건)가 된 상황: 새 평가는 5점
-  const prev = {
-    appStore: { rating: 4.0, rawRating: 4.0, ratingCount: 4 },
-    playStore: {},
-  };
-  const curr = {
-    appStore: { rating: 4.2, rawRating: 4.2, ratingCount: 5 },
-    playStore: { rating: null, ratingCount: null },
-  };
-
-  const changes = detectRatingChanges(prev, curr);
-
-  assert.equal(changes.appStore.estimatedStars, 5);
-});
-
-test('새 평가가 여러 건이면 평균 별점으로 역산한다', () => {
-  const prev = {
-    appStore: { rating: 4.0, rawRating: 4.0, ratingCount: 4 },
-    playStore: {},
-  };
-  const curr = {
-    appStore: { rating: 4.3, rawRating: 4.25, ratingCount: 8 },
-    playStore: { rating: null, ratingCount: null },
-  };
-
-  const changes = detectRatingChanges(prev, curr);
-
-  assert.equal(changes.appStore.estimatedStars, 4.5);
-});
-
-test('정밀 평균이 없으면 별점 역산을 생략한다', () => {
-  const prev = { appStore: { rating: 4.0, ratingCount: 4 }, playStore: {} };
-  const curr = {
-    appStore: { rating: 4.0, ratingCount: 5 },
-    playStore: { rating: null, ratingCount: null },
-  };
-
-  const changes = detectRatingChanges(prev, curr);
-
-  assert.equal(changes.appStore.estimatedStars, undefined);
-});
-
-test('평가 증가분에 역산 별점이 있으면 함께 표기한다', () => {
-  const changes = {
-    appStore: { direction: null, countDelta: 1, estimatedStars: 5 },
-    playStore: null,
-  };
-  const curr = {
-    appStore: { rating: 4.2, ratingCount: 5 },
-    playStore: { rating: null, ratingCount: null },
-  };
-
-  const embed = buildRatingChangeMessage(changes, curr);
-
-  assert.match(embed.description, /\(\+1, 5점 추정\)/);
 });
 
 test('평점이 아직 없는 스토어는 집계 전으로 표기한다', () => {
