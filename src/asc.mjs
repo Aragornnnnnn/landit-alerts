@@ -4,6 +4,8 @@ import { createPrivateKey, sign } from 'node:crypto';
 import { assertOk } from './http.mjs';
 import { APP_STORE_ID, base64url } from './lib.mjs';
 
+const TOKEN_TTL_SECONDS = 600;
+
 const makeToken = ({ issuerId, keyId, privateKey }) => {
   const now = Math.floor(Date.now() / 1000);
   const header = base64url(
@@ -13,7 +15,7 @@ const makeToken = ({ issuerId, keyId, privateKey }) => {
     JSON.stringify({
       iss: issuerId,
       iat: now,
-      exp: now + 600,
+      exp: now + TOKEN_TTL_SECONDS,
       aud: 'appstoreconnect-v1',
     }),
   );

@@ -106,8 +106,14 @@ test('lookup 응답에서 버전·릴리즈 노트·평점을 뽑아낸다', () 
   });
 });
 
-test('lookup 결과가 비어 있으면 null을 준다', () => {
-  assert.equal(parseAppStoreLookup({ results: [] }), null);
+test('lookup 결과가 비어 있으면 모든 필드가 null인 객체를 준다', () => {
+  // given — 파서는 항상 같은 모양을 반환한다 (null은 수집 실패에만 쓴다)
+  assert.deepEqual(parseAppStoreLookup({ results: [] }), {
+    version: null,
+    releaseNotes: null,
+    rating: null,
+    ratingCount: null,
+  });
 });
 
 test('플레이스토어 페이지에서 버전과 평점을 찾는다', () => {

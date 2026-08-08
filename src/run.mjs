@@ -136,7 +136,7 @@ state.playSeenIds = await notifyNewReviews(
 );
 
 if (
-  appStoreInfo &&
+  appStoreInfo?.version &&
   state.appStoreVersion &&
   appStoreInfo.version !== state.appStoreVersion
 ) {
@@ -182,7 +182,7 @@ if (ascState) {
 
 // ---- 상태 저장 (수집 실패한 항목은 이전 값 유지) ----
 state.initialized = true;
-if (appStoreInfo) state.appStoreVersion = appStoreInfo.version;
+if (appStoreInfo?.version) state.appStoreVersion = appStoreInfo.version;
 if (playPage?.version) state.playVersion = playPage.version;
 state.ratings = {
   appStore:

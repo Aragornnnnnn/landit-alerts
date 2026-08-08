@@ -6,6 +6,8 @@ import { base64url, PLAY_PACKAGE } from './lib.mjs';
 
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const SCOPE = 'https://www.googleapis.com/auth/androidpublisher';
+const TOKEN_TTL_SECONDS = 600;
+const REVIEW_PAGE_SIZE = 50;
 
 const fetchAccessToken = async (serviceAccount) => {
   const now = Math.floor(Date.now() / 1000);
@@ -16,7 +18,7 @@ const fetchAccessToken = async (serviceAccount) => {
       scope: SCOPE,
       aud: TOKEN_URL,
       iat: now,
-      exp: now + 600,
+      exp: now + TOKEN_TTL_SECONDS,
     }),
   );
   const signature = createSign('RSA-SHA256')
@@ -102,7 +104,7 @@ export const fetchPlayReviews = async (serviceAccountJson, seenIds = []) => {
   const serviceAccount = JSON.parse(serviceAccountJson);
   const token = await fetchAccessToken(serviceAccount);
   const res = await fetch(
-    `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PLAY_PACKAGE}/reviews?maxResults=50`,
+    `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PLAY_PACKAGE}/reviews?maxResults=${REVIEW_PAGE_SIZE}`,
     { headers: { Authorization: `Bearer ${token}` } },
   );
   await assertOk(res, '플레이 리뷰 조회');

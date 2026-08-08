@@ -73,14 +73,15 @@ export const parseAppStoreFeed = (json) => {
   }));
 };
 
+// 파서는 항상 같은 모양의 객체를 반환하고, 못 찾은 필드만 null이다 (null 반환은 수집 실패 전용)
 export const parseAppStoreLookup = (json) => {
-  const app = json?.results?.[0];
-  if (!app) return null;
+  const app = json?.results?.[0] ?? {};
   return {
-    version: app.version,
+    version: app.version ?? null,
     releaseNotes: app.releaseNotes ?? null,
-    rating: round1(app.averageUserRating),
-    ratingCount: app.userRatingCount,
+    rating:
+      app.averageUserRating != null ? round1(app.averageUserRating) : null,
+    ratingCount: app.userRatingCount ?? null,
   };
 };
 
