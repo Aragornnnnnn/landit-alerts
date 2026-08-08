@@ -13,13 +13,7 @@ import {
   parseAppStoreLookup,
   parsePlayStorePage,
   ratingColor,
-  starLine,
 } from './lib.mjs';
-
-test('별점 개수만큼 별을 그린다', () => {
-  assert.equal(starLine(5), '⭐⭐⭐⭐⭐');
-  assert.equal(starLine(1), '⭐');
-});
 
 test('별점 4~5는 초록, 3은 노랑, 1~2는 빨강 색을 쓴다', () => {
   assert.equal(ratingColor(5), ratingColor(4));
@@ -84,6 +78,27 @@ test('앱스토어 RSS에서 리뷰 필드를 뽑아낸다', () => {
 
 test('앱스토어 RSS에 entry가 없으면 빈 배열을 준다', () => {
   assert.deepEqual(parseAppStoreFeed({ feed: {} }), []);
+});
+
+test('앱스토어 RSS에 리뷰가 1건이면 entry가 배열이 아니어도 파싱한다', () => {
+  // given — 애플 RSS는 항목이 하나면 배열 대신 객체 하나를 준다
+  const feed = {
+    feed: {
+      entry: {
+        id: { label: 'r1' },
+        author: { name: { label: '닉네임' } },
+        'im:rating': { label: '3' },
+        title: { label: '보통' },
+        content: { label: '본문' },
+        'im:version': { label: '1.0.0' },
+      },
+    },
+  };
+
+  const reviews = parseAppStoreFeed(feed);
+
+  assert.equal(reviews.length, 1);
+  assert.equal(reviews[0].id, 'r1');
 });
 
 test('lookup 응답에서 버전·릴리즈 노트·평점을 뽑아낸다', () => {
@@ -156,6 +171,19 @@ test('한쪽 평점이 내려가면 하락 방향으로 변동을 감지한다',
   assert.equal(changes.playStore, null);
 });
 
+test('평점이 오르면 상승 방향으로 변동을 감지한다', () => {
+  const prev = { appStore: { rating: 4.0 }, playStore: {} };
+  const curr = {
+    appStore: { rating: 4.5, ratingCount: 10 },
+    playStore: { rating: null },
+  };
+
+  const changes = detectRatingChanges(prev, curr);
+
+  assert.equal(changes.appStore.direction, 'up');
+  assert.equal(changes.appStore.from, 4.0);
+});
+
 test('이전 평점이 없던 스토어는 변동으로 치지 않는다', () => {
   // given — 플레이 평점을 처음 수집한 상황
   const prev = { appStore: { rating: 4.8 }, playStore: {} };
@@ -201,6 +229,8 @@ test('플레이 리뷰 embed는 기기·OS 메타를 함께 담는다', () => {
     /닉네임 · v1\.5\.0 · Galaxy S24\+ · Android 15/,
   );
   assert.equal(embed.author.name, 'Play Store');
+  // 플레이 리뷰는 제목이 없으므로 볼드 제목 줄 없이 본문으로 시작한다
+  assert.match(embed.description, /^좋아요/);
 });
 
 test('릴리즈 embed는 해당 스토어 링크만 담는다', () => {
