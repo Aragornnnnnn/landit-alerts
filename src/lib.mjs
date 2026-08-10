@@ -16,8 +16,6 @@ const STORES = {
     url: `https://play.google.com/store/apps/details?id=${PLAY_PACKAGE}`,
   },
 };
-export const PLAY_STORE_URL = STORES.playStore.url;
-
 const author = (store) => ({
   name: STORES[store].name,
   icon_url: `https://cdn.discordapp.com/emojis/${STORES[store].emojiId}.png`,
@@ -53,32 +51,49 @@ export const diffNewReviews = (reviews, seenIds) => {
   return reviews.filter((r) => !seen.has(r.id)).reverse();
 };
 
-export const parseAppStoreFeed = (json) => {
-  const entries = json?.feed?.entry;
-  if (!entries) return [];
-  return (Array.isArray(entries) ? entries : [entries]).map((e) => ({
-    id: e.id?.label ?? '',
-    author: e.author?.name?.label ?? '',
-    rating: Number(e['im:rating']?.label ?? 0),
-    title: e.title?.label ?? '',
-    body: e.content?.label ?? '',
-    version: e['im:version']?.label ?? '',
+// 파서는 항상 같은 모양의 객체를 반환하고, 못 찾은 필드만 null이다 (null 반환은 수집 실패 전용)
+export const parseAscReviews = (json) =>
+  (json?.data ?? []).map((r) => ({
+    id: r.id,
+    author: r.attributes?.reviewerNickname ?? '익명',
+    rating: r.attributes?.rating ?? 0,
+    title: r.attributes?.title ?? '',
+    body: r.attributes?.body ?? '',
   }));
+
+// 현지화 목록에서 한국어를 우선으로 릴리즈 노트를 고른다
+export const parseAscReleaseNotes = (json) => {
+  const items = json?.data ?? [];
+  const korean = items.find((l) => l.attributes?.locale?.startsWith('ko'));
+  return (korean ?? items[0])?.attributes?.whatsNew ?? null;
 };
 
-// 파서는 항상 같은 모양의 객체를 반환하고, 못 찾은 필드만 null이다 (null 반환은 수집 실패 전용)
-export const parseAppStoreLookup = (json) => {
-  const app = json?.results?.[0] ?? {};
+export const parseAscVersion = (json) => {
+  const latest = json?.data?.[0];
   return {
-    version: app.version ?? null,
-    releaseNotes: app.releaseNotes ?? null,
+    id: latest?.id ?? null,
+    version: latest?.attributes?.versionString ?? null,
+    state:
+      latest?.attributes?.appVersionState ??
+      latest?.attributes?.appStoreState ??
+      null,
   };
 };
 
-// 플레이 페이지는 공식 API가 없어 스크립트 데이터의 패턴을 읽는다. 못 찾으면 null로 조용히 넘어간다
-export const parsePlayStorePage = (html) => ({
-  version: html.match(/\[\[\["([\d.]+)"\]\]/)?.[1] ?? null,
-});
+// 프로덕션 트랙에서 배포 중(inProgress)을 우선으로 최신 릴리즈를 고른다
+export const parsePlayTrack = (json) => {
+  const releases = json?.releases ?? [];
+  const release =
+    releases.find((r) => r.status === 'inProgress') ??
+    releases.find((r) => r.status === 'completed') ??
+    releases[0];
+  const notes = release?.releaseNotes ?? [];
+  const korean = notes.find((n) => n.language?.startsWith('ko'));
+  return {
+    version: release?.name ?? null,
+    releaseNotes: (korean ?? notes[0])?.text ?? null,
+  };
+};
 
 // 버전이 실제로 높아졌는지 숫자 단위로 비교한다 (스토어 CDN이 옛 버전을 섞어 줘도 뒤로 안 가게)
 export const isNewerVersion = (curr, prev) => {
@@ -101,8 +116,10 @@ export const classifyAscTransition = (prevState, currState) => {
 };
 
 // 답글 링크는 콘솔 리뷰 페이지의 정확한 URL이 확보되면 메타 줄에 추가한다
+// 작성 버전은 주는 스토어(Play)만 표기한다 — ASC 리뷰엔 없다
 const reviewMeta = (review) => {
-  const parts = [review.author, `v${review.version}`];
+  const parts = [review.author];
+  if (review.version) parts.push(`v${review.version}`);
   if (review.device) parts.push(review.device);
   if (review.osVersion) parts.push(review.osVersion);
   return parts.join(' · ');

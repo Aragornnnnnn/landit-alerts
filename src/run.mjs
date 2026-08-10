@@ -1,12 +1,14 @@
-// 스토어 알림 실행부 — 상태 파일과 비교해 새 리뷰·릴리즈·평점 변동을 디스코드로 보낸다
+// 스토어 알림 실행부 — 상태 파일과 비교해 새 리뷰·릴리즈·심사 변화를 디스코드로 보낸다
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
-import { fetchAscVersionState } from './asc.mjs';
-import { sendEmbed } from './discord.mjs';
-import { fetchOk } from './http.mjs';
 import {
-  APP_STORE_ID,
+  fetchAscReleaseNotes,
+  fetchAscReviews,
+  fetchAscVersion,
+} from './asc.mjs';
+import { sendEmbed } from './discord.mjs';
+import {
   buildReleaseEmbed,
   buildReviewApprovedEmbed,
   buildReviewEmbed,
@@ -14,23 +16,32 @@ import {
   classifyAscTransition,
   diffNewReviews,
   isNewerVersion,
-  parseAppStoreFeed,
-  parseAppStoreLookup,
-  parsePlayStorePage,
-  PLAY_STORE_URL,
 } from './lib.mjs';
-import { fetchPlayReviews } from './play.mjs';
+import { fetchPlayReviews, fetchPlayTrack } from './play.mjs';
 
 const STATE_FILE = process.env.STATE_FILE ?? '.state/store-alerts.json';
 const REVIEW_WEBHOOK = process.env.DISCORD_WEBHOOK_REVIEW;
 const UPDATE_WEBHOOK = process.env.DISCORD_WEBHOOK_UPDATE;
+const PLAY_KEY = process.env.PLAY_SERVICE_ACCOUNT_JSON;
 const MAX_POSTS_PER_RUN = 10;
 const SEEN_LIMIT = 300;
 
-if (!REVIEW_WEBHOOK || !UPDATE_WEBHOOK) {
-  console.error(
-    'DISCORD_WEBHOOK_REVIEW / DISCORD_WEBHOOK_UPDATE 환경변수가 필요합니다.',
-  );
+const ascCredentials = {
+  issuerId: process.env.ASC_ISSUER_ID,
+  keyId: process.env.ASC_KEY_ID,
+  privateKey: process.env.ASC_PRIVATE_KEY,
+};
+
+const missing = [
+  !REVIEW_WEBHOOK && 'DISCORD_WEBHOOK_REVIEW',
+  !UPDATE_WEBHOOK && 'DISCORD_WEBHOOK_UPDATE',
+  !ascCredentials.issuerId && 'ASC_ISSUER_ID',
+  !ascCredentials.keyId && 'ASC_KEY_ID',
+  !ascCredentials.privateKey && 'ASC_PRIVATE_KEY',
+  !PLAY_KEY && 'PLAY_SERVICE_ACCOUNT_JSON',
+].filter(Boolean);
+if (missing.length) {
+  console.error(`환경변수가 필요합니다: ${missing.join(', ')}`);
   process.exit(1);
 }
 
@@ -41,10 +52,6 @@ const loadState = async () => {
     return null;
   }
 };
-
-const fetchJson = async (url) => (await fetchOk(url)).json();
-const fetchText = async (url) =>
-  (await fetchOk(url, 'Mozilla/5.0 (LanditAlerts)')).text();
 
 // ---- 수집 (서로 독립이라 병렬로 돈다) ----
 const state = (await loadState()) ?? {};
@@ -60,48 +67,14 @@ const collect = async (label, fn) => {
   }
 };
 
-const hasAscKeys =
-  process.env.ASC_ISSUER_ID &&
-  process.env.ASC_KEY_ID &&
-  process.env.ASC_PRIVATE_KEY;
-
-const [appStoreFeed, appStoreInfo, playPage, playReviews, ascState] =
-  await Promise.all([
-    collect('앱스토어 RSS', async () =>
-      parseAppStoreFeed(
-        await fetchJson(
-          `https://itunes.apple.com/kr/rss/customerreviews/id=${APP_STORE_ID}/sortBy=mostRecent/json`,
-        ),
-      ),
-    ),
-    collect('앱스토어 lookup', async () =>
-      parseAppStoreLookup(
-        await fetchJson(
-          `https://itunes.apple.com/kr/lookup?id=${APP_STORE_ID}`,
-        ),
-      ),
-    ),
-    collect('플레이 페이지', async () =>
-      parsePlayStorePage(await fetchText(`${PLAY_STORE_URL}&hl=ko`)),
-    ),
-    process.env.PLAY_SERVICE_ACCOUNT_JSON
-      ? collect('플레이 리뷰', () =>
-          fetchPlayReviews(
-            process.env.PLAY_SERVICE_ACCOUNT_JSON,
-            state.playSeenIds ?? [],
-          ),
-        )
-      : null,
-    hasAscKeys
-      ? collect('ASC 심사 상태', () =>
-          fetchAscVersionState({
-            issuerId: process.env.ASC_ISSUER_ID,
-            keyId: process.env.ASC_KEY_ID,
-            privateKey: process.env.ASC_PRIVATE_KEY,
-          }),
-        )
-      : null,
-  ]);
+const [ascReviews, ascVersion, playReviews, playTrack] = await Promise.all([
+  collect('ASC 리뷰', () => fetchAscReviews(ascCredentials)),
+  collect('ASC 버전', () => fetchAscVersion(ascCredentials)),
+  collect('플레이 리뷰', () =>
+    fetchPlayReviews(PLAY_KEY, state.playSeenIds ?? []),
+  ),
+  collect('플레이 트랙', () => fetchPlayTrack(PLAY_KEY)),
+]);
 
 // ---- 알림 (첫 실행은 기준점만 저장) ----
 let posted = 0;
@@ -111,9 +84,10 @@ const post = async (webhook, embed) => {
   posted += 1;
 };
 
+// seenIds가 아예 없으면(스토어를 처음 수집) 알림 없이 기준점만 시드한다
 const notifyNewReviews = async (store, reviews, seenIds) => {
-  seenIds ??= [];
   if (!reviews) return seenIds;
+  if (seenIds === undefined) return reviews.map((r) => r.id);
   for (const review of diffNewReviews(reviews, seenIds)) {
     await post(REVIEW_WEBHOOK, buildReviewEmbed(store, review));
   }
@@ -123,10 +97,10 @@ const notifyNewReviews = async (store, reviews, seenIds) => {
   );
 };
 
-state.appStoreSeenIds = await notifyNewReviews(
+state.ascSeenIds = await notifyNewReviews(
   'appStore',
-  appStoreFeed,
-  state.appStoreSeenIds,
+  ascReviews,
+  state.ascSeenIds,
 );
 state.playSeenIds = await notifyNewReviews(
   'playStore',
@@ -134,55 +108,63 @@ state.playSeenIds = await notifyNewReviews(
   state.playSeenIds,
 );
 
-// 버전은 높아졌을 때만 알린다 (CDN이 옛 버전을 섞어 줘도 반복 알림 없음)
-if (
-  appStoreInfo?.version &&
-  state.appStoreVersion &&
-  isNewerVersion(appStoreInfo.version, state.appStoreVersion)
-) {
-  await post(UPDATE_WEBHOOK, buildReleaseEmbed('appStore', appStoreInfo));
-}
-if (
-  playPage?.version &&
-  state.playVersion &&
-  isNewerVersion(playPage.version, state.playVersion)
-) {
-  await post(
-    UPDATE_WEBHOOK,
-    buildReleaseEmbed('playStore', { version: playPage.version }),
-  );
-}
+// ---- iOS 릴리즈·심사 (ASC 버전 상태 하나로 둘 다 판정) ----
+// 마이그레이션 — 공개 lookup 시절 저장한 버전을 이어받는다
+state.ascReleasedVersion ??= state.appStoreVersion;
 
-if (ascState) {
+if (ascVersion?.version) {
+  const released =
+    ascVersion.state === 'READY_FOR_DISTRIBUTION' &&
+    (!state.ascReleasedVersion ||
+      isNewerVersion(ascVersion.version, state.ascReleasedVersion));
+  if (released) {
+    const releaseNotes = await collect('ASC 릴리즈 노트', () =>
+      fetchAscReleaseNotes(ascCredentials, ascVersion.id),
+    );
+    await post(
+      UPDATE_WEBHOOK,
+      buildReleaseEmbed('appStore', {
+        version: ascVersion.version,
+        releaseNotes,
+      }),
+    );
+    state.ascReleasedVersion = ascVersion.version;
+  }
+
   const transition = classifyAscTransition(
     state.ascState?.state,
-    ascState.state,
+    ascVersion.state,
   );
   if (transition === 'approved') {
-    await post(UPDATE_WEBHOOK, buildReviewApprovedEmbed(ascState.version));
+    await post(UPDATE_WEBHOOK, buildReviewApprovedEmbed(ascVersion.version));
   } else if (transition === 'rejected') {
-    await post(UPDATE_WEBHOOK, buildReviewRejectedEmbed(ascState.version));
+    await post(UPDATE_WEBHOOK, buildReviewRejectedEmbed(ascVersion.version));
+  }
+  state.ascState = { version: ascVersion.version, state: ascVersion.state };
+}
+
+// ---- Android 릴리즈 (프로덕션 트랙 기준) ----
+if (playTrack?.version) {
+  if (
+    state.playVersion &&
+    isNewerVersion(playTrack.version, state.playVersion)
+  ) {
+    await post(UPDATE_WEBHOOK, buildReleaseEmbed('playStore', playTrack));
+  }
+  if (
+    !state.playVersion ||
+    isNewerVersion(playTrack.version, state.playVersion)
+  ) {
+    state.playVersion = playTrack.version;
   }
 }
 
-// ---- 상태 저장 (수집 실패한 항목은 이전 값 유지, 버전은 앞으로만) ----
+// ---- 상태 저장 (수집 실패한 항목은 이전 값 유지) ----
 state.initialized = true;
-if (
-  appStoreInfo?.version &&
-  (!state.appStoreVersion ||
-    isNewerVersion(appStoreInfo.version, state.appStoreVersion))
-) {
-  state.appStoreVersion = appStoreInfo.version;
-}
-if (
-  playPage?.version &&
-  (!state.playVersion || isNewerVersion(playPage.version, state.playVersion))
-) {
-  state.playVersion = playPage.version;
-}
+delete state.appStoreSeenIds;
+delete state.appStoreVersion;
 delete state.ratings;
 delete state.pendingRatings;
-if (ascState) state.ascState = ascState;
 
 await mkdir(dirname(STATE_FILE), { recursive: true });
 await writeFile(STATE_FILE, JSON.stringify(state, null, 2));

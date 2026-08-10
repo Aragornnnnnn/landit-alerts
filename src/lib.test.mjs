@@ -8,9 +8,10 @@ import {
   classifyAscTransition,
   diffNewReviews,
   isNewerVersion,
-  parseAppStoreFeed,
-  parseAppStoreLookup,
-  parsePlayStorePage,
+  parseAscReleaseNotes,
+  parseAscReviews,
+  parseAscVersion,
+  parsePlayTrack,
   ratingColor,
 } from './lib.mjs';
 
@@ -44,112 +45,139 @@ test('여러 건이 새로 오면 오래된 것부터 순서대로 내보낸다'
   );
 });
 
-test('앱스토어 RSS에서 리뷰 필드를 뽑아낸다', () => {
-  // given — 실제 RSS 구조를 축약한 응답
-  const feed = {
-    feed: {
-      entry: [
-        {
-          id: { label: 'r1' },
-          author: { name: { label: '닉네임' } },
-          'im:rating': { label: '5' },
-          title: { label: '좋아요' },
-          content: { label: '본문' },
-          'im:version': { label: '1.4.2' },
-        },
-      ],
-    },
-  };
-
-  const reviews = parseAppStoreFeed(feed);
-
-  assert.deepEqual(reviews, [
-    {
-      id: 'r1',
-      author: '닉네임',
-      rating: 5,
-      title: '좋아요',
-      body: '본문',
-      version: '1.4.2',
-    },
-  ]);
-});
-
-test('앱스토어 RSS에 entry가 없으면 빈 배열을 준다', () => {
-  assert.deepEqual(parseAppStoreFeed({ feed: {} }), []);
-});
-
-test('앱스토어 RSS에 리뷰가 1건이면 entry가 배열이 아니어도 파싱한다', () => {
-  // given — 애플 RSS는 항목이 하나면 배열 대신 객체 하나를 준다
-  const feed = {
-    feed: {
-      entry: {
-        id: { label: 'r1' },
-        author: { name: { label: '닉네임' } },
-        'im:rating': { label: '3' },
-        title: { label: '보통' },
-        content: { label: '본문' },
-        'im:version': { label: '1.0.0' },
-      },
-    },
-  };
-
-  const reviews = parseAppStoreFeed(feed);
-
-  assert.equal(reviews.length, 1);
-  assert.equal(reviews[0].id, 'r1');
-});
-
-test('lookup 응답에서 버전·릴리즈 노트·평점을 뽑아낸다', () => {
-  const lookup = {
-    results: [
+test('ASC 리뷰 응답에서 리뷰 필드를 뽑아낸다', () => {
+  // given — 실제 ASC customerReviews 응답을 축약한 모양
+  const json = {
+    data: [
       {
-        version: '1.5.0',
-        releaseNotes: '버그 수정',
-        averageUserRating: 4.812,
-        userRatingCount: 132,
+        id: 'r-uuid-1',
+        attributes: {
+          rating: 5,
+          title: '좋아여',
+          body: '다른 앱들이랑 다른점이 있어서 좋은거같아요',
+          reviewerNickname: '모오오오오오오오이',
+          territory: 'KOR',
+        },
       },
     ],
   };
 
-  assert.deepEqual(parseAppStoreLookup(lookup), {
-    version: '1.5.0',
-    releaseNotes: '버그 수정',
+  assert.deepEqual(parseAscReviews(json), [
+    {
+      id: 'r-uuid-1',
+      author: '모오오오오오오오이',
+      rating: 5,
+      title: '좋아여',
+      body: '다른 앱들이랑 다른점이 있어서 좋은거같아요',
+    },
+  ]);
+});
+
+test('ASC 리뷰 응답이 비어 있으면 빈 배열을 준다', () => {
+  assert.deepEqual(parseAscReviews({ data: [] }), []);
+  assert.deepEqual(parseAscReviews({}), []);
+});
+
+test('ASC 버전 응답에서 id·버전·상태를 뽑아낸다', () => {
+  const json = {
+    data: [
+      {
+        id: 'v-uuid-1',
+        attributes: {
+          versionString: '1.1.0',
+          appVersionState: 'READY_FOR_DISTRIBUTION',
+        },
+      },
+    ],
+  };
+
+  assert.deepEqual(parseAscVersion(json), {
+    id: 'v-uuid-1',
+    version: '1.1.0',
+    state: 'READY_FOR_DISTRIBUTION',
   });
 });
 
-test('lookup 결과가 비어 있으면 모든 필드가 null인 객체를 준다', () => {
-  // given — 파서는 항상 같은 모양을 반환한다 (null은 수집 실패에만 쓴다)
-  assert.deepEqual(parseAppStoreLookup({ results: [] }), {
+test('ASC 버전 응답이 비어 있으면 null 필드를 준다', () => {
+  assert.deepEqual(parseAscVersion({ data: [] }), {
+    id: null,
+    version: null,
+    state: null,
+  });
+});
+
+test('릴리즈 노트는 한국어 현지화를 우선으로 고른다', () => {
+  const json = {
+    data: [
+      { attributes: { locale: 'en-US', whatsNew: 'English notes' } },
+      { attributes: { locale: 'ko', whatsNew: '한국어 노트' } },
+    ],
+  };
+
+  assert.equal(parseAscReleaseNotes(json), '한국어 노트');
+});
+
+test('한국어 현지화가 없으면 첫 항목의 릴리즈 노트를 쓴다', () => {
+  const json = {
+    data: [{ attributes: { locale: 'en-US', whatsNew: 'English notes' } }],
+  };
+
+  assert.equal(parseAscReleaseNotes(json), 'English notes');
+  assert.equal(parseAscReleaseNotes({ data: [] }), null);
+});
+
+test('플레이 트랙 응답에서 버전과 한국어 릴리즈 노트를 뽑아낸다', () => {
+  // given — 실제 production 트랙 응답을 축약한 모양
+  const json = {
+    releases: [
+      {
+        name: '1.1.0',
+        status: 'completed',
+        releaseNotes: [
+          { language: 'en-US', text: 'English notes' },
+          { language: 'ko-KR', text: '한국어 노트' },
+        ],
+      },
+    ],
+  };
+
+  assert.deepEqual(parsePlayTrack(json), {
+    version: '1.1.0',
+    releaseNotes: '한국어 노트',
+  });
+});
+
+test('플레이 트랙에 단계적 출시 중 릴리즈가 있으면 그것을 우선한다', () => {
+  const json = {
+    releases: [
+      { name: '1.2.0', status: 'inProgress', releaseNotes: [] },
+      { name: '1.1.0', status: 'completed', releaseNotes: [] },
+    ],
+  };
+
+  assert.equal(parsePlayTrack(json).version, '1.2.0');
+});
+
+test('플레이 트랙 응답이 비어 있으면 null 필드를 준다', () => {
+  assert.deepEqual(parsePlayTrack({ releases: [] }), {
     version: null,
     releaseNotes: null,
   });
 });
 
-test('플레이스토어 페이지에서 버전을 찾는다', () => {
-  // given — 페이지 스크립트 데이터의 해당 패턴만 흉내낸 HTML
-  const html = 'xx[[["1.5.0"]],yy';
-
-  assert.equal(parsePlayStorePage(html).version, '1.5.0');
-});
-
-test('플레이스토어 페이지에서 패턴을 못 찾으면 null 필드를 준다', () => {
-  assert.equal(parsePlayStorePage('<html>전혀 다른 내용</html>').version, null);
-});
-
 test('리뷰 embed는 별점 줄 아래 제목과 본문, 메타 순으로 담는다', () => {
+  // given — ASC 리뷰는 작성 버전 정보를 주지 않는다
   const embed = buildReviewEmbed('appStore', {
     id: 'r1',
     author: '닉네임',
     rating: 2,
     title: '튕겨요',
     body: '자꾸 꺼집니다',
-    version: '1.5.0',
   });
 
   assert.equal(embed.title, '⭐⭐');
   assert.match(embed.description, /^\*\*튕겨요\*\*\n자꾸 꺼집니다/);
-  assert.match(embed.description, /닉네임 · v1\.5\.0/);
+  assert.match(embed.description, /닉네임$/);
   assert.equal(embed.color, ratingColor(2));
   assert.equal(embed.author.name, 'App Store');
 });

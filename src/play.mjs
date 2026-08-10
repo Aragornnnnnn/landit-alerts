@@ -2,7 +2,7 @@
 import { createSign } from 'node:crypto';
 
 import { assertOk } from './http.mjs';
-import { base64url, PLAY_PACKAGE } from './lib.mjs';
+import { base64url, parsePlayTrack, PLAY_PACKAGE } from './lib.mjs';
 
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const SCOPE = 'https://www.googleapis.com/auth/androidpublisher';
@@ -100,13 +100,14 @@ const fetchDeviceNames = async () => {
   }
 };
 
+const API = `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PLAY_PACKAGE}`;
+
 export const fetchPlayReviews = async (serviceAccountJson, seenIds = []) => {
   const serviceAccount = JSON.parse(serviceAccountJson);
   const token = await fetchAccessToken(serviceAccount);
-  const res = await fetch(
-    `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PLAY_PACKAGE}/reviews?maxResults=${REVIEW_PAGE_SIZE}`,
-    { headers: { Authorization: `Bearer ${token}` } },
-  );
+  const res = await fetch(`${API}/reviews?maxResults=${REVIEW_PAGE_SIZE}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   await assertOk(res, '플레이 리뷰 조회');
   const { reviews = [] } = await res.json();
 
@@ -131,4 +132,31 @@ export const fetchPlayReviews = async (serviceAccountJson, seenIds = []) => {
       osVersion: osLabel(c.androidOsVersion),
     };
   });
+};
+
+// 프로덕션 트랙에서 현재 배포 버전을 읽는다 (읽기용 edit을 만들었다 지운다)
+export const fetchPlayTrack = async (serviceAccountJson) => {
+  const serviceAccount = JSON.parse(serviceAccountJson);
+  const token = await fetchAccessToken(serviceAccount);
+  const headers = { Authorization: `Bearer ${token}` };
+
+  const editRes = await fetch(`${API}/edits`, {
+    method: 'POST',
+    headers: { ...headers, 'Content-Type': 'application/json' },
+    body: '{}',
+  });
+  await assertOk(editRes, '플레이 edit 생성');
+  const { id: editId } = await editRes.json();
+
+  try {
+    const trackRes = await fetch(`${API}/edits/${editId}/tracks/production`, {
+      headers,
+    });
+    await assertOk(trackRes, '플레이 트랙 조회');
+    return parsePlayTrack(await trackRes.json());
+  } finally {
+    await fetch(`${API}/edits/${editId}`, { method: 'DELETE', headers }).catch(
+      () => {},
+    );
+  }
 };
