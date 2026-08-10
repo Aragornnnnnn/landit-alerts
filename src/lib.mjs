@@ -107,6 +107,32 @@ export const detectRatingChanges = (prev, curr) => {
   return { appStore, playStore };
 };
 
+// 버전이 실제로 높아졌는지 숫자 단위로 비교한다 (스토어 CDN이 옛 버전을 섞어 줘도 뒤로 안 가게)
+export const isNewerVersion = (curr, prev) => {
+  const a = curr.split('.').map(Number);
+  const b = prev.split('.').map(Number);
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const diff = (a[i] ?? 0) - (b[i] ?? 0);
+    if (diff !== 0) return diff > 0;
+  }
+  return false;
+};
+
+// CDN 캐시 불일치로 평점이 왔다갔다 관측되는 것을 막는다 — 새 값이 2연속 관측될 때만 확정한다
+export const settleObservation = (stored, pending, current) => {
+  if (current?.rating == null) {
+    return { settled: stored ?? null, nextPending: pending ?? null };
+  }
+  if (stored?.rating == null) return { settled: current, nextPending: null };
+  if (current.rating === stored.rating) {
+    return { settled: current, nextPending: null };
+  }
+  if (pending?.rating === current.rating) {
+    return { settled: current, nextPending: null };
+  }
+  return { settled: stored, nextPending: current };
+};
+
 // ASC 심사 상태 전이를 알림 종류로 해석한다. 알림 대상이 아니면 null
 export const classifyAscTransition = (prevState, currState) => {
   if (!prevState || prevState === currState) return null;

@@ -15,10 +15,12 @@ import {
   classifyAscTransition,
   detectRatingChanges,
   diffNewReviews,
+  isNewerVersion,
   parseAppStoreFeed,
   parseAppStoreLookup,
   parsePlayStorePage,
   PLAY_STORE_URL,
+  settleObservation,
 } from './lib.mjs';
 import { fetchPlayReviews } from './play.mjs';
 
@@ -135,17 +137,18 @@ state.playSeenIds = await notifyNewReviews(
   state.playSeenIds,
 );
 
+// 버전은 높아졌을 때만 알린다 (CDN이 옛 버전을 섞어 줘도 반복 알림 없음)
 if (
   appStoreInfo?.version &&
   state.appStoreVersion &&
-  appStoreInfo.version !== state.appStoreVersion
+  isNewerVersion(appStoreInfo.version, state.appStoreVersion)
 ) {
   await post(UPDATE_WEBHOOK, buildReleaseEmbed('appStore', appStoreInfo));
 }
 if (
   playPage?.version &&
   state.playVersion &&
-  playPage.version !== state.playVersion
+  isNewerVersion(playPage.version, state.playVersion)
 ) {
   await post(
     UPDATE_WEBHOOK,
@@ -153,18 +156,30 @@ if (
   );
 }
 
-const currentRatings = {
+// 평점은 같은 값이 2연속 관측될 때만 확정한다 (관측값이 왔다갔다해도 반복 알림 없음)
+const observed = {
   appStore: {
-    rating: appStoreInfo?.rating,
-    ratingCount: appStoreInfo?.ratingCount,
+    rating: appStoreInfo?.rating ?? null,
+    ratingCount: appStoreInfo?.ratingCount ?? null,
   },
-  playStore: { rating: playPage?.rating },
+  playStore: { rating: playPage?.rating ?? null },
 };
-const ratingChanges = detectRatingChanges(state.ratings, currentRatings);
+const settledRatings = {};
+const nextPending = {};
+for (const store of ['appStore', 'playStore']) {
+  const { settled, nextPending: pending } = settleObservation(
+    state.ratings?.[store],
+    state.pendingRatings?.[store],
+    observed[store],
+  );
+  settledRatings[store] = settled ?? {};
+  if (pending) nextPending[store] = pending;
+}
+const ratingChanges = detectRatingChanges(state.ratings, settledRatings);
 if (ratingChanges) {
   await post(
     REVIEW_WEBHOOK,
-    buildRatingChangeMessage(ratingChanges, currentRatings),
+    buildRatingChangeMessage(ratingChanges, settledRatings),
   );
 }
 
@@ -180,20 +195,23 @@ if (ascState) {
   }
 }
 
-// ---- 상태 저장 (수집 실패한 항목은 이전 값 유지) ----
+// ---- 상태 저장 (수집 실패한 항목은 이전 값 유지, 버전은 앞으로만) ----
 state.initialized = true;
-if (appStoreInfo?.version) state.appStoreVersion = appStoreInfo.version;
-if (playPage?.version) state.playVersion = playPage.version;
-state.ratings = {
-  appStore:
-    currentRatings.appStore.rating != null
-      ? currentRatings.appStore
-      : state.ratings?.appStore,
-  playStore:
-    currentRatings.playStore.rating != null
-      ? currentRatings.playStore
-      : state.ratings?.playStore,
-};
+if (
+  appStoreInfo?.version &&
+  (!state.appStoreVersion ||
+    isNewerVersion(appStoreInfo.version, state.appStoreVersion))
+) {
+  state.appStoreVersion = appStoreInfo.version;
+}
+if (
+  playPage?.version &&
+  (!state.playVersion || isNewerVersion(playPage.version, state.playVersion))
+) {
+  state.playVersion = playPage.version;
+}
+state.ratings = settledRatings;
+state.pendingRatings = nextPending;
 if (ascState) state.ascState = ascState;
 
 await mkdir(dirname(STATE_FILE), { recursive: true });

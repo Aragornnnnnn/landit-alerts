@@ -9,10 +9,12 @@ import {
   classifyAscTransition,
   detectRatingChanges,
   diffNewReviews,
+  isNewerVersion,
   parseAppStoreFeed,
   parseAppStoreLookup,
   parsePlayStorePage,
   ratingColor,
+  settleObservation,
 } from './lib.mjs';
 
 test('별점 4~5는 초록, 3은 노랑, 1~2는 빨강 색을 쓴다', () => {
@@ -316,6 +318,85 @@ test('ASC 상태가 그대로거나 이전 기록이 없으면 분류하지 않�
 
 test('ASC 상태가 알림 대상 아닌 값으로 바뀌면 분류하지 않는다', () => {
   assert.equal(classifyAscTransition('IN_REVIEW', 'READY_FOR_SALE'), null);
+});
+
+test('버전이 높아졌을 때만 최신으로 판정한다', () => {
+  assert.equal(isNewerVersion('1.1.0', '1.0.0'), true);
+  assert.equal(isNewerVersion('1.0.0', '1.1.0'), false);
+  assert.equal(isNewerVersion('1.1.0', '1.1.0'), false);
+});
+
+test('버전 비교는 문자열이 아니라 숫자 단위로 한다', () => {
+  // given — 문자열 비교면 "1.10.0" < "1.9.0"으로 잘못 판정된다
+  assert.equal(isNewerVersion('1.10.0', '1.9.0'), true);
+  assert.equal(isNewerVersion('1.0.0.1', '1.0.0'), true);
+});
+
+test('처음 관측된 평점은 바로 확정한다', () => {
+  const { settled, nextPending } = settleObservation(undefined, undefined, {
+    rating: 4.0,
+    ratingCount: 4,
+  });
+
+  assert.deepEqual(settled, { rating: 4.0, ratingCount: 4 });
+  assert.equal(nextPending, null);
+});
+
+test('평점이 그대로면 리뷰 수만 최신으로 갱신한다', () => {
+  const { settled, nextPending } = settleObservation(
+    { rating: 4.0, ratingCount: 4 },
+    undefined,
+    { rating: 4.0, ratingCount: 5 },
+  );
+
+  assert.deepEqual(settled, { rating: 4.0, ratingCount: 5 });
+  assert.equal(nextPending, null);
+});
+
+test('새 평점이 처음 관측되면 확정하지 않고 보류한다', () => {
+  // given — CDN 캐시 불일치일 수 있으므로 한 번 관측으론 안 믿는다
+  const { settled, nextPending } = settleObservation(
+    { rating: 4.0, ratingCount: 4 },
+    undefined,
+    { rating: 4.4, ratingCount: 7 },
+  );
+
+  assert.equal(settled.rating, 4.0);
+  assert.deepEqual(nextPending, { rating: 4.4, ratingCount: 7 });
+});
+
+test('새 평점이 2연속 관측되면 확정한다', () => {
+  const { settled, nextPending } = settleObservation(
+    { rating: 4.0, ratingCount: 4 },
+    { rating: 4.4, ratingCount: 7 },
+    { rating: 4.4, ratingCount: 7 },
+  );
+
+  assert.deepEqual(settled, { rating: 4.4, ratingCount: 7 });
+  assert.equal(nextPending, null);
+});
+
+test('보류 중 원래 값으로 돌아오면 보류를 버린다', () => {
+  // given — 4.0 → 4.4(보류) → 4.0: 캐시 불일치였다
+  const { settled, nextPending } = settleObservation(
+    { rating: 4.0, ratingCount: 4 },
+    { rating: 4.4, ratingCount: 7 },
+    { rating: 4.0, ratingCount: 4 },
+  );
+
+  assert.equal(settled.rating, 4.0);
+  assert.equal(nextPending, null);
+});
+
+test('수집에 실패하면 확정값과 보류를 그대로 유지한다', () => {
+  const { settled, nextPending } = settleObservation(
+    { rating: 4.0, ratingCount: 4 },
+    { rating: 4.4, ratingCount: 7 },
+    { rating: null },
+  );
+
+  assert.equal(settled.rating, 4.0);
+  assert.deepEqual(nextPending, { rating: 4.4, ratingCount: 7 });
 });
 
 test('평점 변동 메시지는 두 스토어 현황을 모두 담는다', () => {
