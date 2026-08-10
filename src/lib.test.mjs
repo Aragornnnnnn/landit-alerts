@@ -3,18 +3,15 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  buildRatingChangeMessage,
   buildReleaseEmbed,
   buildReviewEmbed,
   classifyAscTransition,
-  detectRatingChanges,
   diffNewReviews,
   isNewerVersion,
   parseAppStoreFeed,
   parseAppStoreLookup,
   parsePlayStorePage,
   ratingColor,
-  settleObservation,
 } from './lib.mjs';
 
 test('별점 4~5는 초록, 3은 노랑, 1~2는 빨강 색을 쓴다', () => {
@@ -118,8 +115,6 @@ test('lookup 응답에서 버전·릴리즈 노트·평점을 뽑아낸다', () 
   assert.deepEqual(parseAppStoreLookup(lookup), {
     version: '1.5.0',
     releaseNotes: '버그 수정',
-    rating: 4.8,
-    ratingCount: 132,
   });
 });
 
@@ -128,73 +123,18 @@ test('lookup 결과가 비어 있으면 모든 필드가 null인 객체를 준�
   assert.deepEqual(parseAppStoreLookup({ results: [] }), {
     version: null,
     releaseNotes: null,
-    rating: null,
-    ratingCount: null,
   });
 });
 
-test('플레이스토어 페이지에서 버전과 평점을 찾는다', () => {
+test('플레이스토어 페이지에서 버전을 찾는다', () => {
   // given — 페이지 스크립트 데이터의 해당 패턴만 흉내낸 HTML
-  const html = 'xx[[["1.5.0"]],yy"starRating":4.6123,zz';
+  const html = 'xx[[["1.5.0"]],yy';
 
-  const parsed = parsePlayStorePage(html);
-
-  assert.equal(parsed.version, '1.5.0');
-  assert.equal(parsed.rating, 4.6);
+  assert.equal(parsePlayStorePage(html).version, '1.5.0');
 });
 
 test('플레이스토어 페이지에서 패턴을 못 찾으면 null 필드를 준다', () => {
-  const parsed = parsePlayStorePage('<html>전혀 다른 내용</html>');
-
-  assert.equal(parsed.version, null);
-  assert.equal(parsed.rating, null);
-});
-
-test('평점이 그대로면 변동 알림을 만들지 않는다', () => {
-  const prev = { appStore: { rating: 4.8 }, playStore: { rating: 4.6 } };
-  const curr = {
-    appStore: { rating: 4.8, ratingCount: 132 },
-    playStore: { rating: 4.6, ratingCount: 87 },
-  };
-
-  assert.equal(detectRatingChanges(prev, curr), null);
-});
-
-test('한쪽 평점이 내려가면 하락 방향으로 변동을 감지한다', () => {
-  const prev = { appStore: { rating: 4.8 }, playStore: { rating: 4.6 } };
-  const curr = {
-    appStore: { rating: 4.5, ratingCount: 132 },
-    playStore: { rating: 4.6, ratingCount: 87 },
-  };
-
-  const changes = detectRatingChanges(prev, curr);
-
-  assert.equal(changes.appStore.direction, 'down');
-  assert.equal(changes.playStore, null);
-});
-
-test('평점이 오르면 상승 방향으로 변동을 감지한다', () => {
-  const prev = { appStore: { rating: 4.0 }, playStore: {} };
-  const curr = {
-    appStore: { rating: 4.5, ratingCount: 10 },
-    playStore: { rating: null },
-  };
-
-  const changes = detectRatingChanges(prev, curr);
-
-  assert.equal(changes.appStore.direction, 'up');
-  assert.equal(changes.appStore.from, 4.0);
-});
-
-test('이전 평점이 없던 스토어는 변동으로 치지 않는다', () => {
-  // given — 플레이 평점을 처음 수집한 상황
-  const prev = { appStore: { rating: 4.8 }, playStore: {} };
-  const curr = {
-    appStore: { rating: 4.8, ratingCount: 132 },
-    playStore: { rating: 4.6, ratingCount: 87 },
-  };
-
-  assert.equal(detectRatingChanges(prev, curr), null);
+  assert.equal(parsePlayStorePage('<html>전혀 다른 내용</html>').version, null);
 });
 
 test('리뷰 embed는 별점 줄 아래 제목과 본문, 메타 순으로 담는다', () => {
@@ -260,36 +200,6 @@ test('릴리즈 노트가 없으면 릴리즈 노트 단락을 뺀다', () => {
   assert.doesNotMatch(embed.description, /릴리즈 노트/);
 });
 
-test('평점이 아직 없는 스토어는 집계 전으로 표기한다', () => {
-  // given — 플레이스토어가 평점을 아직 노출하지 않는 상황
-  const changes = {
-    appStore: { direction: 'down', from: 4.8 },
-    playStore: null,
-  };
-  const curr = {
-    appStore: { rating: 4.5, ratingCount: 132 },
-    playStore: { rating: null, ratingCount: null },
-  };
-
-  const embed = buildRatingChangeMessage(changes, curr);
-
-  assert.match(embed.description, /Play Store 평점 집계 전/);
-});
-
-test('리뷰 수를 모르는 스토어는 리뷰 수 표기를 생략한다', () => {
-  // given — 플레이는 페이지에서 평점만 읽혀서 리뷰 수가 없다
-  const changes = { appStore: null, playStore: { direction: 'up', from: 4.4 } };
-  const curr = {
-    appStore: { rating: 4.8, ratingCount: 132 },
-    playStore: { rating: 4.6 },
-  };
-
-  const embed = buildRatingChangeMessage(changes, curr);
-
-  assert.match(embed.description, /Play Store \*\*4\.4 → 4\.6\*\*/);
-  assert.doesNotMatch(embed.description, /리뷰 null개/);
-});
-
 test('ASC 상태가 출시 대기로 바뀌면 승인으로 분류한다', () => {
   assert.equal(
     classifyAscTransition('IN_REVIEW', 'PENDING_DEVELOPER_RELEASE'),
@@ -330,90 +240,4 @@ test('버전 비교는 문자열이 아니라 숫자 단위로 한다', () => {
   // given — 문자열 비교면 "1.10.0" < "1.9.0"으로 잘못 판정된다
   assert.equal(isNewerVersion('1.10.0', '1.9.0'), true);
   assert.equal(isNewerVersion('1.0.0.1', '1.0.0'), true);
-});
-
-test('처음 관측된 평점은 바로 확정한다', () => {
-  const { settled, nextPending } = settleObservation(undefined, undefined, {
-    rating: 4.0,
-    ratingCount: 4,
-  });
-
-  assert.deepEqual(settled, { rating: 4.0, ratingCount: 4 });
-  assert.equal(nextPending, null);
-});
-
-test('평점이 그대로면 리뷰 수만 최신으로 갱신한다', () => {
-  const { settled, nextPending } = settleObservation(
-    { rating: 4.0, ratingCount: 4 },
-    undefined,
-    { rating: 4.0, ratingCount: 5 },
-  );
-
-  assert.deepEqual(settled, { rating: 4.0, ratingCount: 5 });
-  assert.equal(nextPending, null);
-});
-
-test('새 평점이 처음 관측되면 확정하지 않고 보류한다', () => {
-  // given — CDN 캐시 불일치일 수 있으므로 한 번 관측으론 안 믿는다
-  const { settled, nextPending } = settleObservation(
-    { rating: 4.0, ratingCount: 4 },
-    undefined,
-    { rating: 4.4, ratingCount: 7 },
-  );
-
-  assert.equal(settled.rating, 4.0);
-  assert.deepEqual(nextPending, { rating: 4.4, ratingCount: 7 });
-});
-
-test('새 평점이 2연속 관측되면 확정한다', () => {
-  const { settled, nextPending } = settleObservation(
-    { rating: 4.0, ratingCount: 4 },
-    { rating: 4.4, ratingCount: 7 },
-    { rating: 4.4, ratingCount: 7 },
-  );
-
-  assert.deepEqual(settled, { rating: 4.4, ratingCount: 7 });
-  assert.equal(nextPending, null);
-});
-
-test('보류 중 원래 값으로 돌아오면 보류를 버린다', () => {
-  // given — 4.0 → 4.4(보류) → 4.0: 캐시 불일치였다
-  const { settled, nextPending } = settleObservation(
-    { rating: 4.0, ratingCount: 4 },
-    { rating: 4.4, ratingCount: 7 },
-    { rating: 4.0, ratingCount: 4 },
-  );
-
-  assert.equal(settled.rating, 4.0);
-  assert.equal(nextPending, null);
-});
-
-test('수집에 실패하면 확정값과 보류를 그대로 유지한다', () => {
-  const { settled, nextPending } = settleObservation(
-    { rating: 4.0, ratingCount: 4 },
-    { rating: 4.4, ratingCount: 7 },
-    { rating: null },
-  );
-
-  assert.equal(settled.rating, 4.0);
-  assert.deepEqual(nextPending, { rating: 4.4, ratingCount: 7 });
-});
-
-test('평점 변동 메시지는 두 스토어 현황을 모두 담는다', () => {
-  const changes = {
-    appStore: { direction: 'down', from: 4.8 },
-    playStore: null,
-  };
-  const curr = {
-    appStore: { rating: 4.5, ratingCount: 132 },
-    playStore: { rating: 4.6, ratingCount: 87 },
-  };
-
-  const embed = buildRatingChangeMessage(changes, curr);
-
-  assert.equal(embed.title, '평점 변동이 있어요');
-  assert.match(embed.description, /4\.8 → 4\.5/);
-  assert.match(embed.description, /변동 없음/);
-  assert.match(embed.description, /리뷰 132개/);
-  assert.match(embed.description, /리뷰 87개/);
 });

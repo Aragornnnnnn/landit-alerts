@@ -7,20 +7,17 @@ import { sendEmbed } from './discord.mjs';
 import { fetchOk } from './http.mjs';
 import {
   APP_STORE_ID,
-  buildRatingChangeMessage,
   buildReleaseEmbed,
   buildReviewApprovedEmbed,
   buildReviewEmbed,
   buildReviewRejectedEmbed,
   classifyAscTransition,
-  detectRatingChanges,
   diffNewReviews,
   isNewerVersion,
   parseAppStoreFeed,
   parseAppStoreLookup,
   parsePlayStorePage,
   PLAY_STORE_URL,
-  settleObservation,
 } from './lib.mjs';
 import { fetchPlayReviews } from './play.mjs';
 
@@ -156,33 +153,6 @@ if (
   );
 }
 
-// 평점은 같은 값이 2연속 관측될 때만 확정한다 (관측값이 왔다갔다해도 반복 알림 없음)
-const observed = {
-  appStore: {
-    rating: appStoreInfo?.rating ?? null,
-    ratingCount: appStoreInfo?.ratingCount ?? null,
-  },
-  playStore: { rating: playPage?.rating ?? null },
-};
-const settledRatings = {};
-const nextPending = {};
-for (const store of ['appStore', 'playStore']) {
-  const { settled, nextPending: pending } = settleObservation(
-    state.ratings?.[store],
-    state.pendingRatings?.[store],
-    observed[store],
-  );
-  settledRatings[store] = settled ?? {};
-  if (pending) nextPending[store] = pending;
-}
-const ratingChanges = detectRatingChanges(state.ratings, settledRatings);
-if (ratingChanges) {
-  await post(
-    REVIEW_WEBHOOK,
-    buildRatingChangeMessage(ratingChanges, settledRatings),
-  );
-}
-
 if (ascState) {
   const transition = classifyAscTransition(
     state.ascState?.state,
@@ -210,8 +180,8 @@ if (
 ) {
   state.playVersion = playPage.version;
 }
-state.ratings = settledRatings;
-state.pendingRatings = nextPending;
+delete state.ratings;
+delete state.pendingRatings;
 if (ascState) state.ascState = ascState;
 
 await mkdir(dirname(STATE_FILE), { recursive: true });

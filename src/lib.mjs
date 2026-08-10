@@ -1,4 +1,4 @@
-// 스토어 알림의 순수 로직 — 피드 파싱, 새 리뷰·평점 변동 감지, 디스코드 embed 생성
+// 스토어 알림의 순수 로직 — 피드 파싱, 새 리뷰·릴리즈 감지, 디스코드 embed 생성
 export const APP_STORE_ID = '6787414201';
 export const PLAY_PACKAGE = 'com.saynow.app';
 const ASC_URL = `https://appstoreconnect.apple.com/apps/${APP_STORE_ID}/distribution`;
@@ -7,21 +7,17 @@ const ASC_URL = `https://appstoreconnect.apple.com/apps/${APP_STORE_ID}/distribu
 const STORES = {
   appStore: {
     name: 'App Store',
-    emojiName: 'appstore',
     emojiId: '1535598212247978044',
     url: `https://apps.apple.com/kr/app/id${APP_STORE_ID}`,
   },
   playStore: {
     name: 'Play Store',
-    emojiName: 'playstore',
     emojiId: '1535598213959000115',
     url: `https://play.google.com/store/apps/details?id=${PLAY_PACKAGE}`,
   },
 };
 export const PLAY_STORE_URL = STORES.playStore.url;
 
-const emoji = (store) =>
-  `<:${STORES[store].emojiName}:${STORES[store].emojiId}>`;
 const author = (store) => ({
   name: STORES[store].name,
   icon_url: `https://cdn.discordapp.com/emojis/${STORES[store].emojiId}.png`,
@@ -33,10 +29,7 @@ const COLORS = {
   red: 0xed4245,
   blue: 0x3498db,
   purple: 0x9b59b6,
-  orange: 0xef9f27,
 };
-
-const round1 = (n) => Math.round(n * 10) / 10;
 
 // JWT 클라이언트(play·asc)가 공유하는 base64url 인코딩
 export const base64url = (input) =>
@@ -79,33 +72,13 @@ export const parseAppStoreLookup = (json) => {
   return {
     version: app.version ?? null,
     releaseNotes: app.releaseNotes ?? null,
-    rating:
-      app.averageUserRating != null ? round1(app.averageUserRating) : null,
-    ratingCount: app.userRatingCount ?? null,
   };
 };
 
 // 플레이 페이지는 공식 API가 없어 스크립트 데이터의 패턴을 읽는다. 못 찾으면 null로 조용히 넘어간다
-export const parsePlayStorePage = (html) => {
-  const version = html.match(/\[\[\["([\d.]+)"\]\]/)?.[1] ?? null;
-  const ratingRaw = html.match(/"starRating":([\d.]+)/)?.[1];
-  const rating = ratingRaw ? round1(Number(ratingRaw)) : null;
-  return { version, rating };
-};
-
-export const detectRatingChanges = (prev, curr) => {
-  const changeOf = (store) => {
-    const before = prev?.[store]?.rating;
-    const after = curr[store]?.rating;
-    if (before == null || after == null || before === after) return null;
-    return { direction: after < before ? 'down' : 'up', from: before };
-  };
-
-  const appStore = changeOf('appStore');
-  const playStore = changeOf('playStore');
-  if (!appStore && !playStore) return null;
-  return { appStore, playStore };
-};
+export const parsePlayStorePage = (html) => ({
+  version: html.match(/\[\[\["([\d.]+)"\]\]/)?.[1] ?? null,
+});
 
 // 버전이 실제로 높아졌는지 숫자 단위로 비교한다 (스토어 CDN이 옛 버전을 섞어 줘도 뒤로 안 가게)
 export const isNewerVersion = (curr, prev) => {
@@ -116,21 +89,6 @@ export const isNewerVersion = (curr, prev) => {
     if (diff !== 0) return diff > 0;
   }
   return false;
-};
-
-// CDN 캐시 불일치로 평점이 왔다갔다 관측되는 것을 막는다 — 새 값이 2연속 관측될 때만 확정한다
-export const settleObservation = (stored, pending, current) => {
-  if (current?.rating == null) {
-    return { settled: stored ?? null, nextPending: pending ?? null };
-  }
-  if (stored?.rating == null) return { settled: current, nextPending: null };
-  if (current.rating === stored.rating) {
-    return { settled: current, nextPending: null };
-  }
-  if (pending?.rating === current.rating) {
-    return { settled: current, nextPending: null };
-  }
-  return { settled: stored, nextPending: current };
 };
 
 // ASC 심사 상태 전이를 알림 종류로 해석한다. 알림 대상이 아니면 null
@@ -187,27 +145,3 @@ export const buildReviewRejectedEmbed = (version) => ({
   color: COLORS.red,
   timestamp: new Date().toISOString(),
 });
-
-export const buildRatingChangeMessage = (changes, curr) => {
-  const line = (store) => {
-    const { rating, ratingCount } = curr[store];
-    if (rating == null)
-      return `${emoji(store)} ${STORES[store].name} 평점 집계 전`;
-    const change = changes[store];
-    const value = change
-      ? `**${change.from} → ${rating}** ${change.direction === 'down' ? '▼' : '▲'} ${round1(
-          Math.abs(rating - change.from),
-        )}`
-      : `**${rating}** 변동 없음`;
-    const count = ratingCount != null ? ` · 리뷰 ${ratingCount}개` : '';
-    return `${emoji(store)} ${STORES[store].name} ${value}${count}`;
-  };
-
-  const hasDown = Object.values(changes).some((c) => c?.direction === 'down');
-  return {
-    title: '평점 변동이 있어요',
-    description: Object.keys(STORES).map(line).join('\n'),
-    color: hasDown ? COLORS.orange : COLORS.green,
-    timestamp: new Date().toISOString(),
-  };
-};
