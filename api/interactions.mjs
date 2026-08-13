@@ -107,7 +107,8 @@ export default async (req, res) => {
     const { store, reviewId } = decodeCustomId(interaction.data.custom_id);
     const text = interaction.data.components[0].components[0].value;
     try {
-      await sendReply(store, reviewId, text);
+      // 'test-'로 시작하는 리뷰 ID는 시뮬레이션 — 스토어 전송 없이 성공 흐름만 재현한다
+      if (!reviewId.startsWith('test-')) await sendReply(store, reviewId, text);
     } catch (e) {
       console.error('답글 전송 실패:', e.message);
       // 쓰는 사람이 개발자뿐이라 원인을 그대로 보여준다
@@ -126,7 +127,16 @@ export default async (req, res) => {
     return res.status(200).json({
       type: 7,
       data: {
-        ...(embed && { embeds: [applyReplyToEmbed(embed, text, author)] }),
+        ...(embed && {
+          embeds: [
+            applyReplyToEmbed(
+              embed,
+              text,
+              author,
+              Math.floor(Date.now() / 1000),
+            ),
+          ],
+        }),
         components: [buildReplyButton(store, reviewId, true)],
       },
     });
