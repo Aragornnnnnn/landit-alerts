@@ -39,6 +39,8 @@ test('답글 전 버튼은 답글 달기, 답글 후 버튼은 수정으로 표�
 
   assert.match(fresh.components[0].label, /답글 달기/);
   assert.match(replied.components[0].label, /수정/);
+  assert.ok(fresh.components[0].emoji.id);
+  assert.ok(replied.components[0].emoji.id);
   assert.equal(decodeCustomId(fresh.components[0].custom_id).action, 'reply');
   assert.equal(decodeCustomId(replied.components[0].custom_id).action, 'edit');
 });
@@ -63,25 +65,25 @@ test('답글 성공 시 embed에 답글 내용과 작성자를 붙인다', () =>
 
   const updated = applyReplyToEmbed(embed, '감사합니다!', '준서');
 
-  assert.match(updated.fields[0].value, /─/);
-  assert.equal(updated.fields[1].name, '✅ 답글 — 준서');
+  assert.equal(updated.fields[0].name, '\u200b');
+  assert.match(updated.fields[1].name, /답글 — 준서$/);
   assert.equal(updated.fields[1].value, '감사합니다!');
   assert.equal(updated.title, '⭐⭐⭐⭐⭐');
 });
 
 test('답글을 수정하면 기존 답글 필드를 교체한다', () => {
-  // given — 이미 구분선과 답글 필드가 붙어 있는 카드
+  // given — 이미 간격과 답글 필드가 붙어 있는 카드
   const embed = {
     title: 't',
     fields: [
-      { name: '\u200b', value: '──────────────' },
-      { name: '✅ 답글 — 준서', value: '옛 답글' },
+      { name: '\u200b', value: '\u200b' },
+      { name: '<:tossmemo:1537384077722787840> 답글 — 준서', value: '옛 답글' },
     ],
   };
 
   const updated = applyReplyToEmbed(embed, '고친 답글', '팀원');
 
   assert.equal(updated.fields.length, 2);
-  assert.equal(updated.fields[1].name, '✅ 답글 — 팀원');
+  assert.match(updated.fields[1].name, /답글 — 팀원$/);
   assert.equal(updated.fields[1].value, '고친 답글');
 });

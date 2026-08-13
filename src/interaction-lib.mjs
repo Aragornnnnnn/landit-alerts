@@ -12,30 +12,33 @@ export const decodeCustomId = (customId) => {
 
 // 리뷰 알림 메시지에 붙는 버튼 한 줄 (답글 전 → 초록 답글 달기, 답글 후 → 회색 수정)
 // 색은 디스코드 고정 팔레트(파랑보라·회색·초록·빨강)만 가능해서 초록(3)을 쓴다
+const WRITE_EMOJI = { id: '1537384074677588018', name: 'tosswrite' };
+const EDIT_EMOJI = { id: '1537384076263161866', name: 'tosspencil' };
+
 export const buildReplyButton = (store, reviewId, replied) => ({
   type: 1,
   components: [
     {
       type: 2,
       style: replied ? 2 : 3,
-      label: replied ? '✏️ 답글 수정' : '✍️ 답글 달기',
+      label: replied ? '답글 수정' : '답글 달기',
+      emoji: replied ? EDIT_EMOJI : WRITE_EMOJI,
       custom_id: encodeCustomId(replied ? 'edit' : 'reply', store, reviewId),
     },
   ],
 });
 
-// 답글 성공 기록 — 구분선 아래에 작성자를 굵은 필드 제목으로 올린다 (수정 시 교체)
-const REPLY_FIELD_PREFIX = '✅ 답글';
-const DIVIDER = { name: '\u200b', value: '──────────────' };
+// 답글 성공 기록 — 빈 줄 간격 아래에 작성자를 굵은 필드 제목으로 올린다 (수정 시 교체)
+const REPLY_FIELD_PREFIX = '<:tossmemo:1537384077722787840> 답글';
+const SPACER = { name: '\u200b', value: '\u200b' };
 
 export const applyReplyToEmbed = (embed, replyText, authorName) => ({
   ...embed,
   fields: [
     ...(embed.fields ?? []).filter(
-      (f) =>
-        !f.name.startsWith(REPLY_FIELD_PREFIX) && f.value !== DIVIDER.value,
+      (f) => !f.name.startsWith(REPLY_FIELD_PREFIX) && f.name !== SPACER.name,
     ),
-    DIVIDER,
+    SPACER,
     { name: `${REPLY_FIELD_PREFIX} — ${authorName}`, value: replyText },
   ],
 });
