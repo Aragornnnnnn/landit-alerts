@@ -17,6 +17,7 @@ import {
   diffNewReviews,
   isNewerVersion,
 } from './lib.mjs';
+import { buildReplyButton } from './interaction-lib.mjs';
 import { fetchPlayReviews, fetchPlayTrack } from './play.mjs';
 
 const STATE_FILE = process.env.STATE_FILE ?? '.state/store-alerts.json';
@@ -78,9 +79,9 @@ const [ascReviews, ascVersion, playReviews, playTrack] = await Promise.all([
 
 // ---- 알림 (첫 실행은 기준점만 저장) ----
 let posted = 0;
-const post = async (webhook, embed) => {
+const post = async (webhook, embed, components) => {
   if (firstRun || posted >= MAX_POSTS_PER_RUN) return;
-  await sendEmbed(webhook, embed);
+  await sendEmbed(webhook, embed, components);
   posted += 1;
 };
 
@@ -89,7 +90,9 @@ const notifyNewReviews = async (store, reviews, seenIds) => {
   if (!reviews) return seenIds;
   if (seenIds === undefined) return reviews.map((r) => r.id);
   for (const review of diffNewReviews(reviews, seenIds)) {
-    await post(REVIEW_WEBHOOK, buildReviewEmbed(store, review));
+    await post(REVIEW_WEBHOOK, buildReviewEmbed(store, review), [
+      buildReplyButton(store, review.id, false),
+    ]);
   }
   return [...new Set([...reviews.map((r) => r.id), ...seenIds])].slice(
     0,

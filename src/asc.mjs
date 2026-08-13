@@ -70,3 +70,34 @@ export const fetchAscReleaseNotes = async (credentials, versionId) => {
   );
   return parseAscReleaseNotes(json);
 };
+
+// 리뷰에 달린 기존 개발자 답글 (없으면 null)
+export const fetchAscReplyText = async (credentials, reviewId) => {
+  const res = await fetch(`${API}/customerReviews/${reviewId}/response`, {
+    headers: { Authorization: `Bearer ${makeToken(credentials)}` },
+  });
+  if (res.status === 404) return null;
+  await assertOk(res, 'ASC 답글 조회');
+  return (await res.json())?.data?.attributes?.responseBody ?? null;
+};
+
+// 답글 작성 — 이미 있으면 교체된다 (리뷰당 개발자 답변은 1개)
+export const sendAscReply = async (credentials, reviewId, body) => {
+  const res = await fetch(`${API}/customerReviewResponses`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${makeToken(credentials)}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      data: {
+        type: 'customerReviewResponses',
+        attributes: { responseBody: body },
+        relationships: {
+          review: { data: { type: 'customerReviews', id: reviewId } },
+        },
+      },
+    }),
+  });
+  await assertOk(res, 'ASC 답글 작성');
+};

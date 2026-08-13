@@ -134,6 +134,36 @@ export const fetchPlayReviews = async (serviceAccountJson, seenIds = []) => {
   });
 };
 
+// 리뷰에 달린 기존 개발자 답글 (없으면 null)
+export const fetchPlayReplyText = async (serviceAccountJson, reviewId) => {
+  const serviceAccount = JSON.parse(serviceAccountJson);
+  const token = await fetchAccessToken(serviceAccount);
+  const res = await fetch(`${API}/reviews/${reviewId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  await assertOk(res, '플레이 리뷰 단건 조회');
+  const review = await res.json();
+  return (
+    review?.comments?.find((c) => c.developerComment)?.developerComment?.text ??
+    null
+  );
+};
+
+// 답글 작성 — 이미 있으면 교체된다
+export const sendPlayReply = async (serviceAccountJson, reviewId, text) => {
+  const serviceAccount = JSON.parse(serviceAccountJson);
+  const token = await fetchAccessToken(serviceAccount);
+  const res = await fetch(`${API}/reviews/${reviewId}:reply`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ replyText: text }),
+  });
+  await assertOk(res, '플레이 답글 작성');
+};
+
 // 프로덕션 트랙에서 현재 배포 버전을 읽는다 (읽기용 edit을 만들었다 지운다)
 export const fetchPlayTrack = async (serviceAccountJson) => {
   const serviceAccount = JSON.parse(serviceAccountJson);
