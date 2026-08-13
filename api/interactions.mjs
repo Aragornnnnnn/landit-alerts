@@ -116,7 +116,9 @@ export default async (req, res) => {
         .json(ephemeral(`답글 전송 실패 — ${e.message.slice(0, 300)}`));
     }
     // 성공 — 알림 카드에 답글 내용·작성자를 남기고 버튼을 ✏️ 수정으로 바꾼다
+    // 서버 별명 → 전역 표시 이름 → 계정명 순으로 표기한다
     const author =
+      interaction.member?.nick ??
       interaction.member?.user?.global_name ??
       interaction.member?.user?.username ??
       '알 수 없음';
