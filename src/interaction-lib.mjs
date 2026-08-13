@@ -24,15 +24,18 @@ export const buildReplyButton = (store, reviewId, replied) => ({
   ],
 });
 
-// 답글 성공 기록 — 작성자를 굵은 필드 제목으로 올려 한눈에 보이게 한다 (수정 시 교체)
+// 답글 성공 기록 — 구분선 아래에 작성자를 굵은 필드 제목으로 올린다 (수정 시 교체)
 const REPLY_FIELD_PREFIX = '✅ 답글';
+const DIVIDER = { name: '\u200b', value: '──────────────' };
 
 export const applyReplyToEmbed = (embed, replyText, authorName) => ({
   ...embed,
   fields: [
     ...(embed.fields ?? []).filter(
-      (f) => !f.name.startsWith(REPLY_FIELD_PREFIX),
+      (f) =>
+        !f.name.startsWith(REPLY_FIELD_PREFIX) && f.value !== DIVIDER.value,
     ),
+    DIVIDER,
     { name: `${REPLY_FIELD_PREFIX} — ${authorName}`, value: replyText },
   ],
 });

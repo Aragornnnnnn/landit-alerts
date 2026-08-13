@@ -63,20 +63,25 @@ test('답글 성공 시 embed에 답글 내용과 작성자를 붙인다', () =>
 
   const updated = applyReplyToEmbed(embed, '감사합니다!', '준서');
 
-  assert.equal(updated.fields[0].name, '✅ 답글 — 준서');
-  assert.equal(updated.fields[0].value, '감사합니다!');
+  assert.match(updated.fields[0].value, /─/);
+  assert.equal(updated.fields[1].name, '✅ 답글 — 준서');
+  assert.equal(updated.fields[1].value, '감사합니다!');
   assert.equal(updated.title, '⭐⭐⭐⭐⭐');
 });
 
 test('답글을 수정하면 기존 답글 필드를 교체한다', () => {
+  // given — 이미 구분선과 답글 필드가 붙어 있는 카드
   const embed = {
     title: 't',
-    fields: [{ name: '✅ 답글 — 준서', value: '옛 답글' }],
+    fields: [
+      { name: '\u200b', value: '──────────────' },
+      { name: '✅ 답글 — 준서', value: '옛 답글' },
+    ],
   };
 
   const updated = applyReplyToEmbed(embed, '고친 답글', '팀원');
 
-  assert.equal(updated.fields.length, 1);
-  assert.equal(updated.fields[0].name, '✅ 답글 — 팀원');
-  assert.equal(updated.fields[0].value, '고친 답글');
+  assert.equal(updated.fields.length, 2);
+  assert.equal(updated.fields[1].name, '✅ 답글 — 팀원');
+  assert.equal(updated.fields[1].value, '고친 답글');
 });
