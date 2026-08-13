@@ -27,19 +27,11 @@ export const buildReplyButton = (store, reviewId, replied) => ({
 // 답글 성공 기록 — 알림 embed에 답글 내용과 작성자를 남긴다 (수정 시 교체)
 const REPLY_FIELD = '✅ 등록된 답글';
 
-export const applyReplyToEmbed = (
-  embed,
-  replyText,
-  authorName,
-  unixSeconds,
-) => ({
+export const applyReplyToEmbed = (embed, replyText, authorName) => ({
   ...embed,
   fields: [
     ...(embed.fields ?? []).filter((f) => f.name !== REPLY_FIELD),
-    {
-      name: REPLY_FIELD,
-      value: `${replyText}\n— ${authorName} · <t:${unixSeconds}:f>`,
-    },
+    { name: REPLY_FIELD, value: `${replyText}\n— ${authorName}` },
   ],
 });
 

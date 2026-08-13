@@ -61,11 +61,11 @@ test('기존 답글이 없으면 모달 입력이 비어 있다', () => {
 test('답글 성공 시 embed에 답글 내용과 작성자를 붙인다', () => {
   const embed = { title: '⭐⭐⭐⭐⭐', description: '본문', color: 1 };
 
-  const updated = applyReplyToEmbed(embed, '감사합니다!', '준서', 1700000000);
+  const updated = applyReplyToEmbed(embed, '감사합니다!', '준서');
 
   assert.equal(updated.fields[0].name, '✅ 등록된 답글');
   assert.match(updated.fields[0].value, /감사합니다!/);
-  assert.match(updated.fields[0].value, /— 준서 · <t:1700000000:f>/);
+  assert.match(updated.fields[0].value, /— 준서$/);
   assert.equal(updated.title, '⭐⭐⭐⭐⭐');
 });
 
@@ -75,7 +75,7 @@ test('답글을 수정하면 기존 답글 필드를 교체한다', () => {
     fields: [{ name: '✅ 등록된 답글', value: '옛 답글\n— 준서' }],
   };
 
-  const updated = applyReplyToEmbed(embed, '고친 답글', '팀원', 1700000001);
+  const updated = applyReplyToEmbed(embed, '고친 답글', '팀원');
 
   assert.equal(updated.fields.length, 1);
   assert.match(updated.fields[0].value, /고친 답글/);

@@ -127,16 +127,7 @@ export default async (req, res) => {
     return res.status(200).json({
       type: 7,
       data: {
-        ...(embed && {
-          embeds: [
-            applyReplyToEmbed(
-              embed,
-              text,
-              author,
-              Math.floor(Date.now() / 1000),
-            ),
-          ],
-        }),
+        ...(embed && { embeds: [applyReplyToEmbed(embed, text, author)] }),
         components: [buildReplyButton(store, reviewId, true)],
       },
     });
