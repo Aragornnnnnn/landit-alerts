@@ -13,6 +13,8 @@
 
 리뷰 알림에서는 버튼으로 바로 답글을 달 수 있다. [docs/reply.md](docs/reply.md) 참고.
 
+Sentry 새 이슈 알림은 cron이 아니라 Sentry 웹훅으로 받는다. [docs/sentry.md](docs/sentry.md) 참고.
+
 별점만 남긴 평가는 스토어가 개별 조회를 막아둬서 알림 대상이 아니다.
 평균 평점 알림도 두지 않는다. 공식 API가 없어 값이 불안정하기 때문이다.
 Play 심사 완료 알림은 구글이 API를 제공하지 않아 만들 수 없다.
