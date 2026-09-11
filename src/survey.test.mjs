@@ -21,13 +21,20 @@ test('문항 순서대로 질문·답변 필드를 만들고 안 답한 문항�
     embed.fields.map((f) => f.name),
     [
       '랜딧을 어떻게 알게 되셨나요?',
-      '랜딧, 전반적으로 어떠셨나요?',
+      '랜딧, 전반적으로 어떠셨나요? (1~5)',
       '마지막으로 랜딧에 바라는 점을 남겨주세요',
     ],
   );
-  assert.equal(embed.fields[0].value, '지인 추천');
+  assert.equal(embed.fields[0].value, '지인 추천\n\u200b');
   assert.equal(embed.description, 'a@b.com · user 7');
   assert.equal(embed.timestamp, '2026-09-11T10:00:00.000Z');
+});
+
+test('필드 사이에만 빈 줄을 넣고 마지막 필드 뒤에는 넣지 않는다', () => {
+  const embed = buildSurveyEmbed(row({ channel: '지인 추천', wish: '없어요' }));
+
+  assert.equal(embed.fields[0].value, '지인 추천\n\u200b');
+  assert.equal(embed.fields[1].value, '없어요');
 });
 
 test('기타를 고르면 직접 쓴 내용으로 바꿔 보여준다', () => {
@@ -46,10 +53,14 @@ test('복수 선택은 한 줄에 하나씩 점을 찍어 나열한다', () => {
   assert.equal(embed.fields[0].value, '• 시나리오 대화\n• 기타 — 발음');
 });
 
-test('점수 문항은 5점 만점과 양 끝 뜻을 함께 적는다', () => {
+test('점수 문항은 질문 뒤에 범위를 붙이고 답은 n점으로 적는다', () => {
   const embed = buildSurveyEmbed(row({ recommend_intent: 2 }));
 
-  assert.equal(embed.fields[0].value, '2 / 5  (1 전혀 없어요 · 5 아주 많아요)');
+  assert.equal(
+    embed.fields[0].name,
+    '랜딧을 주변에 추천할 마음이 있으세요? (1~5)',
+  );
+  assert.equal(embed.fields[0].value, '2점');
 });
 
 test('빈 서술 답은 빈 필드 대신 줄표로 채운다', () => {
