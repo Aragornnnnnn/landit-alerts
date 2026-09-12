@@ -48,6 +48,6 @@ export default async (req, res) => {
     return res.status(200).json({ skipped: true });
   }
 
-  await sendEmbed(webhookUrl, buildSentryEmbed(alert.event, alert.rule));
+  await sendEmbed(webhookUrl, buildSentryEmbed(alert.event));
   return res.status(200).json({ sent: true });
 };
