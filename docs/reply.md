@@ -52,7 +52,7 @@
 
    `.vercel/` 폴더가 생기며(커밋 금지, gitignore 처리됨) 이후 명령이 이 프로젝트를 향한다.
 
-3. **환경변수 등록** — 5개, production 환경에. 값은 stdin으로 넣어야 셸 기록에 안 남는다.
+3. **환경변수 등록** — 답글 기능에 필요한 5개, production 환경에. 설문·Sentry 변수는 각 문서([survey.md](survey.md)·[sentry.md](sentry.md))에 있다. 값은 stdin으로 넣어야 셸 기록에 안 남는다.
 
    ```bash
    printf '%s' "$값" | npx vercel env add 이름 production --token $TOKEN

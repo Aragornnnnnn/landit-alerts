@@ -1,6 +1,6 @@
 # Sentry 이슈 알림
 
-Sentry에 새 이슈가 생기면 프로젝트별 디스코드 채널(`#web-sentry`, `#mobile-sentry`)에 카드 한 장을 보낸다.
+Sentry에 새 이슈가 생기면 프로젝트별 디스코드 채널(`#sentry-web`, `#sentry-mobile`)에 카드 한 장을 보낸다.
 
 ## 왜 이 방식인가
 
@@ -66,7 +66,7 @@ npx vercel deploy --prod --token $TOKEN
 ## Sentry 세팅 과정
 
 1. **프로젝트 id 확인** — Sentry > Settings > Projects > 프로젝트 클릭. 주소창이나 General Settings에 숫자 id가 있다. web·mobile 둘 다 적어 둔다.
-2. **디스코드 웹훅** — `#web-sentry`, `#mobile-sentry` 각각 채널 편집 > 연동 > 웹후크 > 새 웹후크. 이름 `Sentry`, 아바타는 Sentry 로고. URL 복사.
+2. **디스코드 웹훅** — `#sentry-web`, `#sentry-mobile` 각각 채널 편집 > 연동 > 웹후크 > 새 웹후크. 이름 `Sentry`, 아바타는 Sentry 로고. URL 복사.
 3. **환경변수 등록·배포** — 위 명령. `SENTRY_CLIENT_SECRET`은 4번에서 받으므로 `SENTRY_CHANNELS`를 먼저 넣고, 시크릿은 4번 뒤에 넣은 다음 배포한다.
 4. **내부 연동 생성** — Sentry > Settings > Developer Settings > Custom Integrations > Create New Integration > **Internal Integration**.
    - Name: `landit-alerts`

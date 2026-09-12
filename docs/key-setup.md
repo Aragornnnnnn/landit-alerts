@@ -22,6 +22,8 @@
 ⚠️ .p8 다운로드는 **한 번만** 가능하다. 페이지를 벗어나면 다시 받을 수 없고,
 잃어버리면 키를 폐기(Revoke)하고 새로 만들어야 한다.
 
+⚠️ 키는 **애플 개발자 팀에 묶인다.** 앱을 다른 팀으로 이전하면 옛 팀 키는 403·404를 내고 알림이 조용히 끊긴다(2026-09 계정 이전 때 열흘 누락). 이전이 끝나면 새 팀에서 같은 절차로 다시 발급하고, GitHub Secrets와 Vercel 환경변수([reply.md](reply.md)) 둘 다 교체한 뒤 Vercel을 재배포한다. 옛 키는 폐기한다.
+
 Secrets 매핑.
 
 | Secret            | 값                 |
@@ -75,5 +77,7 @@ gh secret set ASC_KEY_ID -R Aragornnnnnn/landit-alerts -b "발급받은 Key ID"
 gh secret set ASC_PRIVATE_KEY -R Aragornnnnnn/landit-alerts < AuthKey_XXXX.p8
 gh secret set PLAY_SERVICE_ACCOUNT_JSON -R Aragornnnnnn/landit-alerts < service-account.json
 ```
+
+리뷰 답글 기능이 같은 키를 쓰므로 Vercel 환경변수에도 같은 값을 넣는다. [reply.md](reply.md).
 
 등록이 끝나면 로컬의 .p8·JSON 파일은 안전한 곳(팀 비밀번호 관리자 등)에 보관하거나 삭제한다.
