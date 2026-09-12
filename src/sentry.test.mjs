@@ -86,7 +86,6 @@ test('에러는 빨간 카드에 제목·링크·환경·릴리즈·브라우저
 
   assert.equal(embed.title, '🔴 ReferenceError: heck is not defined');
   assert.equal(embed.url, event().web_url);
-  assert.equal(embed.description, 'app/page.tsx in onClick');
   assert.equal(embed.color, 0xe74c3c);
   assert.deepEqual(embed.fields, [
     { name: '환경', value: 'production', inline: true },
@@ -95,6 +94,7 @@ test('에러는 빨간 카드에 제목·링크·환경·릴리즈·브라우저
     { name: '브라우저', value: 'Chrome 75', inline: true },
     { name: 'OS', value: 'iOS 18.6', inline: true },
     { name: '요청', value: 'https://landit.im/home', inline: false },
+    { name: '발생 위치', value: 'app/page.tsx in onClick', inline: false },
   ]);
   assert.equal(embed.timestamp, '2019-08-19T21:06:17.677Z');
 });
@@ -155,13 +155,15 @@ test('예외·요청·기기·앱 버전·스택을 있으면 담는다', () => 
   const byName = Object.fromEntries(embed.fields.map((f) => [f.name, f]));
 
   assert.equal(byName['기기'].value, 'iPhone 15 Pro');
+  // 스택이 있으면 발생 위치는 중복이라 뺀다
+  assert.equal('발생 위치' in byName, false);
   assert.equal(byName['앱 버전'].value, '1.3.0 (19)');
   assert.equal(byName['예외'].value, 'TypeError: x is not a function');
   assert.equal(byName['요청'].value, 'GET https://landit.im/api/x');
   assert.equal(byName['요청'].inline, false);
   // 앱 코드 프레임만, 최근 것부터 3개
   assert.equal(
-    byName['스택'].value,
+    byName['호출 경로 (맨 위가 터진 곳)'].value,
     '```\nd  app/d.tsx:40\nc  app/c.tsx:30\nb  app/b.tsx:20\n```',
   );
 });
@@ -192,6 +194,7 @@ test('경고는 노란색, 정보는 파란색이고 없는 정보는 필드를 
   assert.equal(warning.color, 0xf1c40f);
   assert.deepEqual(warning.fields, [
     { name: '환경', value: 'production', inline: true },
+    { name: '발생 위치', value: 'app/page.tsx in onClick', inline: false },
   ]);
   assert.equal(info.title, '🔵 ReferenceError: heck is not defined');
   assert.equal(info.color, 0x3498db);
@@ -205,11 +208,8 @@ test('사용자는 이메일이 있어도 id만 적는다', () => {
   assert.equal(embed.fields.find((f) => f.name === '사용자').value, '42');
 });
 
-test('긴 제목과 culprit은 디스코드 상한에 맞춰 자른다', () => {
-  const embed = buildSentryEmbed(
-    event({ title: 'x'.repeat(300), culprit: 'y'.repeat(5000) }),
-  );
+test('긴 제목은 디스코드 상한에 맞춰 자른다', () => {
+  const embed = buildSentryEmbed(event({ title: 'x'.repeat(300) }));
 
   assert.equal(embed.title.length, 256);
-  assert.equal(embed.description.length, 4096);
 });

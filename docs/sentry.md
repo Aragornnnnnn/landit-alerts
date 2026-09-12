@@ -13,12 +13,12 @@ Sentry에 새 이슈가 생기면 프로젝트별 디스코드 채널(`#web-sent
 
 ```text
 🔴 TypeError: Cannot read properties of undefined     ← 제목 = Sentry 이슈 링크
-app/(home)/scenario/[id]/talk/page.tsx in onPlay      ← culprit
 환경 production   릴리즈 landit-web@1.4.0   앱 버전 1.3.0 (19)
 사용자 a@b.com    브라우저 Safari 18        OS iOS 18.6    기기 iPhone 15 Pro
 예외  TypeError: …                          ← 제목과 같으면 생략
 요청  GET https://landit.im/scenario/12/talk
-스택  onPlay  app/(home)/scenario/[id]/talk/page.tsx:132   ← 앱 코드 프레임 최근 순 3개
+호출 경로 (맨 위가 터진 곳)
+      onPlay  app/(home)/scenario/[id]/talk/page.tsx:132   ← 우리 코드만 최근 순 3개
       playTurn  features/talk/model/playTurn.ts:41
       useTalkSession  features/talk/model/useTalkSession.ts:88
 ```
@@ -27,6 +27,7 @@ app/(home)/scenario/[id]/talk/page.tsx in onPlay      ← culprit
 - 없는 정보는 줄을 만들지 않는다. 앱 버전·기기 모델은 모바일(contexts)에만 있고, 웹은 릴리즈·브라우저로 충분하다.
 - 스택은 `in_app` 프레임만 최근 순으로 최대 3개. 앱 프레임이 하나도 없으면 전체에서 3개.
 - 요청은 `request`가 없으면 `url` 태그로 대신한다.
+- 스택이 없는 이벤트(메시지 로그 등)는 대신 "발생 위치"(culprit) 줄을 보여준다.
 - 발생 횟수·최초 발생 여부는 이슈 알림 payload에 없어서 싣지 않는다. 규칙이 "새 이슈"라 어차피 첫 발생이다.
 - Sentry에서 멘션·할당 같은 상호작용은 없다. 링크를 눌러 Sentry에서 처리한다.
 

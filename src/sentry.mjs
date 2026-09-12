@@ -3,7 +3,6 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 
 // 디스코드 상한 — 넘으면 메시지 전체가 거절된다
 const MAX_TITLE_LENGTH = 256;
-const MAX_DESCRIPTION_LENGTH = 4096;
 const MAX_FIELD_LENGTH = 1024;
 
 const LEVEL_STYLE = {
@@ -108,6 +107,7 @@ const field = (name, value, inline = true) =>
 
 export const buildSentryEmbed = (event) => {
   const { emoji, color } = LEVEL_STYLE[event.level] ?? LEVEL_STYLE.error;
+  const stack = stackLabel(event);
   const fields = [
     field('환경', event.environment),
     field('릴리즈', event.release),
@@ -118,12 +118,13 @@ export const buildSentryEmbed = (event) => {
     field('기기', deviceLabel(event)),
     field('예외', exceptionLabel(event), false),
     field('요청', requestLabel(event), false),
-    field('스택', stackLabel(event), false),
+    // culprit(파일 in 함수)은 스택 첫 줄과 겹치므로 스택이 없을 때만 보여준다
+    field('발생 위치', stack ? null : event.culprit, false),
+    field('호출 경로 (맨 위가 터진 곳)', stack, false),
   ].filter(Boolean);
   return {
     title: `${emoji} ${event.title}`.slice(0, MAX_TITLE_LENGTH),
     url: event.web_url,
-    description: (event.culprit ?? '').slice(0, MAX_DESCRIPTION_LENGTH),
     color,
     fields,
     timestamp: new Date(event.timestamp * 1000).toISOString(),
