@@ -1,7 +1,7 @@
 # landit-alerts
 
-랜딧 앱의 스토어 소식·설문 응답·Sentry 이슈를 디스코드로 알린다.
-스토어는 GitHub Actions가 30분마다 확인하고, 설문과 Sentry는 웹훅으로 받는다. 따로 두는 서버는 없다.
+랜딧 앱의 스토어 소식·편지함 피드백·설문 응답·Sentry 이슈를 디스코드로 알린다.
+스토어는 GitHub Actions가 30분마다 확인하고, 피드백·설문·Sentry는 웹훅으로 받는다. 따로 두는 서버는 없다.
 
 ## 무엇을 알리나
 
@@ -10,14 +10,15 @@
 | 새 리뷰 (양쪽 스토어)      | `#앱-리뷰`                     | 30분마다 확인         |
 | 새 버전 공개 (양쪽 스토어) | `#앱-소식`                     | 30분마다 확인         |
 | 애플 심사 통과·거절        | `#앱-소식`                     | 30분마다 확인         |
+| 편지함 피드백              | `#앱-피드백`                   | 슈퍼베이스 웹훅       |
 | 설문 응답                  | `#유료화-전-설문`              | 슈퍼베이스 웹훅       |
 | Sentry 새 이슈             | `#sentry-web` `#sentry-mobile` | Sentry 내부 연동 웹훅 |
 
-디스코드 카테고리는 뮤트 단위다. 🚨 장애 알림(sentry-web·sentry-mobile·sentry-server·grafana) · 💰 결제·구독(revenuecat) · 📣 유저 목소리(앱-리뷰·유료화-전-설문) · 🚀 배포·스토어(앱-소식).
-이 레포가 보내는 건 위 표의 다섯 가지다. sentry-server·grafana·revenuecat은 여기서 보내지 않는다.
+디스코드 카테고리는 뮤트 단위다. 🚨 장애 알림(sentry-web·sentry-mobile·sentry-server·grafana) · 💰 결제·구독(revenuecat) · 📣 유저 목소리(앱-리뷰·앱-피드백·유료화-전-설문) · 🚀 배포·스토어(앱-소식).
+이 레포가 보내는 건 위 표의 여섯 가지다. sentry-server·grafana·revenuecat은 여기서 보내지 않는다.
 
 리뷰 알림에서는 버튼으로 바로 답글을 달 수 있다. [docs/reply.md](docs/reply.md) 참고.
-설문은 [docs/survey.md](docs/survey.md), Sentry는 [docs/sentry.md](docs/sentry.md)에 세팅 과정이 있다.
+피드백은 [docs/feedback.md](docs/feedback.md), 설문은 [docs/survey.md](docs/survey.md), Sentry는 [docs/sentry.md](docs/sentry.md)에 세팅 과정이 있다.
 
 별점만 남긴 평가는 스토어가 개별 조회를 막아둬서 알림 대상이 아니다.
 평균 평점 알림도 두지 않는다. 공식 API가 없어 값이 불안정하기 때문이다.
@@ -80,7 +81,7 @@ Play 심사 완료 알림은 구글이 API를 제공하지 않아 만들 수 없
 | App Store 리뷰·버전·심사 | App Store Connect API     |
 | Play 리뷰·버전(트랙)     | Google Play Developer API |
 
-### 웹훅으로 받는 알림 (설문·Sentry·리뷰 답글 버튼)
+### 웹훅으로 받는 알림 (피드백·설문·Sentry·리뷰 답글 버튼)
 
 `api/` 아래 함수가 팀 Vercel의 landit-alerts 프로젝트(`https://landit-alerts.vercel.app`)에서 돈다.
 외부가 우리 주소로 보내면 검증하고 디스코드 형식으로 바꿔 보낸다.
@@ -88,6 +89,7 @@ Play 심사 완료 알림은 구글이 API를 제공하지 않아 만들 수 없
 | 함수                   | 받는 것                        | 검증                          |
 | ---------------------- | ------------------------------ | ----------------------------- |
 | `api/interactions.mjs` | 디스코드 버튼·모달 (리뷰 답글) | Ed25519 서명 + 5분 타임스탬프 |
+| `api/feedback.mjs`     | 슈퍼베이스 Database Webhook    | `x-feedback-secret` 헤더      |
 | `api/survey.mjs`       | 슈퍼베이스 Database Webhook    | `x-survey-secret` 헤더        |
 | `api/sentry.mjs`       | Sentry 알림 규칙 액션          | HMAC 서명 (Client Secret)     |
 
@@ -110,13 +112,14 @@ Play 심사 완료 알림은 구글이 API를 제공하지 않아 만들 수 없
 
 ### Vercel 환경변수 (웹훅 수신)
 
-| 이름                                               | 용도                                    | 문서                        |
-| -------------------------------------------------- | --------------------------------------- | --------------------------- |
-| `DISCORD_PUBLIC_KEY`                               | 디스코드 버튼 요청 서명 검증            | [reply.md](docs/reply.md)   |
-| `ASC_ISSUER_ID` / `ASC_KEY_ID` / `ASC_PRIVATE_KEY` | 리뷰 답글 게시 (GitHub Secrets와 동일)  | [reply.md](docs/reply.md)   |
-| `PLAY_SERVICE_ACCOUNT_JSON`                        | 리뷰 답글 게시 (GitHub Secrets와 동일)  | [reply.md](docs/reply.md)   |
-| `SURVEY_WEBHOOK_SECRET` / `DISCORD_WEBHOOK_SURVEY` | 설문 웹훅 검증·유료화-전-설문 채널 웹훅 | [survey.md](docs/survey.md) |
-| `SENTRY_CLIENT_SECRET` / `SENTRY_CHANNELS`         | Sentry 서명 검증·프로젝트별 채널 웹훅   | [sentry.md](docs/sentry.md) |
+| 이름                                                   | 용도                                    | 문서                            |
+| ------------------------------------------------------ | --------------------------------------- | ------------------------------- |
+| `DISCORD_PUBLIC_KEY`                                   | 디스코드 버튼 요청 서명 검증            | [reply.md](docs/reply.md)       |
+| `ASC_ISSUER_ID` / `ASC_KEY_ID` / `ASC_PRIVATE_KEY`     | 리뷰 답글 게시 (GitHub Secrets와 동일)  | [reply.md](docs/reply.md)       |
+| `PLAY_SERVICE_ACCOUNT_JSON`                            | 리뷰 답글 게시 (GitHub Secrets와 동일)  | [reply.md](docs/reply.md)       |
+| `FEEDBACK_WEBHOOK_SECRET` / `DISCORD_WEBHOOK_FEEDBACK` | 피드백 웹훅 검증·앱-피드백 채널 웹훅    | [feedback.md](docs/feedback.md) |
+| `SURVEY_WEBHOOK_SECRET` / `DISCORD_WEBHOOK_SURVEY`     | 설문 웹훅 검증·유료화-전-설문 채널 웹훅 | [survey.md](docs/survey.md)     |
+| `SENTRY_CLIENT_SECRET` / `SENTRY_CHANNELS`             | Sentry 서명 검증·프로젝트별 채널 웹훅   | [sentry.md](docs/sentry.md)     |
 
 ASC 키는 GitHub Secrets와 Vercel 양쪽에 있다. 키를 바꾸면 둘 다 교체하고 Vercel은 재배포한다.
 
@@ -136,7 +139,7 @@ DISCORD_WEBHOOK_REVIEW=... DISCORD_WEBHOOK_UPDATE=... node src/run.mjs
 상태 파일은 `.state/store-alerts.json`에 저장된다.
 `STATE_FILE` 환경변수로 위치를 바꿀 수 있다.
 
-웹훅 연결 전에 쌓인 설문 응답은 `scripts/survey-backfill.mjs`로 한 번에 보낸다. [docs/survey.md](docs/survey.md).
+웹훅 연결 전에 쌓인 설문 응답은 `scripts/survey-backfill.mjs`, 편지함 피드백은 `scripts/feedback-backfill.mjs`로 한 번에 보낸다. [docs/survey.md](docs/survey.md), [docs/feedback.md](docs/feedback.md).
 
 ## 왜 별도 레포인가
 
