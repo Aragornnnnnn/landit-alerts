@@ -10,12 +10,20 @@
 
 ## 카드 형식
 
-- 제목은 유형 이모지+이름(앱 선택 화면과 같은 말). 유형마다 색이 다르다.
-- 본문은 유저가 쓴 글 그대로. 4096자를 넘으면 말줄임.
-- footer에 보낸 사람 id와 피드백 id만 적는다. 닉네임·이메일은 싣지 않는다.
+- 맨 위 author 줄에 토스페이스 아이콘 + 유형 이름(앱 선택 화면과 같은 말). 유형마다 색이 다르다.
+- 본문은 유저가 쓴 글 그대로. 그 아래 `어드민에서 보기` 링크 한 줄(`https://admin.landit.im/feedbacks?open=<피드백 id>`). 링크까지 합쳐 4096자를 넘으면 본문을 말줄임.
+- footer에 보낸 사람 id만 적는다. 닉네임·이메일·피드백 id는 싣지 않는다(어드민에서 본다).
 - 시각은 따로 적지 않는다. 저장 직후 오니 디스코드 메시지 시각으로 충분하다.
 
-유형이 늘면 `src/feedback.mjs`의 `FEEDBACK_TYPES`에 추가한다. 모르는 유형은 회색 "피드백" 카드로 온다.
+아이콘은 리뷰 카드의 스토어 로고와 같은 방식이다. 토스페이스 SVG(landit-fe `shared/ui/emoji/emoji-map.ts`)를 브라우저 캔버스로 128px PNG로 굽고, `scripts/upload-app-emoji.mjs`로 앱 이모지에 올린 뒤 그 id로 `https://cdn.discordapp.com/emojis/<id>.png`를 author 아이콘에 쓴다.
+
+```bash
+node --env-file=~/.landit-discord.env scripts/upload-app-emoji.mjs tossbug=bug.png tossbulb=feature.png tossraisehand=question.png tossraisinghands=cheer.png
+```
+
+찍힌 id를 `src/feedback.mjs`의 `FEEDBACK_TYPES[*].emojiId`에 넣는다. 비어 있으면 아이콘 없이 이름만 나간다.
+
+유형이 늘면 `FEEDBACK_TYPES`에 추가한다. 모르는 유형은 회색 "피드백" 카드로 온다.
 
 ## 구조
 

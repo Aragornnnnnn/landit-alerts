@@ -13,41 +13,44 @@ const row = (overrides) => ({
   ...overrides,
 });
 
-test('유형별 이모지·이름을 제목에, 본문을 설명에, 보낸 사람 id를 footer에 적는다', () => {
+test('유형 이름을 author에, 본문과 어드민 링크를 설명에, 보낸 사람 id를 footer에 적는다', () => {
   const embed = buildFeedbackEmbed(row());
 
-  assert.equal(embed.title, '🐛 문제 신고');
-  assert.equal(embed.description, '발음 평가가 안 끝나요');
-  assert.equal(embed.footer.text, 'user 12 · 피드백 #34');
+  assert.equal(embed.author.name, '문제 신고');
+  assert.equal(
+    embed.description,
+    '발음 평가가 안 끝나요\n\n[어드민에서 보기](https://admin.landit.im/feedbacks?open=34)',
+  );
+  assert.equal(embed.footer.text, 'user 12');
   assert.equal(embed.color, 0xe74c3c);
 });
 
 test('네 유형의 이름은 앱 선택 화면과 같다', () => {
-  const titles = ['BUG_REPORT', 'FEATURE_REQUEST', 'QUESTION', 'CHEER'].map(
-    (feedback_type) => buildFeedbackEmbed(row({ feedback_type })).title,
+  const names = ['BUG_REPORT', 'FEATURE_REQUEST', 'QUESTION', 'CHEER'].map(
+    (feedback_type) => buildFeedbackEmbed(row({ feedback_type })).author.name,
   );
 
-  assert.deepEqual(titles, [
-    '🐛 문제 신고',
-    '💡 신규 기능 요청',
-    '🙋 궁금한 점 문의',
-    '🙌 개발자 응원',
+  assert.deepEqual(names, [
+    '문제 신고',
+    '신규 기능 요청',
+    '궁금한 점 문의',
+    '개발자 응원',
   ]);
 });
 
 test('모르는 유형이 와도 카드를 만든다', () => {
   const embed = buildFeedbackEmbed(row({ feedback_type: 'SOMETHING_NEW' }));
 
-  assert.equal(embed.title, '✉️ 피드백');
+  assert.equal(embed.author.name, '피드백');
 });
 
-test('본문이 4096자를 넘으면 말줄임으로 자르고, 비어 있으면 자리 표시 문구를 쓴다', () => {
+test('본문이 길면 링크까지 합쳐 4096자가 되게 말줄임으로 자르고, 비어 있으면 자리 표시 문구를 쓴다', () => {
   const long = buildFeedbackEmbed(row({ content_text: 'a'.repeat(5000) }));
   const empty = buildFeedbackEmbed(row({ content_text: '   ' }));
 
   assert.equal(long.description.length, 4096);
-  assert.ok(long.description.endsWith('…'));
-  assert.equal(empty.description, '(내용 없음)');
+  assert.ok(long.description.includes('…\n\n[어드민에서 보기]'));
+  assert.ok(empty.description.startsWith('(내용 없음)\n\n'));
 });
 
 test('mailbox_feedback INSERT만 행으로 꺼내고 나머지는 null', () => {
