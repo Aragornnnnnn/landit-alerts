@@ -36,12 +36,16 @@ const adminLink = (id) =>
 const truncate = (text, max) =>
   text.length > max ? `${text.slice(0, max - 1)}…` : text;
 
-// 본문이 카드의 전부다. 누가 보냈는지는 footer에 user id만 적고, 피드백 id는 링크에만 들어간다 — 시각은 디스코드 메시지 시각으로 충분하다
+// created_at은 시간대 없는 timestamp인데 백엔드가 한국 시각으로 쓴다(어드민도 그렇게 읽는다)
+const toSeoulIso = (createdAt) => new Date(`${createdAt}+09:00`).toISOString();
+
+// 본문이 카드의 전부다. 누가 보냈는지는 footer에 user id와 보낸 시각만 적고, 피드백 id는 링크에만 들어간다
 export const buildFeedbackEmbed = ({
   id,
   user_profile_id,
   feedback_type,
   content_text,
+  created_at,
 }) => {
   const type = FEEDBACK_TYPES[feedback_type] ?? UNKNOWN_TYPE;
   const link = `\n\n${adminLink(id)}`;
@@ -59,6 +63,7 @@ export const buildFeedbackEmbed = ({
       ) + link,
     color: type.color,
     footer: { text: `user ${user_profile_id}` },
+    ...(created_at && { timestamp: toSeoulIso(created_at) }),
   };
 };
 

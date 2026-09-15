@@ -10,6 +10,7 @@ const row = (overrides) => ({
   feedback_type: 'BUG_REPORT',
   content_text: '발음 평가가 안 끝나요',
   processing_status: 'PENDING',
+  created_at: '2026-09-12T14:25:54.723189',
   ...overrides,
 });
 
@@ -22,6 +23,8 @@ test('유형 이름을 author에, 본문과 어드민 링크를 설명에, 보�
     '발음 평가가 안 끝나요\n\n[어드민에서 보기](https://admin.landit.im/feedbacks?open=34)',
   );
   assert.equal(embed.footer.text, 'user 12');
+  // 저장값은 한국 시각이라 UTC로는 9시간 전이다
+  assert.equal(embed.timestamp, '2026-09-12T05:25:54.723Z');
   assert.equal(embed.color, 0xe74c3c);
 });
 

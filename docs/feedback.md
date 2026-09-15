@@ -13,7 +13,7 @@
 - 맨 위 author 줄에 토스페이스 아이콘 + 유형 이름(앱 선택 화면과 같은 말). 유형마다 색이 다르다.
 - 본문은 유저가 쓴 글 그대로. 그 아래 `어드민에서 보기` 링크 한 줄(`https://admin.landit.im/feedbacks?open=<피드백 id>`). 링크까지 합쳐 4096자를 넘으면 본문을 말줄임.
 - footer에 보낸 사람 id만 적는다. 닉네임·이메일·피드백 id는 싣지 않는다(어드민에서 본다).
-- 시각은 따로 적지 않는다. 저장 직후 오니 디스코드 메시지 시각으로 충분하다.
+- 보낸 시각을 footer 옆에 붙인다. 저장값(`created_at`)은 시간대 없는 한국 시각이라 +09:00으로 읽는다.
 
 아이콘은 리뷰 카드의 스토어 로고와 같은 방식이다. 토스페이스 SVG(landit-fe `shared/ui/emoji/emoji-map.ts`)를 브라우저 캔버스로 128px PNG로 굽고, `scripts/upload-app-emoji.mjs`로 앱 이모지에 올린 뒤 그 id로 `https://cdn.discordapp.com/emojis/<id>.png`를 author 아이콘에 쓴다.
 
