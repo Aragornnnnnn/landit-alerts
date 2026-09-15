@@ -2,10 +2,26 @@
 // 유형 이름은 landit-fe의 features/mailbox/model/feedback-type.ts와 맞춘다. 아이콘은 토스페이스를 앱 이모지로 올린 것(scripts/upload-app-emoji.mjs)
 
 const FEEDBACK_TYPES = {
-  BUG_REPORT: { label: '문제 신고', emojiId: '', color: 0xe74c3c },
-  FEATURE_REQUEST: { label: '신규 기능 요청', emojiId: '', color: 0x3498db },
-  QUESTION: { label: '궁금한 점 문의', emojiId: '', color: 0xf1c40f },
-  CHEER: { label: '개발자 응원', emojiId: '', color: 0x1abc9c },
+  BUG_REPORT: {
+    label: '문제 신고',
+    emojiId: '1549210909644292159',
+    color: 0xe74c3c,
+  },
+  FEATURE_REQUEST: {
+    label: '신규 기능 요청',
+    emojiId: '1549210911485722674',
+    color: 0x3498db,
+  },
+  QUESTION: {
+    label: '궁금한 점 문의',
+    emojiId: '1549210912559464531',
+    color: 0xf1c40f,
+  },
+  CHEER: {
+    label: '개발자 응원',
+    emojiId: '1549210913964433473',
+    color: 0x1abc9c,
+  },
 };
 // 모르는 유형이 와도 카드는 보낸다 — 유형이 늘어난 걸 알아채는 쪽이 낫다
 const UNKNOWN_TYPE = { label: '피드백', emojiId: '', color: 0x95a5a6 };
