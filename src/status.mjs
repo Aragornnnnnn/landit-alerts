@@ -95,19 +95,38 @@ export const nextLevels = (previous, current) => {
   return levels;
 };
 
+// 아이콘은 디스코드 앱 이모지(토스페이스)의 CDN 주소를 쓴다. scripts/upload-app-emoji.mjs 참고
+const emojiIcon = (id) => `https://cdn.discordapp.com/emojis/${id}.png`;
+
 const LEVEL_STYLE = {
-  ok: { color: COLORS.green, label: '정상 복구' },
-  minor: { color: COLORS.yellow, label: '일부 장애' },
-  major: { color: COLORS.red, label: '장애' },
+  ok: {
+    color: COLORS.green,
+    label: '정상 복구',
+    emojiId: '1550045144571576351',
+  },
+  minor: {
+    color: COLORS.yellow,
+    label: '일부 장애',
+    emojiId: '1550045150267441213',
+  },
+  major: { color: COLORS.red, label: '장애', emojiId: '1550045143132798976' },
 };
 
 export const buildStatusEmbed = (target, change) => {
   const style = LEVEL_STYLE[change.to];
   return {
-    title: `${target.name} — ${style.label}`,
+    author: { name: style.label, icon_url: emojiIcon(style.emojiId) },
+    title: target.name,
     url: targetPage(target),
-    description: change.description || '상태 페이지를 확인해 주세요.',
+    description: [
+      change.description || '상태 페이지를 확인해 주세요.',
+      '```',
+      `요청: GET ${change.checkUrl ?? targetPage(target)}`,
+      `결과: ${change.detail ?? '응답 없음'}`,
+      '```',
+    ].join('\n'),
     color: style.color,
+    timestamp: new Date().toISOString(),
   };
 };
 
@@ -115,15 +134,19 @@ const TIMEOUT_MS = 8000;
 const UA = 'LanditAlerts/1.0';
 
 const readStatuspage = async (target) => {
-  const res = await fetch(`https://${target.host}/api/v2/status.json`, {
+  const checkUrl = `https://${target.host}/api/v2/status.json`;
+  const res = await fetch(checkUrl, {
     headers: { 'User-Agent': UA },
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   if (!res.ok) throw new Error(`상태 조회 실패 ${res.status}`);
   const json = await res.json();
+  const indicator = json?.status?.indicator;
   return {
-    level: classifyIndicator(json?.status?.indicator),
+    level: classifyIndicator(indicator),
     description: json?.status?.description ?? '',
+    checkUrl,
+    detail: `indicator ${indicator ?? '없음'}`,
   };
 };
 
@@ -135,11 +158,29 @@ const readPing = async (target) => {
         headers: { 'User-Agent': UA },
         signal: AbortSignal.timeout(TIMEOUT_MS),
       });
-      if (res.ok) return { level: 'ok', description: '응답 정상' };
+      const detail = `HTTP ${res.status}`;
+      if (res.ok)
+        return {
+          level: 'ok',
+          description: '주소가 정상 응답합니다.',
+          checkUrl: target.url,
+          detail,
+        };
       if (attempt === 2)
-        return { level: 'major', description: `응답 코드 ${res.status}` };
+        return {
+          level: 'major',
+          description: '주소가 정상 응답하지 않습니다.',
+          checkUrl: target.url,
+          detail,
+        };
     } catch (e) {
-      if (attempt === 2) return { level: 'major', description: e.message };
+      if (attempt === 2)
+        return {
+          level: 'major',
+          description: '주소에 닿지 못했습니다.',
+          checkUrl: target.url,
+          detail: e.message,
+        };
     }
   }
 };
