@@ -5,7 +5,7 @@
 
 ## 무엇을 보나
 
-목록은 `src/status-lib.mjs`의 `TARGETS`가 전부다. 여기에 옮겨 적지 않는다 — 두 곳이 어긋나기 때문이다.
+목록은 `src/status/lib.mjs`의 `TARGETS`가 전부다. 여기에 옮겨 적지 않는다 — 두 곳이 어긋나기 때문이다.
 대상마다 종류가 둘 중 하나고, 추가는 등록부에 한 줄이다.
 
 | 종류         | 무엇을 읽나                         | 왜 이 방식인가                                                      |
@@ -38,12 +38,12 @@
 
 ## 구조
 
-- `src/status-lib.mjs` — 감시 대상 등록부와 순수 로직(지표 분류·변화 감지·카드 생성). 테스트가 붙는 곳이다
-- `src/status.mjs` — 수집기. 상태 페이지 API를 읽거나 주소를 직접 찔러 본다
-- `src/status-run.mjs` — 실행부. 상태 파일 비교·발송·저장
+- `src/status/lib.mjs` — 감시 대상 등록부와 순수 로직(지표 분류·변화 감지·카드 생성). 테스트가 붙는 곳이다
+- `src/status/source.mjs` — 수집기. 상태 페이지 API를 읽거나 주소를 직접 찔러 본다
+- `src/status/run.mjs` — 실행부. 상태 파일 비교·발송·저장
 - `.github/workflows/status-alerts.yml` — 15분 크론. 스토어 알림과 같은 방식으로 `.state/status-alerts.json`을 Actions 캐시에 넣고 뺀다
 
-스토어 알림이 `lib.mjs`(순수)와 `asc.mjs`·`play.mjs`(수집)로 갈라져 있는 것과 같은 배치다.
+스토어 알림(`src/store/`)도 `lib.mjs`(순수)와 `asc.mjs`·`play.mjs`(수집)로 같은 배치다.
 
 상태 파일은 `{ "initialized": true, "levels": { "vercel": "ok", ... } }` 한 덩어리다.
 
@@ -60,7 +60,7 @@
 - 로컬에서 대상만 확인하려면 웹훅 없이 수집기만 돌린다.
 
 ```bash
-node -e "Promise.all([import('./src/status-lib.mjs'), import('./src/status.mjs')]).then(
+node -e "Promise.all([import('./src/status/lib.mjs'), import('./src/status/source.mjs')]).then(
   async ([lib, source]) => {
     for (const r of await Promise.all(lib.TARGETS.map(source.fetchTargetStatus)))
       console.log(r.key, r.level, r.response, r.checkUrl);

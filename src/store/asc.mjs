@@ -1,7 +1,7 @@
 // App Store Connect API 클라이언트 — 리뷰·최신 버전 상태·릴리즈 노트를 조회한다
 import { createPrivateKey, sign } from 'node:crypto';
 
-import { assertOk } from './http.mjs';
+import { assertOk } from '../shared/http.mjs';
 import {
   APP_STORE_ID,
   base64url,

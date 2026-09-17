@@ -7,7 +7,7 @@ import {
   fetchAscReviews,
   fetchAscVersion,
 } from './asc.mjs';
-import { sendEmbed } from './discord.mjs';
+import { sendEmbed } from '../shared/discord.mjs';
 import {
   buildReleaseEmbed,
   buildReviewApprovedEmbed,
@@ -17,7 +17,7 @@ import {
   diffNewReviews,
   isNewerVersion,
 } from './lib.mjs';
-import { buildReplyButton } from './interaction-lib.mjs';
+import { buildReplyButton } from './reply.mjs';
 import { fetchPlayReviews, fetchPlayTrack } from './play.mjs';
 
 const STATE_FILE = process.env.STATE_FILE ?? '.state/store-alerts.json';

@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { buildSurveyEmbed, parseSurveyWebhook } from './survey.mjs';
+import { buildSurveyEmbed, parseSurveyWebhook } from './lib.mjs';
 
 const row = (answers) => ({
   user_id: 7,

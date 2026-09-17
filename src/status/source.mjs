@@ -1,5 +1,5 @@
 // 서드파티 서비스 상태 수집기 — 상태 페이지 API를 읽거나 서비스 주소를 직접 찔러 본다
-import { classifyIndicator } from './status-lib.mjs';
+import { classifyIndicator } from './lib.mjs';
 
 const TIMEOUT_MS = 8000;
 const UA = 'LanditAlerts/1.0';

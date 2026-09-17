@@ -1,8 +1,8 @@
 // 슈퍼베이스에 쌓인 편지함 피드백을 오래된 순으로 전부 디스코드에 보낸다 — 웹훅 연결 전에 들어온 피드백용 1회성 스크립트
 // 사용: node --env-file=<슈퍼베이스 env> --env-file=<디스코드 env> scripts/feedback-backfill.mjs [--dry-run] [--after=<피드백 id>]
-import { sendEmbed } from '../src/discord.mjs';
-import { buildFeedbackEmbed } from '../src/feedback.mjs';
-import { assertOk } from '../src/http.mjs';
+import { sendEmbed } from '../src/shared/discord.mjs';
+import { buildFeedbackEmbed } from '../src/feedback/lib.mjs';
+import { assertOk } from '../src/shared/http.mjs';
 
 const { SUPABASE_URL, SUPABASE_SECRET_KEY, DISCORD_WEBHOOK_FEEDBACK } =
   process.env;

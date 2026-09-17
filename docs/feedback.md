@@ -21,7 +21,7 @@
 node --env-file=~/.landit-discord.env scripts/upload-app-emoji.mjs tossbug=bug.png tossbulb=feature.png tossraisehand=question.png tossraisinghands=cheer.png
 ```
 
-찍힌 id를 `src/feedback.mjs`의 `FEEDBACK_TYPES[*].emojiId`에 넣는다. 비어 있으면 아이콘 없이 이름만 나간다.
+찍힌 id를 `src/feedback/lib.mjs`의 `FEEDBACK_TYPES[*].emojiId`에 넣는다. 비어 있으면 아이콘 없이 이름만 나간다.
 
 유형이 늘면 `FEEDBACK_TYPES`에 추가한다. 모르는 유형은 회색 "피드백" 카드로 온다.
 
@@ -35,7 +35,7 @@ mailbox_feedback INSERT
     └─ embed 생성 → DISCORD_WEBHOOK_FEEDBACK으로 전송
 ```
 
-- 코드는 `api/feedback.mjs`(수신)와 `src/feedback.mjs`(순수 로직)에 있다.
+- 코드는 `api/feedback.mjs`(수신)와 `src/feedback/lib.mjs`(순수 로직)에 있다.
 - 관심 없는 요청도 200으로 답한다. 실패 응답이면 슈퍼베이스가 재시도한다.
 
 ## Vercel 환경변수
