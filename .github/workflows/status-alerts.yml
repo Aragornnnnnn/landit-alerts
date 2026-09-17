@@ -1,0 +1,41 @@
+# 서드파티 서비스 상태를 15분마다 확인해 디스코드로 알린다
+name: status-alerts
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: status-alerts
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 이전 상태 복원
+        uses: actions/cache/restore@v4
+        with:
+          path: .state
+          key: status-alerts-state-${{ github.run_id }}
+          restore-keys: status-alerts-state-
+
+      - name: 상태 확인·알림 전송
+        run: node src/status-run.mjs
+        env:
+          DISCORD_WEBHOOK_DEPS: ${{ secrets.DISCORD_WEBHOOK_DEPS }}
+
+      - name: 상태 저장
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .state
+          key: status-alerts-state-${{ github.run_id }}

@@ -1,0 +1,154 @@
+// 서드파티 서비스 상태 감시 — 대상 등록부와 지표 분류·변화 감지·embed 생성
+const COLORS = {
+  green: 0x57f287,
+  yellow: 0xfee75c,
+  red: 0xed4245,
+};
+
+// 감시 대상 등록부 — statuspage는 공개 상태 API를, ping은 서비스 주소 응답을 본다
+export const TARGETS = [
+  {
+    key: 'vercel',
+    name: 'Vercel',
+    type: 'statuspage',
+    host: 'www.vercel-status.com',
+  },
+  {
+    key: 'supabase',
+    name: 'Supabase',
+    type: 'statuspage',
+    host: 'status.supabase.com',
+  },
+  {
+    key: 'revenuecat',
+    name: 'RevenueCat',
+    type: 'statuspage',
+    host: 'status.revenuecat.com',
+  },
+  {
+    key: 'sentry',
+    name: 'Sentry',
+    type: 'statuspage',
+    host: 'status.sentry.io',
+  },
+  {
+    key: 'amplitude',
+    name: 'Amplitude',
+    type: 'statuspage',
+    host: 'status.amplitude.com',
+  },
+  {
+    key: 'deepgram',
+    name: 'Deepgram',
+    type: 'statuspage',
+    host: 'status.deepgram.com',
+  },
+  { key: 'expo', name: 'Expo', type: 'statuspage', host: 'status.expo.dev' },
+  {
+    key: 'github',
+    name: 'GitHub',
+    type: 'statuspage',
+    host: 'www.githubstatus.com',
+  },
+  {
+    key: 'openrouter',
+    name: 'OpenRouter',
+    type: 'ping',
+    url: 'https://openrouter.ai/api/v1/models',
+    page: 'https://status.openrouter.ai',
+  },
+  {
+    key: 'kakao',
+    name: '카카오 로그인',
+    type: 'ping',
+    url: 'https://kauth.kakao.com/.well-known/openid-configuration',
+    page: 'https://developers.kakao.com',
+  },
+];
+
+export const targetPage = (target) => target.page ?? `https://${target.host}`;
+
+// Statuspage 지표는 네 가지지만 우리한테 major와 critical은 같은 뜻이다
+export const classifyIndicator = (indicator) => {
+  if (indicator === 'none') return 'ok';
+  if (indicator === 'minor') return 'minor';
+  if (indicator === 'major' || indicator === 'critical') return 'major';
+  return 'unknown';
+};
+
+// 못 읽은 대상(unknown)은 판단을 미룬다 — 우리 쪽 실패를 장애로 알리지 않기 위해서다
+export const diffStatusChanges = (previous, current) =>
+  current
+    .filter((entry) => entry.level !== 'unknown')
+    .map((entry) => ({
+      ...entry,
+      from: previous[entry.key] ?? 'ok',
+      to: entry.level,
+    }))
+    .filter((change) => change.from !== change.to);
+
+export const nextLevels = (previous, current) => {
+  const levels = { ...previous };
+  for (const entry of current) {
+    if (entry.level !== 'unknown') levels[entry.key] = entry.level;
+  }
+  return levels;
+};
+
+const LEVEL_STYLE = {
+  ok: { color: COLORS.green, label: '정상 복구' },
+  minor: { color: COLORS.yellow, label: '일부 장애' },
+  major: { color: COLORS.red, label: '장애' },
+};
+
+export const buildStatusEmbed = (target, change) => {
+  const style = LEVEL_STYLE[change.to];
+  return {
+    title: `${target.name} — ${style.label}`,
+    url: targetPage(target),
+    description: change.description || '상태 페이지를 확인해 주세요.',
+    color: style.color,
+  };
+};
+
+const TIMEOUT_MS = 8000;
+const UA = 'LanditAlerts/1.0';
+
+const readStatuspage = async (target) => {
+  const res = await fetch(`https://${target.host}/api/v2/status.json`, {
+    headers: { 'User-Agent': UA },
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+  if (!res.ok) throw new Error(`상태 조회 실패 ${res.status}`);
+  const json = await res.json();
+  return {
+    level: classifyIndicator(json?.status?.indicator),
+    description: json?.status?.description ?? '',
+  };
+};
+
+// 핑 대상은 상태 페이지가 없어 응답 코드가 곧 신호다. 한 번의 실패는 흔들림일 수 있어 재시도한다
+const readPing = async (target) => {
+  for (const attempt of [1, 2]) {
+    try {
+      const res = await fetch(target.url, {
+        headers: { 'User-Agent': UA },
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
+      if (res.ok) return { level: 'ok', description: '응답 정상' };
+      if (attempt === 2)
+        return { level: 'major', description: `응답 코드 ${res.status}` };
+    } catch (e) {
+      if (attempt === 2) return { level: 'major', description: e.message };
+    }
+  }
+};
+
+export const fetchTargetStatus = async (target) => {
+  try {
+    const read = target.type === 'statuspage' ? readStatuspage : readPing;
+    return { key: target.key, ...(await read(target)) };
+  } catch (e) {
+    return { key: target.key, level: 'unknown', description: e.message };
+  }
+};
