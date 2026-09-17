@@ -8,7 +8,7 @@ import {
   classifyIndicator,
   diffStatusChanges,
   nextLevels,
-} from './status.mjs';
+} from './status-lib.mjs';
 
 test('Statuspage 지표를 정상·경미·심각 세 단계로 눕힌다', () => {
   assert.equal(classifyIndicator('none'), 'ok');
@@ -111,7 +111,7 @@ test('카드에 확인한 주소와 그 응답을 함께 싣는다', () => {
       to: 'major',
       description: '주소가 정상 응답하지 않습니다.',
       checkUrl: 'https://openrouter.ai/api/v1/models',
-      detail: 'HTTP 503',
+      response: 'HTTP 503',
     },
   );
 
