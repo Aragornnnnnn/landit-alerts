@@ -29,7 +29,7 @@ jobs:
           restore-keys: status-alerts-state-
 
       - name: 상태 확인·알림 전송
-        run: node src/status-run.mjs
+        run: node src/status/run.mjs
         env:
           DISCORD_WEBHOOK_DEPS: ${{ secrets.DISCORD_WEBHOOK_DEPS }}
 

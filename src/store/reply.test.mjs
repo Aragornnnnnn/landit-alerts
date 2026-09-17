@@ -8,7 +8,7 @@ import {
   buildReplyModal,
   decodeCustomId,
   encodeCustomId,
-} from './interaction-lib.mjs';
+} from './reply.mjs';
 
 test('버튼 식별자에 동작·스토어·리뷰 ID를 담고 그대로 복원한다', () => {
   const id = encodeCustomId('reply', 'appStore', '00000194-8fb8-b903');

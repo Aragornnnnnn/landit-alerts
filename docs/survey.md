@@ -16,7 +16,7 @@
 - 답이 없는 문항은 줄을 만들지 않는다.
 
 문항 목록·순서·id는 landit-fe의 `features/survey/model/questions.ts`와 같아야 한다.
-설문 문항을 바꾸면 `src/survey.mjs`의 `QUESTIONS`도 같이 고친다.
+설문 문항을 바꾸면 `src/survey/lib.mjs`의 `QUESTIONS`도 같이 고친다.
 
 ## 구조
 
@@ -28,7 +28,7 @@ survey_responses INSERT
     └─ embed 생성 → DISCORD_WEBHOOK_SURVEY로 전송
 ```
 
-- 코드는 `api/survey.mjs`(수신)와 `src/survey.mjs`(순수 로직)에 있다.
+- 코드는 `api/survey.mjs`(수신)와 `src/survey/lib.mjs`(순수 로직)에 있다.
 - 관심 없는 요청도 200으로 답한다. 실패 응답이면 슈퍼베이스가 재시도한다.
 
 ## Vercel 환경변수

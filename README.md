@@ -60,11 +60,27 @@ Play 심사 완료 알림은 구글이 API를 제공하지 않아 만들 수 없
 🍎/🤖 자리에는 실제 스토어 로고가 표시된다.
 저평점이어도 멘션은 하지 않는다. 색으로만 구분한다.
 
+## 코드가 어디 있나
+
+기능 하나가 폴더 하나다. 폴더 안에서는 이름이 역할을 가리킨다.
+
+```text
+src/shared/    discord.mjs · http.mjs      — 모든 기능이 쓰는 것
+src/store/     lib.mjs(순수) · asc.mjs · play.mjs(수집) · run.mjs(크론) · reply.mjs(답글 버튼)
+src/status/    lib.mjs(순수) · source.mjs(수집) · run.mjs(크론)
+src/feedback/  lib.mjs        src/survey/ lib.mjs        src/sentry/ lib.mjs
+api/           웹훅 수신 함수 — 위 순수 로직을 불러 쓴다
+```
+
+- `lib.mjs`는 네트워크를 타지 않는다. 테스트가 붙는 곳이 여기다.
+- `run.mjs`는 크론 실행부다. 상태 파일을 읽고 비교하고 보내고 저장한다.
+- 수집기(`asc.mjs`·`play.mjs`·`source.mjs`)만 바깥과 통신한다.
+
 ## 어떻게 동작하나
 
 ### 30분마다 확인하는 알림 (스토어)
 
-`src/run.mjs`가 30분마다 실행된다.
+`src/store/run.mjs`가 30분마다 실행된다.
 스토어에 현재 상태를 물어보고, 지난 실행의 상태(Actions cache)와 비교한다.
 달라진 것만 디스코드 웹훅으로 보낸다.
 
@@ -142,9 +158,9 @@ ASC 키는 GitHub Secrets와 Vercel 양쪽에 있다. 키를 바꾸면 둘 다 �
 ## 로컬 실행
 
 ```bash
-node --test src/*.test.mjs   # 단위 테스트
-DISCORD_WEBHOOK_REVIEW=... DISCORD_WEBHOOK_UPDATE=... node src/run.mjs
-DISCORD_WEBHOOK_DEPS=... node src/status-run.mjs
+node --test 'src/**/*.test.mjs'   # 단위 테스트
+DISCORD_WEBHOOK_REVIEW=... DISCORD_WEBHOOK_UPDATE=... node src/store/run.mjs
+DISCORD_WEBHOOK_DEPS=... node src/status/run.mjs
 ```
 
 상태 파일은 `.state/store-alerts.json`, `.state/status-alerts.json`에 저장된다.

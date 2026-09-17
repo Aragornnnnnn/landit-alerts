@@ -42,7 +42,7 @@ Sentry 알림 규칙 발동
     └─ embed 생성 → 디스코드 웹훅 전송
 ```
 
-- 코드는 `api/sentry.mjs`(수신)와 `src/sentry.mjs`(순수 로직)에 있다.
+- 코드는 `api/sentry.mjs`(수신)와 `src/sentry/lib.mjs`(순수 로직)에 있다.
 - 서명은 raw body로 먼저 보고, 안 맞으면 `JSON.stringify(JSON.parse(body))`로 한 번 더 본다. Sentry 문서가 후자 기준으로 서명한다고 안내하기 때문이다.
 - 관심 없는 요청도 200으로 답한다. 실패 응답이 쌓이면 Sentry가 웹훅을 자동으로 끈다.
 - payload에는 프로젝트 슬러그가 없고 숫자 id만 온다. 그래서 채널 매핑 키가 프로젝트 id다.

@@ -1,14 +1,14 @@
 // 디스코드 버튼·모달 상호작용 수신 엔드포인트 (Vercel 서버리스 함수)
 import { createPublicKey, verify } from 'node:crypto';
 
-import { fetchAscReplyText, sendAscReply } from '../src/asc.mjs';
+import { fetchAscReplyText, sendAscReply } from '../src/store/asc.mjs';
 import {
   applyReplyToEmbed,
   buildReplyButton,
   buildReplyModal,
   decodeCustomId,
-} from '../src/interaction-lib.mjs';
-import { fetchPlayReplyText, sendPlayReply } from '../src/play.mjs';
+} from '../src/store/reply.mjs';
+import { fetchPlayReplyText, sendPlayReply } from '../src/store/play.mjs';
 
 export const config = { api: { bodyParser: false } };
 

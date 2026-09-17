@@ -33,7 +33,7 @@
 
 - 발송(cron)과 수신(Vercel)은 별개 인프라다. 알림은 나가는 것뿐이라 cron으로 충분하지만,
   버튼 클릭은 디스코드가 우리를 호출해야 해서 상주 주소가 필요했다.
-- 코드는 `api/interactions.mjs`(수신 핸들러)와 `src/interaction-lib.mjs`(순수 로직)에 있다.
+- 코드는 `api/interactions.mjs`(수신 핸들러)와 `src/store/reply.mjs`(순수 로직)에 있다.
 - 버튼의 custom_id에 `동작|스토어|리뷰ID`를 인코딩해서 어떤 리뷰의 답글인지 식별한다.
 - 리뷰 ID가 `test-`로 시작하면 스토어 전송을 건너뛰고 성공 흐름만 재현한다(시연·테스트용).
 

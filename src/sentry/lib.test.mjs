@@ -8,7 +8,7 @@ import {
   isValidSentrySignature,
   parseSentryWebhook,
   resolveSentryChannel,
-} from './sentry.mjs';
+} from './lib.mjs';
 
 const event = (overrides = {}) => ({
   project: 12,

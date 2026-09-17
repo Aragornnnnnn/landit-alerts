@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { buildFeedbackEmbed, parseFeedbackWebhook } from './feedback.mjs';
+import { buildFeedbackEmbed, parseFeedbackWebhook } from './lib.mjs';
 
 const row = (overrides) => ({
   id: 34,

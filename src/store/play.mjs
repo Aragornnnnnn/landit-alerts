@@ -1,7 +1,7 @@
 // Google Play Developer API 클라이언트 — 서비스 계정 JWT로 리뷰를 조회한다
 import { createSign } from 'node:crypto';
 
-import { assertOk } from './http.mjs';
+import { assertOk } from '../shared/http.mjs';
 import { base64url, parsePlayTrack, PLAY_PACKAGE } from './lib.mjs';
 
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';

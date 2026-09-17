@@ -8,7 +8,7 @@ import {
   classifyIndicator,
   diffStatusChanges,
   nextLevels,
-} from './status-lib.mjs';
+} from './lib.mjs';
 
 test('Statuspage 지표를 정상·경미·심각 세 단계로 눕힌다', () => {
   assert.equal(classifyIndicator('none'), 'ok');

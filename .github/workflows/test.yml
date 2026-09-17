@@ -16,4 +16,4 @@ jobs:
           node-version: 22
 
       - name: 단위 테스트
-        run: node --test src/*.test.mjs
+        run: node --test 'src/**/*.test.mjs'

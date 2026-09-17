@@ -2,7 +2,7 @@
 // 사용: node --env-file=~/.landit-discord.env scripts/upload-app-emoji.mjs <이름=png경로> ...
 import { readFile } from 'node:fs/promises';
 
-import { assertOk } from '../src/http.mjs';
+import { assertOk } from '../src/shared/http.mjs';
 
 const { DISCORD_BOT_TOKEN } = process.env;
 if (!DISCORD_BOT_TOKEN) {

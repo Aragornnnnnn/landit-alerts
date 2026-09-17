@@ -2,14 +2,14 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
-import { sendEmbed } from './discord.mjs';
+import { sendEmbed } from '../shared/discord.mjs';
 import {
   TARGETS,
   buildStatusEmbed,
   diffStatusChanges,
   nextLevels,
-} from './status-lib.mjs';
-import { fetchTargetStatus } from './status.mjs';
+} from './lib.mjs';
+import { fetchTargetStatus } from './source.mjs';
 
 const STATE_FILE = process.env.STATE_FILE ?? '.state/status-alerts.json';
 const WEBHOOK = process.env.DISCORD_WEBHOOK_DEPS;

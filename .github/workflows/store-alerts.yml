@@ -29,7 +29,7 @@ jobs:
           restore-keys: store-alerts-state-
 
       - name: 스토어 확인·알림 전송
-        run: node src/run.mjs
+        run: node src/store/run.mjs
         env:
           DISCORD_WEBHOOK_REVIEW: ${{ secrets.DISCORD_WEBHOOK_REVIEW }}
           DISCORD_WEBHOOK_UPDATE: ${{ secrets.DISCORD_WEBHOOK_UPDATE }}
