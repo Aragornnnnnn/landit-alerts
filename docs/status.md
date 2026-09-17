@@ -5,13 +5,13 @@
 
 ## 무엇을 보나
 
-| 종류         | 대상                                                                           | 읽는 값                             |
-| ------------ | ------------------------------------------------------------------------------ | ----------------------------------- |
-| `statuspage` | Vercel · Supabase · RevenueCat · Sentry · Amplitude · Deepgram · Expo · GitHub | `/api/v2/status.json`의 `indicator` |
-| `ping`       | OpenRouter · 카카오 로그인                                                     | 서비스 주소의 응답 코드가 200인지   |
+목록은 `src/status-lib.mjs`의 `TARGETS`가 전부다. 여기에 옮겨 적지 않는다 — 두 곳이 어긋나기 때문이다.
+대상마다 종류가 둘 중 하나고, 추가는 등록부에 한 줄이다.
 
-여덟 곳은 Atlassian Statuspage를 써서 응답 모양이 똑같다. 그래서 대상 추가가 `src/status.mjs`의 `TARGETS`에 한 줄이다.
-OpenRouter는 상태 페이지가 정적 SPA라 JSON을 안 주고, 카카오는 상태 페이지 자체가 없다. 두 곳만 주소를 직접 찔러 본다.
+| 종류         | 무엇을 읽나                         | 왜 이 방식인가                                                      |
+| ------------ | ----------------------------------- | ------------------------------------------------------------------- |
+| `statuspage` | `/api/v2/status.json`의 `indicator` | Atlassian Statuspage를 쓰는 곳은 응답 모양이 똑같다                 |
+| `ping`       | 서비스 주소의 응답 코드가 200인지   | 상태 페이지가 없거나(카카오) JSON을 주지 않는 곳(OpenRouter)이 있다 |
 
 디스코드는 감시하지 않는다. 디스코드가 죽으면 알림 자체가 못 온다.
 애플·구글 시스템 상태는 Statuspage 규격이 아니라 빼 두었다. 필요해지면 카카오처럼 인증 주소 핑으로 붙인다.
@@ -38,9 +38,12 @@ OpenRouter는 상태 페이지가 정적 SPA라 JSON을 안 주고, 카카오는
 
 ## 구조
 
-- `src/status.mjs` — 대상 등록부와 순수 로직(지표 분류·변화 감지·embed 생성), 수집기
+- `src/status-lib.mjs` — 감시 대상 등록부와 순수 로직(지표 분류·변화 감지·카드 생성). 테스트가 붙는 곳이다
+- `src/status.mjs` — 수집기. 상태 페이지 API를 읽거나 주소를 직접 찔러 본다
 - `src/status-run.mjs` — 실행부. 상태 파일 비교·발송·저장
 - `.github/workflows/status-alerts.yml` — 15분 크론. 스토어 알림과 같은 방식으로 `.state/status-alerts.json`을 Actions 캐시에 넣고 뺀다
+
+스토어 알림이 `lib.mjs`(순수)와 `asc.mjs`·`play.mjs`(수집)로 갈라져 있는 것과 같은 배치다.
 
 상태 파일은 `{ "initialized": true, "levels": { "vercel": "ok", ... } }` 한 덩어리다.
 
@@ -57,8 +60,10 @@ OpenRouter는 상태 페이지가 정적 SPA라 JSON을 안 주고, 카카오는
 - 로컬에서 대상만 확인하려면 웹훅 없이 수집기만 돌린다.
 
 ```bash
-node -e "import('./src/status.mjs').then(async m => {
-  for (const r of await Promise.all(m.TARGETS.map(m.fetchTargetStatus)))
-    console.log(r.key, r.level, r.description);
-})"
+node -e "Promise.all([import('./src/status-lib.mjs'), import('./src/status.mjs')]).then(
+  async ([lib, source]) => {
+    for (const r of await Promise.all(lib.TARGETS.map(source.fetchTargetStatus)))
+      console.log(r.key, r.level, r.response, r.checkUrl);
+  },
+)"
 ```
