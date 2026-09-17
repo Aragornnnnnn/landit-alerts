@@ -96,8 +96,27 @@ test('복구 카드와 장애 카드는 색이 다르다', () => {
   });
 
   assert.notEqual(down.color, back.color);
-  assert.match(down.title, /Vercel/);
+  assert.notEqual(down.author.icon_url, back.author.icon_url);
+  assert.equal(down.title, 'Vercel');
+  assert.equal(down.author.name, '장애');
+  assert.equal(back.author.name, '정상 복구');
   assert.equal(down.url, 'https://x');
+});
+
+test('카드에 확인한 주소와 그 응답을 함께 싣는다', () => {
+  const embed = buildStatusEmbed(
+    { key: 'openrouter', name: 'OpenRouter', page: 'https://x' },
+    {
+      from: 'ok',
+      to: 'major',
+      description: '주소가 정상 응답하지 않습니다.',
+      checkUrl: 'https://openrouter.ai/api/v1/models',
+      detail: 'HTTP 503',
+    },
+  );
+
+  assert.match(embed.description, /openrouter\.ai\/api\/v1\/models/);
+  assert.match(embed.description, /HTTP 503/);
 });
 
 test('감시 대상은 키가 겹치지 않고 종류가 둘 중 하나다', () => {
