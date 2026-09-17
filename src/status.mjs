@@ -150,39 +150,40 @@ const readStatuspage = async (target) => {
   };
 };
 
-// 핑 대상은 상태 페이지가 없어 응답 코드가 곧 신호다. 한 번의 실패는 흔들림일 수 있어 재시도한다
-const readPing = async (target) => {
-  for (const attempt of [1, 2]) {
-    try {
-      const res = await fetch(target.url, {
-        headers: { 'User-Agent': UA },
-        signal: AbortSignal.timeout(TIMEOUT_MS),
-      });
-      const detail = `HTTP ${res.status}`;
-      if (res.ok)
-        return {
-          level: 'ok',
-          description: '주소가 정상 응답합니다.',
-          checkUrl: target.url,
-          detail,
-        };
-      if (attempt === 2)
-        return {
-          level: 'major',
-          description: '주소가 정상 응답하지 않습니다.',
-          checkUrl: target.url,
-          detail,
-        };
-    } catch (e) {
-      if (attempt === 2)
-        return {
-          level: 'major',
-          description: '주소에 닿지 못했습니다.',
-          checkUrl: target.url,
-          detail: e.message,
-        };
-    }
+const pingOnce = async (target) => {
+  try {
+    const res = await fetch(target.url, {
+      headers: { 'User-Agent': UA },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    return {
+      level: res.ok ? 'ok' : 'major',
+      description: res.ok
+        ? '주소가 정상 응답합니다.'
+        : '주소가 정상 응답하지 않습니다.',
+      checkUrl: target.url,
+      detail: `HTTP ${res.status}`,
+    };
+  } catch (e) {
+    return {
+      level: 'major',
+      description: '주소에 닿지 못했습니다.',
+      checkUrl: target.url,
+      detail: e.message,
+    };
   }
+};
+
+// 핑 대상은 상태 페이지가 없어 응답 코드가 곧 신호다. 한 번의 실패는 흔들림일 수 있어 마지막 시도로 판정한다
+const PING_ATTEMPTS = 2;
+
+const readPing = async (target) => {
+  let result;
+  for (let attempt = 1; attempt <= PING_ATTEMPTS; attempt += 1) {
+    result = await pingOnce(target);
+    if (result.level === 'ok') return result;
+  }
+  return result;
 };
 
 export const fetchTargetStatus = async (target) => {
