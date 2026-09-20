@@ -102,3 +102,16 @@ test('프로모션은 그날 끝(KST)에 살아 있던 프로덕션 구독만 �
   assert.equal(promoAt(subs, '2026-09-19'), 1);
   assert.equal(promoAt(subs, '2026-09-20'), 2);
 });
+
+test('고객 목록이 실패해도 스캔이 멈춘다 — 워커가 무한히 돌지 않는다', async () => {
+  const { createRevenueCatClient } = await import('./revenuecat.mjs');
+  const original = globalThis.fetch;
+  globalThis.fetch = async () =>
+    new Response('nope', { status: 404, headers: new Headers() });
+  try {
+    const client = createRevenueCatClient({ apiKey: 'x', projectId: 'y' });
+    await assert.rejects(() => client.subscriptions('2026-09-19'));
+  } finally {
+    globalThis.fetch = original;
+  }
+});

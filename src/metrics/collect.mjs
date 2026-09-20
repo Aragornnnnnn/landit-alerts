@@ -1,13 +1,13 @@
-// 지표 조립 — 앰플리튜드·RevenueCat 수집기를 불러 lib.mjs가 받는 입력 모양을 만든다.
-// 전일·전주 값은 저장하지 않고 같은 방식으로 다시 조회한다 (둘 다 과거를 그대로 돌려주므로 상태 파일이 필요 없다)
-import { hasProp } from './amplitude.mjs';
+// 지표 조립 — 수집기를 불러 lib.mjs가 받는 입력 모양을 만든다.
+// 전일·전주 값은 저장하지 않고 같은 방식으로 다시 조회한다. 다만 비교에 쓰는 줄만 부른다(조회 비용이 배로 들지 않게)
+import { WIDGET_CAMPAIGN, hasProp, propIsNot } from './amplitude.mjs';
 
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 export const kstDate = (now = new Date()) =>
   new Date(now.getTime() + KST_OFFSET_MS).toISOString().slice(0, 10);
 
-const addDays = (iso, offset) => {
+export const addDays = (iso, offset) => {
   const d = new Date(`${iso}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + offset);
   return d.toISOString().slice(0, 10);
@@ -41,23 +41,33 @@ const EVENT = {
   // 알림 유입 = 캠페인이 붙었고 위젯이 아닌 첫 화면
   notificationEntry: {
     event_type: 'Page Viewed',
-    filters: [
-      {
-        subprop_type: 'event',
-        subprop_key: 'entry_campaign',
-        subprop_op: 'is not',
-        subprop_value: ['(none)', 'streak_widget'],
-      },
-    ],
+    filters: [propIsNot('entry_campaign', [WIDGET_CAMPAIGN])],
   },
 };
 
 const SCENARIO_EXPRESSION_MAX = 4;
 const SMALLTALK_EXPRESSION_MAX = 3;
 
-export const collectDaily = async ({ amplitude, extras, revenuecat }, date) => {
+// 구독은 앰플리튜드와 출처가 갈려 있어, 못 가져와도 나머지 지표는 보낼 수 있다
+const subscriptionsOrNull = async (revenuecat, date) => {
+  try {
+    return await revenuecat.subscriptions(date);
+  } catch (error) {
+    console.error(`구독 조회 실패 (${date}): ${error.message}`);
+    return null;
+  }
+};
+
+const retentionOf = async (amplitude, { cohortStart, cohortEnd, days }) => ({
+  ...(await amplitude.retention({ cohortStart: compact(cohortStart), days })),
+  start: cohortStart,
+  end: cohortEnd,
+});
+
+export const collectDaily = async ({ amplitude, revenuecat }, date) => {
   const range = { start: compact(date), end: compact(date), days: 1 };
   const premium = { ...range, premium: true };
+  const cohortStart = yesterdayOf(date);
   const [
     activeTotal,
     activePremium,
@@ -103,8 +113,8 @@ export const collectDaily = async ({ amplitude, extras, revenuecat }, date) => {
       'PROPAVG',
       premium,
     ),
-    extras.retention({ cohortStart: compact(yesterdayOf(date)), days: 1 }),
-    revenuecat.subscriptions(date),
+    retentionOf(amplitude, { cohortStart, cohortEnd: cohortStart, days: 1 }),
+    subscriptionsOrNull(revenuecat, date),
   ]);
 
   return {
@@ -139,13 +149,11 @@ export const collectDaily = async ({ amplitude, extras, revenuecat }, date) => {
   };
 };
 
-export const collectWeekly = async (
-  { amplitude, extras, revenuecat },
-  week,
-) => {
+export const collectWeekly = async ({ amplitude, revenuecat }, week) => {
   const range = { start: compact(week.start), end: compact(week.end), days: 7 };
   const premium = { ...range, premium: true };
   const funnelRange = { start: range.start, end: range.end, windowDays: 7 };
+  const cohort = lastWeekOf(week.start);
   const [
     activeTotal,
     activePremium,
@@ -153,6 +161,7 @@ export const collectWeekly = async (
     onboarding,
     signupToScenario,
     entryGroups,
+    notificationEntries,
     scenarioUsers,
     scenarioCount,
     scenarioBuckets,
@@ -172,12 +181,16 @@ export const collectWeekly = async (
     amplitude.uniques(EVENT.active, range),
     amplitude.uniques(EVENT.active, premium),
     amplitude.uniques(EVENT.onboardingCompleted, range),
-    extras.funnel(['Onboarding Started', 'Onboarding Completed'], funnelRange),
-    extras.funnel(
+    amplitude.funnel(
+      ['Onboarding Started', 'Onboarding Completed'],
+      funnelRange,
+    ),
+    amplitude.funnel(
       ['Onboarding Completed', 'Scenario Talk Completed'],
       funnelRange,
     ),
     amplitude.entries(range),
+    amplitude.uniques(EVENT.notificationEntry, range),
     amplitude.uniques(EVENT.scenarioCompleted, range),
     amplitude.totals(EVENT.scenarioCompleted, range),
     amplitude.frequencyBuckets(EVENT.scenarioCompleted, range),
@@ -211,11 +224,12 @@ export const collectWeekly = async (
       'PROPMAX',
       premium,
     ),
-    extras.retention({
-      cohortStart: compact(addDays(week.start, -7)),
+    retentionOf(amplitude, {
+      cohortStart: cohort.start,
+      cohortEnd: cohort.end,
       days: 7,
     }),
-    revenuecat.subscriptions(week.end),
+    subscriptionsOrNull(revenuecat, week.end),
   ]);
 
   return {
@@ -225,6 +239,7 @@ export const collectWeekly = async (
     onboarding: { started: onboarding[0], completed: onboarding[1] },
     signupsWithScenario: signupToScenario[1],
     entries: {
+      notification: notificationEntries,
       notificationByCampaign: entryGroups.notificationByCampaign,
       widget: entryGroups.widget,
     },
@@ -258,4 +273,38 @@ export const collectWeekly = async (
     retention,
     subscriptions,
   };
+};
+
+// 증감에 쓰는 줄만 — 전일·전주는 이것만 부른다 (전체를 다시 부르면 조회 비용이 배가 된다)
+export const collectDailyBaseline = async ({ amplitude, revenuecat }, date) => {
+  const range = { start: compact(date), end: compact(date), days: 1 };
+  const [total, premium, signups, completed, subscriptions] = await Promise.all(
+    [
+      amplitude.uniques(EVENT.active, range),
+      amplitude.uniques(EVENT.active, { ...range, premium: true }),
+      amplitude.uniques(EVENT.onboardingCompleted, range),
+      amplitude.uniques(EVENT.scenarioCompleted, range),
+      subscriptionsOrNull(revenuecat, date),
+    ],
+  );
+  return {
+    active: { total, premium },
+    signups,
+    scenario: { completed },
+    subscriptions,
+  };
+};
+
+export const collectWeeklyBaseline = async (
+  { amplitude, revenuecat },
+  week,
+) => {
+  const range = { start: compact(week.start), end: compact(week.end), days: 7 };
+  const [total, premium, signups, subscriptions] = await Promise.all([
+    amplitude.uniques(EVENT.active, range),
+    amplitude.uniques(EVENT.active, { ...range, premium: true }),
+    amplitude.uniques(EVENT.onboardingCompleted, range),
+    subscriptionsOrNull(revenuecat, week.end),
+  ]);
+  return { active: { total, premium }, signups, subscriptions };
 };

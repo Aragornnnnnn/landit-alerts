@@ -69,13 +69,15 @@ Play 심사 완료 알림은 구글이 API를 제공하지 않아 만들 수 없
 src/shared/    discord.mjs · http.mjs      — 모든 기능이 쓰는 것
 src/store/     lib.mjs(순수) · asc.mjs · play.mjs(수집) · run.mjs(크론) · reply.mjs(답글 버튼)
 src/status/    lib.mjs(순수) · source.mjs(수집) · run.mjs(크론)
+src/metrics/   lib.mjs(순수) · amplitude.mjs · revenuecat.mjs(수집) · collect.mjs(조립) · run.mjs(크론)
 src/feedback/  lib.mjs        src/survey/ lib.mjs        src/sentry/ lib.mjs
 api/           웹훅 수신 함수 — 위 순수 로직을 불러 쓴다
 ```
 
 - `lib.mjs`는 네트워크를 타지 않는다. 테스트가 붙는 곳이 여기다.
 - `run.mjs`는 크론 실행부다. 상태 파일을 읽고 비교하고 보내고 저장한다.
-- 수집기(`asc.mjs`·`play.mjs`·`source.mjs`)만 바깥과 통신한다.
+- 수집기(`asc.mjs`·`play.mjs`·`source.mjs`·`amplitude.mjs`·`revenuecat.mjs`)만 바깥과 통신한다.
+- 지표는 응답을 숫자로 옮기는 순수 함수를 수집기 안에 둔다. API 응답 모양이 바뀌면 같이 바뀌기 때문이다. 테스트는 그 옆에 붙는다.
 
 ## 어떻게 동작하나
 
@@ -129,6 +131,16 @@ api/           웹훅 수신 함수 — 위 순수 로직을 불러 쓴다
 
 발급 절차는 [docs/key-setup.md](docs/key-setup.md)에 있다.
 
+### GitHub Actions (지표 알림)
+
+| 이름                                           | 용도                     |
+| ---------------------------------------------- | ------------------------ |
+| `AMPLITUDE_API_KEY` / `AMPLITUDE_SECRET_KEY`   | production 프로젝트 조회 |
+| `REVENUECAT_API_KEY` / `REVENUECAT_PROJECT_ID` | 구독 조회 (v2 시크릿 키) |
+| `DISCORD_WEBHOOK_METRICS_DAILY` / `..._WEEKLY` | 일일·주간 지표 채널 웹훅 |
+
+발급 절차는 [docs/metrics.md](docs/metrics.md)에 있다.
+
 ### GitHub Actions (서드파티 상태 알림)
 
 | 이름                   | 용도                  |
@@ -162,6 +174,7 @@ ASC 키는 GitHub Secrets와 Vercel 양쪽에 있다. 키를 바꾸면 둘 다 �
 node --test 'src/**/*.test.mjs'   # 단위 테스트
 DISCORD_WEBHOOK_REVIEW=... DISCORD_WEBHOOK_UPDATE=... node src/store/run.mjs
 DISCORD_WEBHOOK_DEPS=... node src/status/run.mjs
+node --env-file=~/.landit-discord.env src/metrics/run.mjs daily   # 웹훅은 테스트용으로 덮어쓴다
 ```
 
 상태 파일은 `.state/store-alerts.json`, `.state/status-alerts.json`에 저장된다.

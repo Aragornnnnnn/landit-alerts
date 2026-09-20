@@ -9,36 +9,12 @@ import {
   formatDuration,
   weekOfMonth,
 } from './lib.mjs';
+import { daily, previousDaily, previousWeekly, weekly } from './sample.mjs';
 
 const ESC = '\x1b';
 const B = (t) => `${ESC}[1m${t}${ESC}[0m`;
 const G = (t) => `${ESC}[32m${t}${ESC}[0m`;
 const R = (t) => `${ESC}[31m${t}${ESC}[0m`;
-
-const daily = {
-  date: '2026-09-19',
-  active: { total: 123, premium: 14 },
-  signups: 12,
-  entries: { notification: 34, widget: 18 },
-  scenario: { completed: 66, completedPremium: 12, abandoned: 9 },
-  premiumUsage: {
-    expression: {
-      scenario: { users: 9, byCount: [2, 1, 1, 5] },
-      smalltalk: { users: 4, byCount: [2, 1, 1] },
-    },
-    smalltalk: { users: 7, count: 11, turnsAverage: 6.1 },
-  },
-  retention: { cohort: 9, returned: 5 },
-  subscriptions: { monthly: 30, yearlyTrial: 5, yearlyPaid: 14, promo: 3 },
-};
-
-const previous = {
-  ...daily,
-  active: { total: 114, premium: 13 },
-  signups: 9,
-  scenario: { ...daily.scenario, completed: 68 },
-  subscriptions: { monthly: 29, yearlyTrial: 3, yearlyPaid: 14, promo: 3 },
-};
 
 test('증감은 늘면 초록 +, 줄면 빨강 −, 같거나 이전 값이 없으면 비운다', () => {
   assert.equal(formatDelta(123, 114), ` ${G('+9')}`);
@@ -48,25 +24,23 @@ test('증감은 늘면 초록 +, 줄면 빨강 −, 같거나 이전 값이 없�
 });
 
 test('제목 줄이 전일 대비 절반 이상, 5명 이상 튀면 앞에 경고를 붙인다', () => {
-  const message = buildDailyMessage(daily, { ...previous, signups: 30 });
+  const message = buildDailyMessage(daily, { ...previousDaily, signups: 30 });
   assert.ok(message.includes(`⚠️ ${B('🌱 가입 12명')} ${R('−18')}`));
 });
 
 test('불릿 줄과 작은 변화에는 경고를 붙이지 않는다', () => {
   const message = buildDailyMessage(daily, {
-    ...previous,
+    ...previousDaily,
     signups: 10,
-    subscriptions: { ...previous.subscriptions, yearlyTrial: 1 },
+    subscriptions: { ...previousDaily.subscriptions, yearlyTrial: 1 },
   });
   // 가입 10→12는 20%라 아니고, 체험 1→5는 불릿이라 아니다
   assert.doesNotMatch(message, /⚠️/);
 });
 
-test('데일리 메시지를 ANSI 코드 블록 하나로 스펙 그대로 조립한다', () => {
-  const message = buildDailyMessage(daily, previous);
-
+test('일일 메시지를 ANSI 코드 블록 하나로 스펙 그대로 조립한다', () => {
   assert.equal(
-    message,
+    buildDailyMessage(daily, previousDaily),
     [
       '```ansi',
       B('📊 랜딧 일일 지표 · 2026년 9월 19일 (토)'),
@@ -104,91 +78,9 @@ test('데일리 메시지를 ANSI 코드 블록 하나로 스펙 그대로 조�
   );
 });
 
-test('첫 실행은 증감 없이 나간다', () => {
-  const message = buildDailyMessage(daily, null);
-  assert.doesNotMatch(message, /\[3[12]m/);
-  assert.ok(message.includes(`\n${B('👥 활성 123명')}\n`));
-});
-
-test('유료 활성이 0이면 비율 대신 0%로 둔다', () => {
-  const message = buildDailyMessage(
-    {
-      ...daily,
-      active: { total: 10, premium: 0 },
-      scenario: { completed: 3, completedPremium: 0, abandoned: 0 },
-      premiumUsage: {
-        expression: {
-          scenario: { users: 0, byCount: [0, 0, 0, 0] },
-          smalltalk: { users: 0, byCount: [0, 0, 0] },
-        },
-        smalltalk: { users: 0, count: 0, turnsAverage: 0 },
-      },
-    },
-    null,
-  );
-  assert.match(message, /시나리오 표현 0명 \(0%\)/);
-  assert.match(message, /0개 0명 \/ 1개 0명/);
-});
-
-test('디스코드 한 메시지 한도(2000자) 안에 든다', () => {
-  assert.ok(buildDailyMessage(daily, previous).length < 2000);
-});
-
-const weekly = {
-  range: { start: '2026-09-07', end: '2026-09-13' },
-  active: { total: 412, premium: 38 },
-  signups: 68,
-  onboarding: { started: 92, completed: 68 },
-  signupsWithScenario: 41,
-  entries: {
-    notificationByCampaign: {
-      daily_scenario_reminder: 152,
-      continue_expression: 23,
-      small_talk_reminder: 18,
-      mailbox_reply: 8,
-    },
-    widget: 96,
-  },
-  scenario: {
-    users: 210,
-    count: 681,
-    buckets: [
-      ['1개', 61],
-      ['2개', 38],
-      ['3개', 29],
-      ['4개', 22],
-      ['5개', 18],
-      ['6~10개', 42],
-    ],
-  },
-  premiumUsage: {
-    expression: {
-      scenario: { users: 29, count: 288 },
-      smalltalk: { users: 17, count: 61 },
-    },
-    smalltalk: {
-      users: 21,
-      count: 88,
-      turnsAverage: 6.2,
-      speaking: { average: 190000, min: 40000, max: 590000 },
-    },
-  },
-  retention: { cohort: 71, returned: 34 },
-  subscriptions: { monthly: 30, yearlyTrial: 5, yearlyPaid: 14, promo: 3 },
-};
-
-const previousWeekly = {
-  ...weekly,
-  active: { total: 392, premium: 32 },
-  signups: 57,
-  subscriptions: { monthly: 27, yearlyTrial: 1, yearlyPaid: 12, promo: 5 },
-};
-
-test('위클리 메시지를 ANSI 코드 블록 하나로 스펙 그대로 조립한다', () => {
-  const message = buildWeeklyMessage(weekly, previousWeekly);
-
+test('주간 메시지를 ANSI 코드 블록 하나로 스펙 그대로 조립한다', () => {
   assert.equal(
-    message,
+    buildWeeklyMessage(weekly, previousWeekly),
     [
       '```ansi',
       B('📈 랜딧 주간 지표 · 9월 2주차 (9/7 월 00:00 ~ 9/13 일 23:59)'),
@@ -221,7 +113,6 @@ test('위클리 메시지를 ANSI 코드 블록 하나로 스펙 그대로 조�
       '      말한 시간 평균 3분 10초 (최소 40초 · 최대 9분 50초)',
       '   스몰톡 표현 17명 (45%)',
       '      평균 3.6개',
-      '      스몰톡 한 판당 0.7개',
       '',
       B(
         '🔁 주간 리텐션 48% · 8/31~9/6 가입한 71명 중 지난주에 다시 온 사람 34명',
@@ -238,6 +129,61 @@ test('위클리 메시지를 ANSI 코드 블록 하나로 스펙 그대로 조�
   );
 });
 
+test('첫 실행은 증감 없이 나간다', () => {
+  const message = buildDailyMessage(daily, null);
+  assert.doesNotMatch(message, /\[3[12]m/);
+  assert.ok(message.includes(`\n${B('👥 활성 123명')}\n`));
+});
+
+test('구독을 못 가져오면 그 자리만 비우고 나머지는 보낸다', () => {
+  const message = buildDailyMessage(
+    { ...daily, subscriptions: null },
+    previousDaily,
+  );
+  assert.ok(message.includes(B('💳 구독 정보를 못 가져왔어요')));
+  assert.doesNotMatch(message, /월간/);
+  // 앰플리튜드에서 온 줄은 그대로다
+  assert.ok(message.includes(`${B('👥 활성 123명')} ${G('+9')}`));
+});
+
+test('표현을 한 사람이 완료한 사람보다 많아도 0개 칸이 음수가 되지 않는다', () => {
+  const message = buildDailyMessage(
+    {
+      ...daily,
+      scenario: { ...daily.scenario, completedPremium: 5 },
+      premiumUsage: {
+        ...daily.premiumUsage,
+        expression: {
+          ...daily.premiumUsage.expression,
+          scenario: { users: 9, byCount: [2, 1, 1, 5] },
+        },
+      },
+    },
+    null,
+  );
+  assert.ok(message.includes('0개 0명 / 1개 2명'));
+});
+
+test('유료 활성이 0이면 비율 대신 0%로 둔다', () => {
+  const message = buildDailyMessage(
+    {
+      ...daily,
+      active: { total: 10, premium: 0 },
+      scenario: { completed: 3, completedPremium: 0, abandoned: 0 },
+      premiumUsage: {
+        expression: {
+          scenario: { users: 0, byCount: [0, 0, 0, 0] },
+          smalltalk: { users: 0, byCount: [0, 0, 0] },
+        },
+        smalltalk: { users: 0, count: 0, turnsAverage: 0 },
+      },
+    },
+    null,
+  );
+  assert.match(message, /시나리오 표현 0명 \(0%\)/);
+  assert.match(message, /0개 0명 \/ 1개 0명/);
+});
+
 test('말한 시간은 분·초로, 1분 미만은 초만 쓴다', () => {
   assert.equal(formatDuration(190000), '3분 10초');
   assert.equal(formatDuration(40000), '40초');
@@ -250,4 +196,9 @@ test('주차는 그 주 목요일이 속한 달로 센다', () => {
   assert.equal(weekOfMonth('2026-08-31'), '9월 1주차');
   // 9/28~10/4는 목요일이 10/1이라 10월 1주차
   assert.equal(weekOfMonth('2026-09-28'), '10월 1주차');
+});
+
+test('디스코드 한 메시지 한도(2000자) 안에 든다', () => {
+  assert.ok(buildDailyMessage(daily, previousDaily).length < 2000);
+  assert.ok(buildWeeklyMessage(weekly, previousWeekly).length < 2000);
 });

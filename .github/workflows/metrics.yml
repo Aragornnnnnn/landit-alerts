@@ -10,6 +10,8 @@ on:
         description: 'daily 또는 weekly'
         required: true
         default: 'daily'
+        type: choice
+        options: [daily, weekly]
       date:
         description: '기준일 YYYY-MM-DD (비우면 오늘 KST). 일일은 그 전날, 주간은 그 직전 월~일을 보낸다'
         required: false
@@ -19,46 +21,36 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  daily:
-    if: github.event_name == 'schedule' || inputs.mode == 'daily'
+  send:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
+    env:
+      AMPLITUDE_API_KEY: ${{ secrets.AMPLITUDE_API_KEY }}
+      AMPLITUDE_SECRET_KEY: ${{ secrets.AMPLITUDE_SECRET_KEY }}
+      REVENUECAT_API_KEY: ${{ secrets.REVENUECAT_API_KEY }}
+      REVENUECAT_PROJECT_ID: ${{ secrets.REVENUECAT_PROJECT_ID }}
+      DISCORD_WEBHOOK_METRICS_DAILY: ${{ secrets.DISCORD_WEBHOOK_METRICS_DAILY }}
+      DISCORD_WEBHOOK_METRICS_WEEKLY: ${{ secrets.DISCORD_WEBHOOK_METRICS_WEEKLY }}
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: 일일 지표 전송
-        run: node src/metrics/run.mjs daily ${{ inputs.date }}
-        env:
-          AMPLITUDE_API_KEY: ${{ secrets.AMPLITUDE_API_KEY }}
-          AMPLITUDE_SECRET_KEY: ${{ secrets.AMPLITUDE_SECRET_KEY }}
-          REVENUECAT_API_KEY: ${{ secrets.REVENUECAT_API_KEY }}
-          REVENUECAT_PROJECT_ID: ${{ secrets.REVENUECAT_PROJECT_ID }}
-          DISCORD_WEBHOOK_METRICS_DAILY: ${{ secrets.DISCORD_WEBHOOK_METRICS_DAILY }}
 
-  weekly:
-    # 크론은 월요일(UTC 기준 요일, 0시라 KST와 같다)에만, 수동은 mode=weekly일 때
-    if: (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') || inputs.mode == 'weekly'
-    needs: [daily]
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
+      # UTC 0시는 KST 9시와 같은 날이라 UTC 요일로 판정해도 된다
       - name: 월요일인지 확인
         id: day
         run: echo "monday=$([ "$(date -u +%u)" = 1 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
-      - uses: actions/checkout@v4
-        if: steps.day.outputs.monday == 'true' || inputs.mode == 'weekly'
-      - uses: actions/setup-node@v4
-        if: steps.day.outputs.monday == 'true' || inputs.mode == 'weekly'
-        with:
-          node-version: 22
+
+      - name: 일일 지표 전송
+        if: github.event_name == 'schedule' || inputs.mode == 'daily'
+        run: node src/metrics/run.mjs daily ${{ inputs.date }}
+
+      # 일일이 실패해도 주간은 따로 보낸다 (조회 실패는 기간마다 갈린다)
       - name: 주간 지표 전송
-        if: steps.day.outputs.monday == 'true' || inputs.mode == 'weekly'
+        if: |
+          !cancelled() &&
+          (inputs.mode == 'weekly' ||
+            (github.event_name == 'schedule' && steps.day.outputs.monday == 'true'))
         run: node src/metrics/run.mjs weekly ${{ inputs.date }}
-        env:
-          AMPLITUDE_API_KEY: ${{ secrets.AMPLITUDE_API_KEY }}
-          AMPLITUDE_SECRET_KEY: ${{ secrets.AMPLITUDE_SECRET_KEY }}
-          REVENUECAT_API_KEY: ${{ secrets.REVENUECAT_API_KEY }}
-          REVENUECAT_PROJECT_ID: ${{ secrets.REVENUECAT_PROJECT_ID }}
-          DISCORD_WEBHOOK_METRICS_WEEKLY: ${{ secrets.DISCORD_WEBHOOK_METRICS_WEEKLY }}

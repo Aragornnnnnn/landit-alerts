@@ -29,19 +29,19 @@
 
 앰플리튜드 값은 전부 **팀 계정 24개 제외 · 모바일(ios/android)만**이다. 조건은 `src/metrics/amplitude.mjs`의 `STANDARD_SEGMENT`에 있고, landit-fe `.claude/skills/amplitude/SKILL.md`의 표준 조건과 같다. 프로젝트 타임존이 Asia/Seoul이라 날짜는 KST 그대로 넣는다.
 
-| 줄                          | 정의                                                                                                                    |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| 활성                        | 이벤트를 하나라도 남긴 유저(`_active`). 유료는 유저 속성 `is_premium=true`, 무료는 활성 − 유료                          |
-| 가입                        | Onboarding Completed 유저                                                                                               |
-| 어디서 들어왔나             | 첫 화면 Page Viewed의 `entry_campaign`. `streak_widget`은 위젯, 나머지는 알림. 직접 = 활성 − 알림 − 위젯                |
-| 시나리오 완료·하다가 그만둠 | Scenario Talk Completed / Abandoned 유저                                                                                |
-| 시나리오 표현               | Expression Completed 중 `scenario_id`가 있는 것. 분포는 유저별 횟수, 0개 = 유료로 시나리오는 끝냈지만 표현을 안 한 사람 |
-| 스몰톡                      | Small Talk Completed. 턴은 `turn_count` 평균, 말한 시간은 `speaking_duration_ms` 평균·최소·최대                         |
-| 스몰톡 표현                 | Expression Completed 중 `session_id`가 있는 것. 판마다 표현 수가 달라 마지막 칸은 "3개 이상"                            |
-| D1 리텐션                   | 그제 가입(Onboarding Completed)한 사람 중 어제 활성. 리텐션 API 응답의 셋째 칸                                          |
-| 주간 리텐션                 | 지지난주 가입자 중 지난주에 활성. 지난주 가입자는 아직 한 주가 안 지나 못 쓴다                                          |
-| 온보딩 완료·첫 시나리오까지 | 퍼널 API. Onboarding Started → Completed, Onboarding Completed → Scenario Talk Completed (전환 창 7일)                  |
-| 구독 중                     | RevenueCat. 월간·연간 결제는 `actives` 차트, 무료체험은 `trials` 차트(상품별). 프로모션은 아래 참고                     |
+| 줄                          | 정의                                                                                                                                                                            |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 활성                        | 이벤트를 하나라도 남긴 유저(`_active`). 유료는 유저 속성 `is_premium=true`, 무료는 활성 − 유료                                                                                  |
+| 가입                        | Onboarding Completed 유저                                                                                                                                                       |
+| 어디서 들어왔나             | 첫 화면 Page Viewed의 `entry_campaign`. `streak_widget`은 위젯, 나머지는 알림. 직접 = 활성 − 알림 − 위젯                                                                        |
+| 시나리오 완료·하다가 그만둠 | Scenario Talk Completed / Abandoned 유저                                                                                                                                        |
+| 시나리오 표현               | Expression Completed 중 `scenario_id`가 있는 것. 분포는 유저별 횟수, 0개 = 유료로 시나리오는 끝냈지만 표현을 안 한 사람(두 이벤트가 자정을 걸쳐 갈리면 어긋날 수 있어 추정치다) |
+| 스몰톡                      | Small Talk Completed. 턴은 `turn_count` 평균, 말한 시간은 `speaking_duration_ms` 평균·최소·최대                                                                                 |
+| 스몰톡 표현                 | Expression Completed 중 `session_id`가 있는 것. 판마다 표현 수가 달라 마지막 칸은 "3개 이상"                                                                                    |
+| D1 리텐션                   | 그제 가입(Onboarding Completed)한 사람 중 어제 활성. 리텐션 API 응답의 셋째 칸                                                                                                  |
+| 주간 리텐션                 | 지지난주 가입자 중 지난주에 활성. 지난주 가입자는 아직 한 주가 안 지나 못 쓴다                                                                                                  |
+| 온보딩 완료·첫 시나리오까지 | 퍼널 API. Onboarding Started → Completed, Onboarding Completed → Scenario Talk Completed (전환 창 7일)                                                                          |
+| 구독 중                     | RevenueCat. 월간·연간 결제는 `actives` 차트, 무료체험은 `trials` 차트(상품별). 프로모션은 아래 참고                                                                             |
 
 유료 블록의 괄호 비율은 유료 활성 대비 참여 비율이고, "평균"은 참여한 사람만으로 나눈 값이다.
 
@@ -54,15 +54,22 @@ RevenueCat 차트는 유료·체험만 세고 우리가 부여한 프로모션�
 
 ## 구조
 
-- `src/metrics/lib.mjs` — 메시지 조립(순수). `buildDailyMessage`·`buildWeeklyMessage`. 테스트가 붙는 곳
-- `src/metrics/amplitude.mjs` — 앰플리튜드 Dashboard REST. 동시 4개 제한과 429 재시도가 여기 있다
+- `src/metrics/lib.mjs` — 메시지 조립(순수). `buildDailyMessage`·`buildWeeklyMessage`
+- `src/metrics/amplitude.mjs` — 앰플리튜드 Dashboard REST. 동시 4개 제한과 재시도가 여기 있다. 응답을 숫자로 옮기는 순수 함수도 같이 둔다(응답 모양이 바뀌면 같이 바뀌므로)
 - `src/metrics/revenuecat.mjs` — RevenueCat 차트와 고객 전수 조회
 - `src/metrics/collect.mjs` — 두 수집기를 불러 입력 모양을 만든다. 이벤트 이름·필터는 여기 `EVENT` 표 한 곳
-- `src/metrics/run.mjs` — 실행부. `daily|weekly [기준일]`. 조회가 하나라도 실패하면 보내지 않는다
+- `src/metrics/run.mjs` — 실행부. `daily|weekly [기준일]`
+- `src/metrics/sample.mjs` — 예시 숫자. 입력 데이터 모양의 정본이고 테스트와 preview가 같이 쓴다
 - `src/metrics/preview.mjs` — 예시 숫자로 모양만 확인할 때
-- `.github/workflows/metrics.yml` — 매일 UTC 0시. 월요일이면 주간 잡이 이어서 돈다
+- `.github/workflows/metrics.yml` — 매일 UTC 0시. 잡 하나 안에서 일일 step, 월요일이면 주간 step이 이어진다
 
-전일·전주 값은 저장하지 않고 같은 조회를 날짜만 바꿔 다시 부른다. 상태 파일이 없어 캐시 복원 단계도 없다.
+전일·전주 값은 저장하지 않고 같은 조회를 날짜만 바꿔 다시 부른다. 상태 파일이 없어 캐시 복원 단계도 없다. 다만 비교에 쓰는 줄은 네댓 개뿐이라 이전 기간은 `collectDailyBaseline`·`collectWeeklyBaseline`으로 그 줄만 부른다.
+
+## 조회가 실패하면
+
+- **앰플리튜드가 실패하면** 지표를 못 만든다. 그 자리에 `⚠️ 일일 지표를 못 가져왔어요`와 이유를 대신 보낸다. 침묵하면 지표가 0인 건지 봇이 죽은 건지 구분이 안 되기 때문이다.
+- **RevenueCat만 실패하면** 앰플리튜드 줄은 그대로 보내고 구독 블록 자리에 `💳 구독 정보를 못 가져왔어요` 한 줄만 들어간다. 출처가 갈려 있어 서로 계산에 안 엮인다.
+- 한도 초과(429)와 일시 장애(5xx)·네트워크 끊김은 쉬었다 다시 부른다. 앰플리튜드는 5분 비용 창을 넘길 만큼(최대 3분) 기다리고, RevenueCat은 응답이 알려 준 대기 시간을 따른다.
 
 ## 세팅 과정
 
@@ -72,12 +79,13 @@ RevenueCat 차트는 유료·체험만 세고 우리가 부여한 프로모션�
 4. **GitHub Secrets** — `AMPLITUDE_API_KEY` `AMPLITUDE_SECRET_KEY` `REVENUECAT_API_KEY` `REVENUECAT_PROJECT_ID` `DISCORD_WEBHOOK_METRICS_DAILY` `DISCORD_WEBHOOK_METRICS_WEEKLY`.
 5. **첫 실행** — 크론이 돌 때까지 기다린다. 손으로 돌리면 실채널로 나가니 Actions > metrics > Run workflow는 확인이 필요할 때만.
 
-로컬에서 모양만 보려면 `DISCORD_WEBHOOK_METRICS_DAILY=<테스트 웹훅> node --env-file=~/.landit-discord.env src/metrics/run.mjs daily`. 명령줄 환경변수가 파일보다 우선이라 실채널 웹훅은 쓰이지 않는다.
+로컬에서 모양만 보려면 `DISCORD_WEBHOOK_METRICS_DAILY=<테스트 웹훅> node --env-file=~/.landit-discord.env src/metrics/run.mjs daily`. 명령줄 환경변수가 파일보다 우선이라 실채널 웹훅은 쓰이지 않는다. 실제 조회 없이 배치만 보려면 같은 방식으로 `src/metrics/preview.mjs`.
 
 ## 운영 주의
 
 - **조회 실패는 침묵이다.** 앰플리튜드나 RevenueCat이 한 번이라도 실패하면 메시지가 안 나간다. 아침에 안 오면 Actions 로그부터 본다.
-- 앰플리튜드는 키당 동시 5개, 시간당 360건 한도. 일일이 조회 약 35건, 주간 약 45건이라 여유가 있지만 다른 스크립트와 같은 키를 동시에 쓰면 429가 난다.
+- 앰플리튜드는 키당 동시 5개, 시간당 360건, 5분당 비용 한도가 있다. 일일 약 21건, 주간 약 24건이라 여유가 있지만 다른 스크립트와 같은 키를 동시에 쓰면 429가 난다. group_by가 붙는 조회(유입·말한 시간)가 비용이 크다.
+- RevenueCat 고객 전수 조회는 고객 수만큼 호출한다. 수천 명이 되면 분당 한도에 걸려 느려지므로, 그때는 웹훅으로 프로모션 부여·만료를 쌓는 쪽으로 바꾼다.
 - `is_premium`은 9/11 이후 로그인한 유저에게만 있어 무료를 `is_premium=false`로 뽑으면 빠진다. 활성 − 유료로 계산하는 이유다.
 - REST에선 커스텀 유저 속성이 `gp:is_premium`처럼 `gp:` 접두사다. MCP와 다르다.
 - 새 알림 캠페인은 `lib.mjs`의 `CAMPAIGN_LABELS`에 이름을 더한다. 안 더해도 캠페인 이름 그대로 나간다.
