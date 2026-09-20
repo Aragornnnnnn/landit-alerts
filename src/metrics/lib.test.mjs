@@ -24,7 +24,7 @@ const daily = {
   premiumUsage: {
     expression: {
       scenario: { users: 9, byCount: [2, 1, 1, 5] },
-      smalltalk: { users: 4, count: 7 },
+      smalltalk: { users: 4, byCount: [2, 1, 1] },
     },
     smalltalk: { users: 7, count: 11, turnsAverage: 6.1 },
   },
@@ -87,7 +87,7 @@ test('데일리 메시지를 ANSI 코드 블록 하나로 스펙 그대로 조�
       '',
       B('💎 유료 14명이 쓴 것'),
       '   시나리오 표현 · 9명이 함 (64%) · 0개 3 / 1개 2 / 2개 1 / 3개 1 / 4개 5',
-      '   스몰톡 표현 · 4명이 함 (29%) · 7개',
+      '   스몰톡 표현 · 4명이 함 (29%) · 0개 3 / 1개 2 / 2개 1 / 3개 이상 1',
       '   스몰톡 · 7명이 함 (50%) · 11판 · 한 판 평균 6.1턴',
       '',
       `${B('💳 구독 중 52명')} ${G('+3')}`,
@@ -115,7 +115,7 @@ test('유료 활성이 0이면 비율 대신 0%로 둔다', () => {
       premiumUsage: {
         expression: {
           scenario: { users: 0, byCount: [0, 0, 0, 0] },
-          smalltalk: { users: 0, count: 0 },
+          smalltalk: { users: 0, byCount: [0, 0, 0] },
         },
         smalltalk: { users: 0, count: 0, turnsAverage: 0 },
       },

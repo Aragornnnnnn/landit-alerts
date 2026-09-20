@@ -62,6 +62,8 @@ export const buildDailyMessage = (m, prev) => {
   // 0개 = 유료로 시나리오는 끝냈지만 표현을 하나도 안 한 사람
   const expressionZero =
     m.scenario.completedPremium - expression.scenario.users;
+  // 스몰톡은 판마다 표현 수가 달라 마지막 칸을 "N개 이상"으로 막는다. 0개 = 스몰톡은 했지만 표현을 안 한 사람
+  const smalltalkExpressionZero = smalltalk.users - expression.smalltalk.users;
   const subs = m.subscriptions;
   const prevSubs = p.subscriptions ?? {};
 
@@ -96,7 +98,12 @@ export const buildDailyMessage = (m, prev) => {
           .join(' / '),
     ),
     bullet(
-      `스몰톡 표현 · ${expression.smalltalk.users}명이 함 (${percent(expression.smalltalk.users, m.active.premium)}) · ${expression.smalltalk.count}개`,
+      `스몰톡 표현 · ${expression.smalltalk.users}명이 함 (${percent(expression.smalltalk.users, m.active.premium)}) · ` +
+        [smalltalkExpressionZero, ...expression.smalltalk.byCount]
+          .map((n, i, all) =>
+            i === all.length - 1 ? `${i}개 이상 ${n}` : `${i}개 ${n}`,
+          )
+          .join(' / '),
     ),
     bullet(
       `스몰톡 · ${smalltalk.users}명이 함 (${percent(smalltalk.users, m.active.premium)}) · ${smalltalk.count}판 · 한 판 평균 ${smalltalk.turnsAverage.toFixed(1)}턴`,

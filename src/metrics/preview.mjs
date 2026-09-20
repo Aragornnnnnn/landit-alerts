@@ -17,7 +17,7 @@ const daily = {
   premiumUsage: {
     expression: {
       scenario: { users: 9, byCount: [2, 1, 1, 5] },
-      smalltalk: { users: 4, count: 7 },
+      smalltalk: { users: 4, byCount: [2, 1, 1] },
     },
     smalltalk: { users: 7, count: 11, turnsAverage: 6.1 },
   },
