@@ -212,14 +212,16 @@ export const buildWeeklyMessage = (m, prev) => {
     bullet(`무료 ${free}명`, free, prevFree) +
       ` · ${m.activeDays.free.toFixed(1)}일`,
     '',
-    headline(`🌱 가입 ${m.signups}명`, m.signups, p.signups) +
-      ` · 온보딩 완료 ${percent(m.onboarding.completed, m.onboarding.started)}` +
-      ` · 첫 시나리오까지 ${percent(m.signupsWithScenario, m.signups)}`,
+    headline(`🌱 가입 ${m.signups}명`, m.signups, p.signups),
+    bullet(
+      `온보딩 완료 ${percent(m.onboarding.completed, m.onboarding.started)}`,
+    ),
+    bullet(`첫 시나리오까지 ${percent(m.signupsWithScenario, m.signups)}`),
     '',
     bold('🚪 어디서 들어왔나'),
-    bullet(
-      `알림 ${m.entries.notification}명 · 위젯 ${m.entries.widget}명 · 직접 ${direct}명`,
-    ),
+    bullet(`알림 ${m.entries.notification}명`),
+    bullet(`위젯 ${m.entries.widget}명`),
+    bullet(`직접 ${direct}명`),
     '',
     bold(
       `🗣️ 시나리오 완료 ${scenarioUsers}명 · 1인당 ${averageFromDistribution(m.scenario.byCount)}개`,
