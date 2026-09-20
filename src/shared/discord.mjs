@@ -17,3 +17,16 @@ export const sendEmbed = async (webhookUrl, embed, components) => {
   });
   await assertOk(res, '디스코드 전송');
 };
+
+// 텍스트 메시지 전송 — 지표처럼 복사·검색돼야 하는 알림은 embed 대신 content로 보낸다
+export const sendMessage = async (webhookUrl, content) => {
+  const res = await fetch(webhookUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'User-Agent': 'LanditAlerts/1.0',
+    },
+    body: JSON.stringify({ content }),
+  });
+  await assertOk(res, '디스코드 전송');
+};

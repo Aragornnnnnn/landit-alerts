@@ -1,0 +1,218 @@
+// 지표 알림 순수 로직 — 전일 대비 증감 표기와 데일리 메시지 조립. 수집은 amplitude.mjs·revenuecat.mjs가 맡는다.
+// 메시지는 ANSI 코드 블록 하나다. 증감을 초록·빨강으로 칠할 수 있는 유일한 디스코드 문법이라서다
+const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
+// 블록 제목 줄이 전일 대비 이 비율 이상, 그리고 이 인원 이상 튀면 앞에 경고를 붙인다 (작은 숫자의 잡음은 거른다)
+const SPIKE_RATIO = 0.5;
+const SPIKE_MIN_DIFF = 5;
+
+const ESC = '\x1b';
+const ansi = (code, text) => `${ESC}[${code}m${text}${ESC}[0m`;
+export const bold = (text) => ansi(1, text);
+const green = (text) => ansi(32, text);
+const red = (text) => ansi(31, text);
+
+// " +9" 초록 / " −2" 빨강. 변화가 없거나 이전 값이 없으면 빈 문자열이라 첫 실행은 증감 없이 나간다
+export const formatDelta = (current, previous) => {
+  if (previous === undefined || previous === null) return '';
+  const diff = current - previous;
+  if (diff === 0) return '';
+  return diff > 0 ? ` ${green(`+${diff}`)}` : ` ${red(`−${-diff}`)}`;
+};
+
+const isSpike = (current, previous) =>
+  previous > 0 &&
+  Math.abs(current - previous) >= SPIKE_MIN_DIFF &&
+  Math.abs(current - previous) / previous >= SPIKE_RATIO;
+
+const percent = (part, whole) =>
+  whole > 0 ? `${Math.round((part / whole) * 100)}%` : '0%';
+
+const weekdayOf = (iso) => WEEKDAYS[new Date(`${iso}T00:00:00Z`).getUTCDay()];
+
+// "2026년 9월 19일 (토)"
+const formatDate = (iso) => {
+  const [year, month, day] = iso.split('-').map(Number);
+  return `${year}년 ${month}월 ${day}일 (${weekdayOf(iso)})`;
+};
+
+// "2026년 9월 8일 (월) 00:00 ~ 9월 14일 (일) 23:59" — 어느 시각까지 센 건지 드러낸다
+const formatWeekRange = ({ start, end }) => {
+  const [, month, day] = end.split('-').map(Number);
+  return `${formatDate(start)} 00:00 ~ ${month}월 ${day}일 (${weekdayOf(end)}) 23:59`;
+};
+
+// 불릿 줄 — 들여쓰기 세 칸, 증감이 있으면 뒤에
+const bullet = (text, current, previous) =>
+  `   ${text}${formatDelta(current, previous)}`;
+
+// 블록 제목 줄 — 굵게, 튀면 앞에 ⚠️
+const headline = (text, current, previous) => {
+  const body = `${bold(text)}${formatDelta(current, previous)}`;
+  return isSpike(current, previous) ? `⚠️ ${body}` : body;
+};
+
+const total = (subscriptions) =>
+  subscriptions.monthly +
+  subscriptions.yearlyTrial +
+  subscriptions.yearlyPaid +
+  subscriptions.promo;
+
+export const wrapAnsi = (lines) => '```ansi\n' + lines.join('\n') + '\n```';
+
+export const buildDailyMessage = (m, prev) => {
+  const p = prev ?? {};
+  const free = m.active.total - m.active.premium;
+  const prevFree = p.active && p.active.total - p.active.premium;
+  const direct = m.active.total - m.entries.notification - m.entries.widget;
+  const completedFree = m.scenario.completed - m.scenario.completedPremium;
+  const { expression, smalltalk } = m.premiumUsage;
+  const subs = m.subscriptions;
+  const prevSubs = p.subscriptions ?? {};
+
+  return wrapAnsi([
+    bold(`📊 랜딧 데일리 · ${formatDate(m.date)}`),
+    '',
+    headline(`👥 활성 ${m.active.total}명`, m.active.total, p.active?.total),
+    bullet(`유료 ${m.active.premium}`, m.active.premium, p.active?.premium),
+    bullet(`무료 ${free}`, free, prevFree),
+    '',
+    headline(`🌱 가입 ${m.signups}명`, m.signups, p.signups),
+    '',
+    bold('🚪 어디서 들어왔나'),
+    bullet(`알림 ${m.entries.notification}명`),
+    bullet(`위젯 ${m.entries.widget}명`),
+    bullet(`직접 ${direct}명`),
+    '',
+    headline(
+      `🗣️ 시나리오 완료 ${m.scenario.completed}명`,
+      m.scenario.completed,
+      p.scenario?.completed,
+    ) +
+      ` · 활성의 ${percent(m.scenario.completed, m.active.total)} · 이탈 ${m.scenario.abandoned}`,
+    bullet(`유료 ${m.scenario.completedPremium}`),
+    bullet(`무료 ${completedFree}`),
+    '',
+    bold(`💎 유료 ${m.active.premium}명이 쓴 것`),
+    bullet(
+      `표현학습 ${expression.users}명 · ${percent(expression.users, m.active.premium)} · ` +
+        expression.byCount.map((n, i) => `${i + 1}개 ${n}`).join(' / ') +
+        ` · 건너뜀 ${percent(expression.skipped, expression.skipped + expression.started)}`,
+    ),
+    bullet(
+      `스몰톡 ${smalltalk.users}명 · ${percent(smalltalk.users, m.active.premium)} · ${smalltalk.count}건`,
+    ),
+    '',
+    headline(
+      `💳 구독 중 ${total(subs)}명`,
+      total(subs),
+      p.subscriptions && total(p.subscriptions),
+    ),
+    bullet(`월간 ${subs.monthly}`, subs.monthly, prevSubs.monthly),
+    bullet(
+      `연간 · 7일 무료체험 ${subs.yearlyTrial}`,
+      subs.yearlyTrial,
+      prevSubs.yearlyTrial,
+    ),
+    bullet(
+      `연간 · 결제 ${subs.yearlyPaid}`,
+      subs.yearlyPaid,
+      prevSubs.yearlyPaid,
+    ),
+    bullet(`프로모션 ${subs.promo}`, subs.promo, prevSubs.promo),
+  ]);
+};
+
+const shortDate = (iso) => iso.split('-').slice(1).map(Number).join('/');
+const formatRange = ({ start, end }) => `${shortDate(start)}~${shortDate(end)}`;
+
+// 리텐션 코호트는 지난주가 아니라 그 전주 가입자다 — D7이 차려면 일주일이 지나야 한다
+const previousWeek = ({ start }) => {
+  const day = (iso, offset) => {
+    const d = new Date(`${iso}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + offset);
+    return d.toISOString().slice(0, 10);
+  };
+  return { start: day(start, -7), end: day(start, -1) };
+};
+
+// 순증처럼 기준 없이 부호만 필요한 수 — 0은 그대로 0
+const signed = (n) => (n === 0 ? '0' : formatDelta(n, 0).trimStart());
+
+const average = (part, whole) =>
+  whole > 0 ? (part / whole).toFixed(1) : '0.0';
+
+export const buildWeeklyMessage = (m, prev) => {
+  const p = prev ?? {};
+  const free = m.active.total - m.active.premium;
+  const prevFree = p.active && p.active.total - p.active.premium;
+  const direct = m.active.total - m.entries.notification - m.entries.widget;
+  const scenarioUsers = m.scenario.byCount.reduce((a, b) => a + b, 0);
+  const seven = m.scenario.byCount[6];
+  const { expression, smalltalk } = m.premiumUsage;
+  const subs = m.subscriptions;
+  const prevSubs = p.subscriptions ?? {};
+  const widgetNet = m.widget.installed - m.widget.removed;
+
+  return wrapAnsi([
+    bold(`📈 랜딧 위클리 · ${formatWeekRange(m.range)}`),
+    '',
+    headline(
+      `👥 주간 활성 ${m.active.total}명`,
+      m.active.total,
+      p.active?.total,
+    ),
+    bullet(`유료 ${m.active.premium}`, m.active.premium, p.active?.premium),
+    bullet(`무료 ${free}`, free, prevFree),
+    '',
+    headline(`🌱 가입 ${m.signups}명`, m.signups, p.signups) +
+      ` · 온보딩 완료 ${percent(m.onboarding.completed, m.onboarding.started)}` +
+      ` · 첫 시나리오까지 ${percent(m.signupsWithScenario, m.signups)}`,
+    '',
+    bold('🚪 어디서 들어왔나'),
+    bullet(`알림 ${m.entries.notification}명`),
+    bullet(`위젯 ${m.entries.widget}명`),
+    bullet(`직접 ${direct}명`),
+    '',
+    bold(`🗣️ 시나리오 완료 개수 (유저 ${scenarioUsers}명)`),
+    bullet(m.scenario.byCount.map((n, i) => `${i + 1}개 ${n}`).join(' · ')),
+    bullet(
+      `7개 완료 ${seven}명 · 유료 ${m.scenario.sevenPremium} / 무료 ${seven - m.scenario.sevenPremium}`,
+    ),
+    '',
+    bold(`💎 유료 ${m.active.premium}명이 쓴 것`),
+    bullet(
+      `표현학습 ${expression.users}명 · ${percent(expression.users, m.active.premium)} · 평균 ${average(expression.count, expression.users)}개`,
+    ),
+    bullet(
+      `스몰톡 ${smalltalk.users}명 · ${percent(smalltalk.users, m.active.premium)} · ${smalltalk.count}건`,
+    ),
+    '',
+    bold(
+      `🔁 ${formatRange(previousWeek(m.range))} 가입 ${m.retention.cohort}명`,
+    ),
+    bullet(
+      `하루 뒤 ${percent(m.retention.d1, m.retention.cohort)} · 일주일 뒤 ${percent(m.retention.d7, m.retention.cohort)} 남음`,
+    ),
+    '',
+    headline(
+      `💳 구독 중 ${total(subs)}명`,
+      total(subs),
+      p.subscriptions && total(p.subscriptions),
+    ),
+    bullet(`월간 ${subs.monthly}`, subs.monthly, prevSubs.monthly),
+    bullet(
+      `연간 · 7일 무료체험 ${subs.yearlyTrial}`,
+      subs.yearlyTrial,
+      prevSubs.yearlyTrial,
+    ),
+    bullet(
+      `연간 · 결제 ${subs.yearlyPaid}`,
+      subs.yearlyPaid,
+      prevSubs.yearlyPaid,
+    ),
+    bullet(`프로모션 ${subs.promo}`, subs.promo, prevSubs.promo),
+    '',
+    bold(`📱 위젯 순증 ${signed(widgetNet)}`) +
+      ` (설치 ${m.widget.installed} / 제거 ${m.widget.removed})`,
+  ]);
+};
