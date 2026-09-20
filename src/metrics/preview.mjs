@@ -40,7 +40,6 @@ const weekly = {
   entries: { notification: 201, widget: 96 },
   scenario: {
     byCount: [61, 38, 29, 22, 18, 15, 27],
-    sevenPremium: 8,
     completedPremium: 120,
   },
   premiumUsage: {

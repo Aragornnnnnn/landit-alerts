@@ -225,9 +225,7 @@ export const buildWeeklyMessage = (m, prev) => {
       `🗣️ 시나리오 완료 ${scenarioUsers}명 · 1인당 ${averageFromDistribution(m.scenario.byCount)}개`,
     ),
     bullet(m.scenario.byCount.map((n, i) => `${i + 1}개 ${n}명`).join(' · ')),
-    bullet(
-      `7개 완료 ${seven}명 · 유료 ${m.scenario.sevenPremium}명 / 무료 ${seven - m.scenario.sevenPremium}명`,
-    ),
+    bullet(`7개 완료 ${seven}명`),
     '',
     bold(`💎 유료 ${m.active.premium}명이 일주일 동안 쓴 것`),
     bullet(
