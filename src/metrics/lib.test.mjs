@@ -28,6 +28,7 @@ const daily = {
     },
     smalltalk: { users: 7, count: 11, turnsAverage: 6.1 },
   },
+  retention: { cohort: 9, returned: 5 },
   subscriptions: { monthly: 30, yearlyTrial: 5, yearlyPaid: 14, promo: 3 },
 };
 
@@ -89,6 +90,8 @@ test('데일리 메시지를 ANSI 코드 블록 하나로 스펙 그대로 조�
       '   시나리오 표현 9명 (64%) · 0개 3명 / 1개 2명 / 2개 1명 / 3개 1명 / 4개 5명',
       '   스몰톡 7명 (50%) · 11판 · 한 판 평균 6.1턴',
       '   스몰톡 표현 4명 (29%) · 0개 3명 / 1개 2명 / 2개 1명 / 3개 이상 1명',
+      '',
+      B('🔁 그제 가입한 9명 중 어제도 온 사람 5명 (56%)'),
       '',
       `${B('💳 구독 중 52명')} ${G('+3')}`,
       `   월간 30명 ${G('+1')}`,
@@ -154,6 +157,7 @@ const weekly = {
       speaking: { average: 190000, min: 40000, max: 590000 },
     },
   },
+  retention: { cohort: 71, returned: 34 },
   subscriptions: { monthly: 30, yearlyTrial: 5, yearlyPaid: 14, promo: 3 },
 };
 
@@ -200,6 +204,8 @@ test('위클리 메시지를 ANSI 코드 블록 하나로 스펙 그대로 조�
       '   스몰톡 표현 17명 (45%)',
       '      평균 3.6개',
       '      스몰톡 한 판당 0.7개',
+      '',
+      B('🔁 8/31~9/6 가입한 71명 중 지난주에 다시 온 사람 34명 (48%)'),
       '',
       `${B('💳 구독 중 52명')} ${G('+7')}`,
       `   월간 30명 ${G('+3')}`,

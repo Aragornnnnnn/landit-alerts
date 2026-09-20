@@ -136,6 +136,10 @@ export const buildDailyMessage = (m, prev) => {
           .join(' / '),
     ),
     '',
+    bold(
+      `🔁 그제 가입한 ${m.retention.cohort}명 중 어제도 온 사람 ${m.retention.returned}명 (${percent(m.retention.returned, m.retention.cohort)})`,
+    ),
+    '',
     headline(
       `💳 구독 중 ${total(subs)}명`,
       total(subs),
@@ -152,6 +156,12 @@ const addDays = (iso, offset) => {
   d.setUTCDate(d.getUTCDate() + offset);
   return d.toISOString().slice(0, 10);
 };
+
+// 리텐션 코호트는 지난주가 아니라 그 전주 가입자다 — 다음 주에 돌아왔는지 보려면 한 주가 지나야 한다
+const previousWeek = ({ start }) => ({
+  start: addDays(start, -7),
+  end: addDays(start, -1),
+});
 
 // "9월 2주차" — 그 주의 목요일이 속한 달과 순서로 센다(ISO 방식). 달이 걸친 주도 한 달에만 속한다
 export const weekOfMonth = (monday) => {
@@ -247,6 +257,10 @@ export const buildWeeklyMessage = (m, prev) => {
     ),
     subBullet(
       `스몰톡 한 판당 ${average(expression.smalltalk.count, smalltalk.count)}개`,
+    ),
+    '',
+    bold(
+      `🔁 ${shortDate(previousWeek(m.range).start)}~${shortDate(previousWeek(m.range).end)} 가입한 ${m.retention.cohort}명 중 지난주에 다시 온 사람 ${m.retention.returned}명 (${percent(m.retention.returned, m.retention.cohort)})`,
     ),
     '',
     headline(
