@@ -222,7 +222,7 @@ export const buildWeeklyMessage = (m, prev) => {
     bullet(`직접 ${direct}명`),
     '',
     bold(
-      `🗣️ 시나리오 완료 ${scenarioUsers}명 · 1인당 ${averageFromDistribution(m.scenario.byCount)}개`,
+      `🗣️ 시나리오 완료 ${scenarioUsers}명 · 평균 ${averageFromDistribution(m.scenario.byCount)}개`,
     ),
     bullet(m.scenario.byCount.map((n, i) => `${i + 1}개 ${n}명`).join(' · ')),
     bullet(`7개 완료 ${seven}명`),
@@ -232,7 +232,7 @@ export const buildWeeklyMessage = (m, prev) => {
       `시나리오 표현 ${expression.scenario.users}명 (${percent(expression.scenario.users, m.active.premium)})`,
     ),
     subBullet(
-      `1인당 ${average(expression.scenario.count, expression.scenario.users)}개`,
+      `평균 ${average(expression.scenario.count, expression.scenario.users)}개`,
     ),
     subBullet(
       `시나리오 한 판당 ${average(expression.scenario.count, m.scenario.completedPremium)}개 / 4개`,
@@ -241,7 +241,7 @@ export const buildWeeklyMessage = (m, prev) => {
       `스몰톡 ${smalltalk.users}명 (${percent(smalltalk.users, m.active.premium)})`,
     ),
     subBullet(
-      `1인당 ${average(smalltalk.count, smalltalk.users)}판 · 한 판 평균 ${smalltalk.turnsAverage.toFixed(1)}턴`,
+      `평균 ${average(smalltalk.count, smalltalk.users)}판 · 한 판 평균 ${smalltalk.turnsAverage.toFixed(1)}턴`,
     ),
     subBullet(
       `말한 시간 평균 ${formatDuration(smalltalk.speaking.average)} (최소 ${formatDuration(smalltalk.speaking.min)} · 최대 ${formatDuration(smalltalk.speaking.max)})`,
@@ -250,7 +250,7 @@ export const buildWeeklyMessage = (m, prev) => {
       `스몰톡 표현 ${expression.smalltalk.users}명 (${percent(expression.smalltalk.users, m.active.premium)})`,
     ),
     subBullet(
-      `1인당 ${average(expression.smalltalk.count, expression.smalltalk.users)}개`,
+      `평균 ${average(expression.smalltalk.count, expression.smalltalk.users)}개`,
     ),
     subBullet(
       `스몰톡 한 판당 ${average(expression.smalltalk.count, smalltalk.count)}개`,
