@@ -58,19 +58,23 @@ const yearly = (subs) => subs.yearlyTrial + subs.yearlyPaid;
 
 // 구독 블록 불릿 — 연간은 체험 중과 결제 중으로 한 단 더 쪼갠다
 const subscriptionLines = (subs, prevSubs) => [
-  bullet(`월간 ${subs.monthly}`, subs.monthly, prevSubs.monthly),
+  bullet(`월간 ${subs.monthly}명`, subs.monthly, prevSubs.monthly),
   bullet(
-    `연간 ${yearly(subs)}`,
+    `연간 ${yearly(subs)}명`,
     yearly(subs),
     prevSubs.yearlyTrial === undefined ? undefined : yearly(prevSubs),
   ),
   subBullet(
-    `무료체험 중 ${subs.yearlyTrial}`,
+    `무료체험 중 ${subs.yearlyTrial}명`,
     subs.yearlyTrial,
     prevSubs.yearlyTrial,
   ),
-  subBullet(`결제 중 ${subs.yearlyPaid}`, subs.yearlyPaid, prevSubs.yearlyPaid),
-  bullet(`프로모션 ${subs.promo}`, subs.promo, prevSubs.promo),
+  subBullet(
+    `결제 중 ${subs.yearlyPaid}명`,
+    subs.yearlyPaid,
+    prevSubs.yearlyPaid,
+  ),
+  bullet(`프로모션 ${subs.promo}명`, subs.promo, prevSubs.promo),
 ];
 
 export const wrapAnsi = (lines) => '```ansi\n' + lines.join('\n') + '\n```';
@@ -94,8 +98,8 @@ export const buildDailyMessage = (m, prev) => {
     bold(`📊 랜딧 데일리 · ${formatDate(m.date)}`),
     '',
     headline(`👥 활성 ${m.active.total}명`, m.active.total, p.active?.total),
-    bullet(`유료 ${m.active.premium}`, m.active.premium, p.active?.premium),
-    bullet(`무료 ${free}`, free, prevFree),
+    bullet(`유료 ${m.active.premium}명`, m.active.premium, p.active?.premium),
+    bullet(`무료 ${free}명`, free, prevFree),
     '',
     headline(`🌱 가입 ${m.signups}명`, m.signups, p.signups),
     '',
@@ -110,14 +114,14 @@ export const buildDailyMessage = (m, prev) => {
       p.scenario?.completed,
     ) +
       ` · 활성의 ${percent(m.scenario.completed, m.active.total)} · 하다가 그만둠 ${m.scenario.abandoned}`,
-    bullet(`유료 ${m.scenario.completedPremium}`),
-    bullet(`무료 ${completedFree}`),
+    bullet(`유료 ${m.scenario.completedPremium}명`),
+    bullet(`무료 ${completedFree}명`),
     '',
     bold(`💎 유료 ${m.active.premium}명이 쓴 것`),
     bullet(
       `시나리오 표현 · ${expression.scenario.users}명이 함 (${percent(expression.scenario.users, m.active.premium)}) · ` +
         [expressionZero, ...expression.scenario.byCount]
-          .map((n, i) => `${i}개 ${n}`)
+          .map((n, i) => `${i}개 ${n}명`)
           .join(' / '),
     ),
     bullet(
@@ -127,7 +131,7 @@ export const buildDailyMessage = (m, prev) => {
       `스몰톡 표현 · ${expression.smalltalk.users}명이 함 (${percent(expression.smalltalk.users, m.active.premium)}) · ` +
         [smalltalkExpressionZero, ...expression.smalltalk.byCount]
           .map((n, i, all) =>
-            i === all.length - 1 ? `${i}개 이상 ${n}` : `${i}개 ${n}`,
+            i === all.length - 1 ? `${i}개 이상 ${n}명` : `${i}개 ${n}명`,
           )
           .join(' / '),
     ),
@@ -203,9 +207,9 @@ export const buildWeeklyMessage = (m, prev) => {
       m.active.total,
       p.active?.total,
     ) + ` · 7일 중 1인당 ${m.activeDays.all.toFixed(1)}일 접속`,
-    bullet(`유료 ${m.active.premium}`, m.active.premium, p.active?.premium) +
+    bullet(`유료 ${m.active.premium}명`, m.active.premium, p.active?.premium) +
       ` · ${m.activeDays.premium.toFixed(1)}일`,
-    bullet(`무료 ${free}`, free, prevFree) +
+    bullet(`무료 ${free}명`, free, prevFree) +
       ` · ${m.activeDays.free.toFixed(1)}일`,
     '',
     headline(`🌱 가입 ${m.signups}명`, m.signups, p.signups) +
@@ -220,9 +224,9 @@ export const buildWeeklyMessage = (m, prev) => {
     bold(
       `🗣️ 시나리오 완료 ${scenarioUsers}명 · 1인당 ${averageFromDistribution(m.scenario.byCount)}개`,
     ),
-    bullet(m.scenario.byCount.map((n, i) => `${i + 1}개 ${n}`).join(' · ')),
+    bullet(m.scenario.byCount.map((n, i) => `${i + 1}개 ${n}명`).join(' · ')),
     bullet(
-      `7개 완료 ${seven}명 · 유료 ${m.scenario.sevenPremium} / 무료 ${seven - m.scenario.sevenPremium}`,
+      `7개 완료 ${seven}명 · 유료 ${m.scenario.sevenPremium}명 / 무료 ${seven - m.scenario.sevenPremium}명`,
     ),
     '',
     bold(`💎 유료 ${m.active.premium}명이 일주일 동안 쓴 것`),
