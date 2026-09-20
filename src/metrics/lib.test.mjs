@@ -92,8 +92,9 @@ test('데일리 메시지를 ANSI 코드 블록 하나로 스펙 그대로 조�
       '',
       `${B('💳 구독 중 52명')} ${G('+3')}`,
       `   월간 30 ${G('+1')}`,
-      `   연간 · 7일 무료체험 5 ${G('+2')}`,
-      '   연간 · 결제 14',
+      `   연간 19 ${G('+2')}`,
+      `      무료체험 중 5 ${G('+2')}`,
+      '      결제 중 14',
       '   프로모션 3',
       '```',
     ].join('\n'),
@@ -157,7 +158,6 @@ const weekly = {
   },
   retention: { cohort: 71, d1: 34, d7: 15 },
   subscriptions: { monthly: 30, yearlyTrial: 5, yearlyPaid: 14, promo: 3 },
-  widget: { installed: 14, removed: 5 },
 };
 
 const previousWeekly = {
@@ -200,11 +200,10 @@ test('위클리 메시지를 ANSI 코드 블록 하나로 스펙 그대로 조�
       '',
       `${B('💳 구독 중 52명')} ${G('+7')}`,
       `   월간 30 ${G('+3')}`,
-      `   연간 · 7일 무료체험 5 ${G('+4')}`,
-      `   연간 · 결제 14 ${G('+2')}`,
+      `   연간 19 ${G('+6')}`,
+      `      무료체험 중 5 ${G('+4')}`,
+      `      결제 중 14 ${G('+2')}`,
       `   프로모션 3 ${R('−2')}`,
-      '',
-      `${B(`📱 위젯 순증 ${G('+9')}`)} (설치 14 / 제거 5)`,
       '```',
     ].join('\n'),
   );
@@ -214,21 +213,6 @@ test('말한 시간은 분·초로, 1분 미만은 초만 쓴다', () => {
   assert.equal(formatDuration(190000), '3분 10초');
   assert.equal(formatDuration(40000), '40초');
   assert.equal(formatDuration(60000), '1분 0초');
-});
-
-test('위젯 순증이 0이거나 음수여도 표시된다', () => {
-  const zero = buildWeeklyMessage(
-    { ...weekly, widget: { installed: 3, removed: 3 } },
-    null,
-  );
-  assert.ok(zero.includes(`${B('📱 위젯 순증 0')} (설치 3 / 제거 3)`));
-  const minus = buildWeeklyMessage(
-    { ...weekly, widget: { installed: 1, removed: 4 } },
-    null,
-  );
-  assert.ok(
-    minus.includes(`${B(`📱 위젯 순증 ${R('−3')}`)} (설치 1 / 제거 4)`),
-  );
 });
 
 test('주차는 그 주 목요일이 속한 달로 센다', () => {

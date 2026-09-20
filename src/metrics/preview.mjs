@@ -58,7 +58,6 @@ const weekly = {
   },
   retention: { cohort: 71, d1: 34, d7: 15 },
   subscriptions: { monthly: 30, yearlyTrial: 5, yearlyPaid: 14, promo: 3 },
-  widget: { installed: 14, removed: 5 },
 };
 
 const previousWeekly = {

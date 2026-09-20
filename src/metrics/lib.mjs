@@ -50,6 +50,29 @@ const total = (subscriptions) =>
   subscriptions.yearlyPaid +
   subscriptions.promo;
 
+// 불릿 아래 한 단 더 들어간 줄 — 연간 안의 체험·결제처럼 부모 숫자를 쪼갠다
+const subBullet = (text, current, previous) =>
+  `      ${text}${formatDelta(current, previous)}`;
+
+const yearly = (subs) => subs.yearlyTrial + subs.yearlyPaid;
+
+// 구독 블록 불릿 — 연간은 체험 중과 결제 중으로 한 단 더 쪼갠다
+const subscriptionLines = (subs, prevSubs) => [
+  bullet(`월간 ${subs.monthly}`, subs.monthly, prevSubs.monthly),
+  bullet(
+    `연간 ${yearly(subs)}`,
+    yearly(subs),
+    prevSubs.yearlyTrial === undefined ? undefined : yearly(prevSubs),
+  ),
+  subBullet(
+    `무료체험 중 ${subs.yearlyTrial}`,
+    subs.yearlyTrial,
+    prevSubs.yearlyTrial,
+  ),
+  subBullet(`결제 중 ${subs.yearlyPaid}`, subs.yearlyPaid, prevSubs.yearlyPaid),
+  bullet(`프로모션 ${subs.promo}`, subs.promo, prevSubs.promo),
+];
+
 export const wrapAnsi = (lines) => '```ansi\n' + lines.join('\n') + '\n```';
 
 export const buildDailyMessage = (m, prev) => {
@@ -114,18 +137,7 @@ export const buildDailyMessage = (m, prev) => {
       total(subs),
       p.subscriptions && total(p.subscriptions),
     ),
-    bullet(`월간 ${subs.monthly}`, subs.monthly, prevSubs.monthly),
-    bullet(
-      `연간 · 7일 무료체험 ${subs.yearlyTrial}`,
-      subs.yearlyTrial,
-      prevSubs.yearlyTrial,
-    ),
-    bullet(
-      `연간 · 결제 ${subs.yearlyPaid}`,
-      subs.yearlyPaid,
-      prevSubs.yearlyPaid,
-    ),
-    bullet(`프로모션 ${subs.promo}`, subs.promo, prevSubs.promo),
+    ...subscriptionLines(subs, prevSubs),
   ]);
 };
 
@@ -153,9 +165,6 @@ const previousWeek = ({ start }) => ({
   start: addDays(start, -7),
   end: addDays(start, -1),
 });
-
-// 순증처럼 기준 없이 부호만 필요한 수 — 0은 그대로 0
-const signed = (n) => (n === 0 ? '0' : formatDelta(n, 0).trimStart());
 
 const average = (part, whole) =>
   whole > 0 ? (part / whole).toFixed(1) : '0.0';
@@ -185,7 +194,6 @@ export const buildWeeklyMessage = (m, prev) => {
   const { expression, smalltalk } = m.premiumUsage;
   const subs = m.subscriptions;
   const prevSubs = p.subscriptions ?? {};
-  const widgetNet = m.widget.installed - m.widget.removed;
 
   return wrapAnsi([
     bold(`📈 랜딧 위클리 · ${formatWeekRange(m.range)}`),
@@ -248,20 +256,6 @@ export const buildWeeklyMessage = (m, prev) => {
       total(subs),
       p.subscriptions && total(p.subscriptions),
     ),
-    bullet(`월간 ${subs.monthly}`, subs.monthly, prevSubs.monthly),
-    bullet(
-      `연간 · 7일 무료체험 ${subs.yearlyTrial}`,
-      subs.yearlyTrial,
-      prevSubs.yearlyTrial,
-    ),
-    bullet(
-      `연간 · 결제 ${subs.yearlyPaid}`,
-      subs.yearlyPaid,
-      prevSubs.yearlyPaid,
-    ),
-    bullet(`프로모션 ${subs.promo}`, subs.promo, prevSubs.promo),
-    '',
-    bold(`📱 위젯 순증 ${signed(widgetNet)}`) +
-      ` (설치 ${m.widget.installed} / 제거 ${m.widget.removed})`,
+    ...subscriptionLines(subs, prevSubs),
   ]);
 };
