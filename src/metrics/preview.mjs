@@ -34,7 +34,6 @@ const previousDaily = {
 const weekly = {
   range: { start: '2026-09-07', end: '2026-09-13' },
   active: { total: 412, premium: 38 },
-  activeDays: { all: 3.2, premium: 5.1, free: 3.0 },
   signups: 68,
   onboarding: { started: 92, completed: 68 },
   signupsWithScenario: 41,

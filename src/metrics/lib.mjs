@@ -206,11 +206,9 @@ export const buildWeeklyMessage = (m, prev) => {
       `👥 주간 활성 ${m.active.total}명`,
       m.active.total,
       p.active?.total,
-    ) + ` · 7일 중 1인당 ${m.activeDays.all.toFixed(1)}일 접속`,
-    bullet(`유료 ${m.active.premium}명`, m.active.premium, p.active?.premium) +
-      ` · ${m.activeDays.premium.toFixed(1)}일`,
-    bullet(`무료 ${free}명`, free, prevFree) +
-      ` · ${m.activeDays.free.toFixed(1)}일`,
+    ),
+    bullet(`유료 ${m.active.premium}명`, m.active.premium, p.active?.premium),
+    bullet(`무료 ${free}명`, free, prevFree),
     '',
     headline(`🌱 가입 ${m.signups}명`, m.signups, p.signups),
     bullet(
