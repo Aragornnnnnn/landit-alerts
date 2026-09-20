@@ -48,7 +48,16 @@ const weekly = {
     widget: 96,
   },
   scenario: {
-    byCount: [61, 38, 29, 22, 18, 15, 27],
+    users: 210,
+    count: 681,
+    buckets: [
+      ['1개', 61],
+      ['2개', 38],
+      ['3개', 29],
+      ['4개', 22],
+      ['5개', 18],
+      ['6~10개', 42],
+    ],
     completedPremium: 120,
   },
   premiumUsage: {

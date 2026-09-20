@@ -121,7 +121,9 @@ export const buildDailyMessage = (m, prev) => {
     bullet(
       `시나리오 표현 ${expression.scenario.users}명 (${percent(expression.scenario.users, m.active.premium)}) · ` +
         [expressionZero, ...expression.scenario.byCount]
-          .map((n, i) => `${i}개 ${n}명`)
+          .map((n, i, all) =>
+            i === all.length - 1 ? `${i}개 이상 ${n}명` : `${i}개 ${n}명`,
+          )
           .join(' / '),
     ),
     bullet(
@@ -184,19 +186,14 @@ export const formatDuration = (ms) => {
   return minutes ? `${minutes}분 ${rest}초` : `${rest}초`;
 };
 
-// 완료 개수 분포 [1개 n, 2개 n, ...]에서 유저당 평균 개수
-const averageFromDistribution = (byCount) => {
-  const users = byCount.reduce((a, b) => a + b, 0);
-  const total = byCount.reduce((sum, n, i) => sum + n * (i + 1), 0);
-  return average(total, users);
-};
-
 // 알림 캠페인 이름 → 사람이 읽는 이름 (어휘는 landit-fe docs/analytics-utm.md). 모르는 캠페인은 이름 그대로
 const CAMPAIGN_LABELS = {
   daily_scenario_reminder: '오늘의 시나리오',
   continue_expression: '표현 이어가기',
   small_talk_reminder: '스몰톡',
   mailbox_reply: '편지 답장',
+  // 구 로컬 알림(LAN-406 제거 전 바이너리)이 아직 보내는 캠페인
+  daily_reminder: '오늘의 시나리오 (구 알림)',
 };
 
 export const buildWeeklyMessage = (m, prev) => {
@@ -206,8 +203,6 @@ export const buildWeeklyMessage = (m, prev) => {
   const byCampaign = Object.entries(m.entries.notificationByCampaign);
   const notification = byCampaign.reduce((sum, [, n]) => sum + n, 0);
   const direct = m.active.total - notification - m.entries.widget;
-  const scenarioUsers = m.scenario.byCount.reduce((a, b) => a + b, 0);
-  const seven = m.scenario.byCount[6];
   const { expression, smalltalk } = m.premiumUsage;
   const subs = m.subscriptions;
   const prevSubs = p.subscriptions ?? {};
@@ -238,10 +233,11 @@ export const buildWeeklyMessage = (m, prev) => {
     bullet(`직접 ${direct}명`),
     '',
     bold(
-      `🗣️ 시나리오 완료 ${scenarioUsers}명 · 평균 ${averageFromDistribution(m.scenario.byCount)}개`,
+      `🗣️ 시나리오 완료 ${m.scenario.users}명 · 평균 ${average(m.scenario.count, m.scenario.users)}개`,
     ),
-    bullet(m.scenario.byCount.map((n, i) => `${i + 1}개 ${n}명`).join(' · ')),
-    bullet(`7개 완료 ${seven}명`),
+    bullet(
+      m.scenario.buckets.map(([label, n]) => `${label} ${n}명`).join(' · '),
+    ),
     '',
     bold(`💎 유료 ${m.active.premium}명이 일주일 동안 쓴 것`),
     bullet(
