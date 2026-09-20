@@ -246,9 +246,6 @@ export const buildWeeklyMessage = (m, prev) => {
     subBullet(
       `평균 ${average(expression.scenario.count, expression.scenario.users)}개`,
     ),
-    subBullet(
-      `시나리오 한 판당 ${average(expression.scenario.count, m.scenario.completedPremium)}개 / 4개`,
-    ),
     bullet(
       `스몰톡 ${smalltalk.users}명 (${percent(smalltalk.users, m.active.premium)})`,
     ),

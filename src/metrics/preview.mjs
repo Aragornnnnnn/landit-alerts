@@ -58,7 +58,6 @@ const weekly = {
       ['5개', 18],
       ['6~10개', 42],
     ],
-    completedPremium: 120,
   },
   premiumUsage: {
     expression: {
