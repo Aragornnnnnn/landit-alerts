@@ -6,6 +6,7 @@ import {
   buildDailyMessage,
   buildWeeklyMessage,
   formatDelta,
+  formatDuration,
   weekOfMonth,
 } from './lib.mjs';
 
@@ -125,14 +126,23 @@ test('디스코드 한 메시지 한도(2000자) 안에 든다', () => {
 const weekly = {
   range: { start: '2026-09-07', end: '2026-09-13' },
   active: { total: 412, premium: 38 },
+  activeDays: { all: 3.2, premium: 5.1, free: 3.0 },
   signups: 68,
   onboarding: { started: 92, completed: 68 },
   signupsWithScenario: 41,
   entries: { notification: 201, widget: 96 },
-  scenario: { byCount: [61, 38, 29, 22, 18, 15, 27], sevenPremium: 8 },
+  scenario: {
+    byCount: [61, 38, 29, 22, 18, 15, 27],
+    sevenPremium: 8,
+    completedPremium: 120,
+  },
   premiumUsage: {
-    expression: { users: 29, count: 70 },
-    smalltalk: { users: 21, count: 88 },
+    expression: { scenario: 288, smalltalk: 61 },
+    smalltalk: {
+      count: 88,
+      turnsAverage: 6.2,
+      speaking: { average: 190000, min: 40000, max: 590000 },
+    },
   },
   retention: { cohort: 71, d1: 34, d7: 15 },
   subscriptions: { monthly: 30, yearlyTrial: 5, yearlyPaid: 14, promo: 3 },
@@ -155,24 +165,24 @@ test('위클리 메시지를 ANSI 코드 블록 하나로 스펙 그대로 조�
       '```ansi',
       B('📈 랜딧 위클리 · 9월 2주차 · 9/7 (월) 00:00 ~ 9/13 (일) 23:59'),
       '',
-      `${B('👥 주간 활성 412명')} ${G('+20')}`,
-      `   유료 38 ${G('+6')}`,
-      `   무료 374 ${G('+14')}`,
+      `${B('👥 주간 활성 412명')} ${G('+20')} · 한 사람이 평균 3.2일 접속`,
+      `   유료 38 ${G('+6')} · 5.1일`,
+      `   무료 374 ${G('+14')} · 3.0일`,
       '',
       `${B('🌱 가입 68명')} ${G('+11')} · 온보딩 완료 74% · 첫 시나리오까지 60%`,
       '',
       B('🚪 어디서 들어왔나'),
-      '   알림 201명',
-      '   위젯 96명',
-      '   직접 115명',
+      '   알림 201명 · 위젯 96명 · 직접 115명',
       '',
-      B('🗣️ 시나리오 완료 개수 (유저 210명)'),
+      B('🗣️ 시나리오 · 한 사람이 평균 3.2개 완료 (유저 210명)'),
       '   1개 61 · 2개 38 · 3개 29 · 4개 22 · 5개 18 · 6개 15 · 7개 27',
       '   7개 완료 27명 · 유료 8 / 무료 19',
       '',
       B('💎 유료 38명이 쓴 것'),
-      '   표현학습 29명 · 76% · 평균 2.4개',
-      '   스몰톡 21명 · 55% · 88건',
+      '   시나리오 표현 · 한 사람이 평균 7.6개 · 한 판당 2.4개 / 4개',
+      '   스몰톡 표현 · 한 사람이 평균 1.6개 · 한 판당 0.7개',
+      '   스몰톡 · 한 사람이 평균 2.3판 · 한 판 6.2턴',
+      '   말한 시간 · 평균 3분 10초 · 최소 40초 · 최대 9분 50초',
       '',
       B('🔁 8/31~9/6 가입 71명'),
       '   하루 뒤 48% · 일주일 뒤 21% 남음',
@@ -187,6 +197,12 @@ test('위클리 메시지를 ANSI 코드 블록 하나로 스펙 그대로 조�
       '```',
     ].join('\n'),
   );
+});
+
+test('말한 시간은 분·초로, 1분 미만은 초만 쓴다', () => {
+  assert.equal(formatDuration(190000), '3분 10초');
+  assert.equal(formatDuration(40000), '40초');
+  assert.equal(formatDuration(60000), '1분 0초');
 });
 
 test('위젯 순증이 0이거나 음수여도 표시된다', () => {

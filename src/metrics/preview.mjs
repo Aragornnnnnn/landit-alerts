@@ -31,19 +31,29 @@ const previousDaily = {
 const weekly = {
   range: { start: '2026-09-07', end: '2026-09-13' },
   active: { total: 412, premium: 38 },
+  activeDays: { all: 3.2, premium: 5.1, free: 3.0 },
   signups: 68,
   onboarding: { started: 92, completed: 68 },
   signupsWithScenario: 41,
   entries: { notification: 201, widget: 96 },
-  scenario: { byCount: [61, 38, 29, 22, 18, 15, 27], sevenPremium: 8 },
+  scenario: {
+    byCount: [61, 38, 29, 22, 18, 15, 27],
+    sevenPremium: 8,
+    completedPremium: 120,
+  },
   premiumUsage: {
-    expression: { users: 29, count: 70 },
-    smalltalk: { users: 21, count: 88 },
+    expression: { scenario: 288, smalltalk: 61 },
+    smalltalk: {
+      count: 88,
+      turnsAverage: 6.2,
+      speaking: { average: 190000, min: 40000, max: 590000 },
+    },
   },
   retention: { cohort: 71, d1: 34, d7: 15 },
   subscriptions: { monthly: 30, yearlyTrial: 5, yearlyPaid: 14, promo: 3 },
   widget: { installed: 14, removed: 5 },
 };
+
 const previousWeekly = {
   ...weekly,
   active: { total: 392, premium: 32 },
