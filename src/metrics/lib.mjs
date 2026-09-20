@@ -35,11 +35,21 @@ const formatDate = (iso) => {
   return `${year}년 ${month}월 ${day}일 (${weekdayOf(iso)})`;
 };
 
-// "2026년 9월 8일 (월) 00:00 ~ 9월 14일 (일) 23:59" — 어느 시각까지 센 건지 드러낸다
-const formatWeekRange = ({ start, end }) => {
-  const [, month, day] = end.split('-').map(Number);
-  return `${formatDate(start)} 00:00 ~ ${month}월 ${day}일 (${weekdayOf(end)}) 23:59`;
+const addDays = (iso, offset) => {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + offset);
+  return d.toISOString().slice(0, 10);
 };
+
+// "9월 2주차" — 그 주의 목요일이 속한 달과 순서로 센다(ISO 방식). 달이 걸친 주도 한 달에만 속한다
+export const weekOfMonth = (monday) => {
+  const [, month, day] = addDays(monday, 3).split('-').map(Number);
+  return `${month}월 ${Math.ceil(day / 7)}주차`;
+};
+
+// "9월 2주차 · 9/7 (월) 00:00 ~ 9/13 (일) 23:59" — 어느 시각까지 센 건지 드러낸다
+const formatWeekRange = ({ start, end }) =>
+  `${weekOfMonth(start)} · ${shortDate(start)} (${weekdayOf(start)}) 00:00 ~ ${shortDate(end)} (${weekdayOf(end)}) 23:59`;
 
 // 불릿 줄 — 들여쓰기 세 칸, 증감이 있으면 뒤에
 const bullet = (text, current, previous) =>
@@ -126,14 +136,10 @@ const shortDate = (iso) => iso.split('-').slice(1).map(Number).join('/');
 const formatRange = ({ start, end }) => `${shortDate(start)}~${shortDate(end)}`;
 
 // 리텐션 코호트는 지난주가 아니라 그 전주 가입자다 — D7이 차려면 일주일이 지나야 한다
-const previousWeek = ({ start }) => {
-  const day = (iso, offset) => {
-    const d = new Date(`${iso}T00:00:00Z`);
-    d.setUTCDate(d.getUTCDate() + offset);
-    return d.toISOString().slice(0, 10);
-  };
-  return { start: day(start, -7), end: day(start, -1) };
-};
+const previousWeek = ({ start }) => ({
+  start: addDays(start, -7),
+  end: addDays(start, -1),
+});
 
 // 순증처럼 기준 없이 부호만 필요한 수 — 0은 그대로 0
 const signed = (n) => (n === 0 ? '0' : formatDelta(n, 0).trimStart());

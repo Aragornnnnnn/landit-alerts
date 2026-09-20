@@ -2,7 +2,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { buildDailyMessage, buildWeeklyMessage, formatDelta } from './lib.mjs';
+import {
+  buildDailyMessage,
+  buildWeeklyMessage,
+  formatDelta,
+  weekOfMonth,
+} from './lib.mjs';
 
 const ESC = '\x1b';
 const B = (t) => `${ESC}[1m${t}${ESC}[0m`;
@@ -147,7 +152,7 @@ test('위클리 메시지를 ANSI 코드 블록 하나로 스펙 그대로 조�
     message,
     [
       '```ansi',
-      B('📈 랜딧 위클리 · 2026년 9월 7일 (월) 00:00 ~ 9월 13일 (일) 23:59'),
+      B('📈 랜딧 위클리 · 9월 2주차 · 9/7 (월) 00:00 ~ 9/13 (일) 23:59'),
       '',
       `${B('👥 주간 활성 412명')} ${G('+20')}`,
       `   유료 38 ${G('+6')}`,
@@ -196,4 +201,12 @@ test('위젯 순증이 0이거나 음수여도 표시된다', () => {
   assert.ok(
     minus.includes(`${B(`📱 위젯 순증 ${R('−3')}`)} (설치 1 / 제거 4)`),
   );
+});
+
+test('주차는 그 주 목요일이 속한 달로 센다', () => {
+  assert.equal(weekOfMonth('2026-09-07'), '9월 2주차');
+  // 8/31~9/6은 목요일이 9/3이라 9월 1주차
+  assert.equal(weekOfMonth('2026-08-31'), '9월 1주차');
+  // 9/28~10/4는 목요일이 10/1이라 10월 1주차
+  assert.equal(weekOfMonth('2026-09-28'), '10월 1주차');
 });
