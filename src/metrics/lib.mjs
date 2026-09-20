@@ -231,21 +231,31 @@ export const buildWeeklyMessage = (m, prev) => {
     '',
     bold(`💎 유료 ${m.active.premium}명이 일주일 동안 쓴 것`),
     bullet(
-      `시나리오 표현 ${expression.scenario.users}명 (${percent(expression.scenario.users, m.active.premium)})` +
-        ` · 1인당 ${average(expression.scenario.count, expression.scenario.users)}개` +
-        ` · 시나리오 한 판당 ${average(expression.scenario.count, m.scenario.completedPremium)}개 / 4개`,
+      `시나리오 표현 ${expression.scenario.users}명 (${percent(expression.scenario.users, m.active.premium)})`,
+    ),
+    subBullet(
+      `1인당 ${average(expression.scenario.count, expression.scenario.users)}개`,
+    ),
+    subBullet(
+      `시나리오 한 판당 ${average(expression.scenario.count, m.scenario.completedPremium)}개 / 4개`,
     ),
     bullet(
-      `스몰톡 ${smalltalk.users}명 (${percent(smalltalk.users, m.active.premium)})` +
-        ` · 1인당 ${average(smalltalk.count, smalltalk.users)}판 · 한 판 평균 ${smalltalk.turnsAverage.toFixed(1)}턴`,
+      `스몰톡 ${smalltalk.users}명 (${percent(smalltalk.users, m.active.premium)})`,
+    ),
+    subBullet(
+      `1인당 ${average(smalltalk.count, smalltalk.users)}판 · 한 판 평균 ${smalltalk.turnsAverage.toFixed(1)}턴`,
+    ),
+    subBullet(
+      `말한 시간 평균 ${formatDuration(smalltalk.speaking.average)} (최소 ${formatDuration(smalltalk.speaking.min)} · 최대 ${formatDuration(smalltalk.speaking.max)})`,
     ),
     bullet(
-      `스몰톡 한 판에 말한 시간 · 평균 ${formatDuration(smalltalk.speaking.average)} · 최소 ${formatDuration(smalltalk.speaking.min)} · 최대 ${formatDuration(smalltalk.speaking.max)}`,
+      `스몰톡 표현 ${expression.smalltalk.users}명 (${percent(expression.smalltalk.users, m.active.premium)})`,
     ),
-    bullet(
-      `스몰톡 표현 ${expression.smalltalk.users}명 (${percent(expression.smalltalk.users, m.active.premium)})` +
-        ` · 1인당 ${average(expression.smalltalk.count, expression.smalltalk.users)}개` +
-        ` · 스몰톡 한 판당 ${average(expression.smalltalk.count, smalltalk.count)}개`,
+    subBullet(
+      `1인당 ${average(expression.smalltalk.count, expression.smalltalk.users)}개`,
+    ),
+    subBullet(
+      `스몰톡 한 판당 ${average(expression.smalltalk.count, smalltalk.count)}개`,
     ),
     '',
     bold(
