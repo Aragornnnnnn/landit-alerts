@@ -160,9 +160,9 @@ export const weekOfMonth = (monday) => {
   return `${month}월 ${Math.ceil(day / 7)}주차`;
 };
 
-// "9월 2주차 · 9/7 (월) 00:00 ~ 9/13 (일) 23:59" — 어느 시각까지 센 건지 드러낸다
+// "9월 2주차 (9/7 월 00:00 ~ 9/13 일 23:59)" — 어느 시각까지 센 건지 드러낸다
 const formatWeekRange = ({ start, end }) =>
-  `${weekOfMonth(start)} · ${shortDate(start)} (${weekdayOf(start)}) 00:00 ~ ${shortDate(end)} (${weekdayOf(end)}) 23:59`;
+  `${weekOfMonth(start)} (${shortDate(start)} ${weekdayOf(start)} 00:00 ~ ${shortDate(end)} ${weekdayOf(end)} 23:59)`;
 
 // 리텐션 코호트는 지난주가 아니라 그 전주 가입자다 — D7이 차려면 일주일이 지나야 한다
 const previousWeek = ({ start }) => ({
