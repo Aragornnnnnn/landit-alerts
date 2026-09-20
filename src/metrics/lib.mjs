@@ -183,7 +183,7 @@ export const buildWeeklyMessage = (m, prev) => {
       `👥 주간 활성 ${m.active.total}명`,
       m.active.total,
       p.active?.total,
-    ) + ` · 한 사람이 평균 ${m.activeDays.all.toFixed(1)}일 접속`,
+    ) + ` · 7일 중 1인당 ${m.activeDays.all.toFixed(1)}일 접속`,
     bullet(`유료 ${m.active.premium}`, m.active.premium, p.active?.premium) +
       ` · ${m.activeDays.premium.toFixed(1)}일`,
     bullet(`무료 ${free}`, free, prevFree) +
@@ -199,27 +199,27 @@ export const buildWeeklyMessage = (m, prev) => {
     ),
     '',
     bold(
-      `🗣️ 시나리오 · 한 사람이 평균 ${averageFromDistribution(m.scenario.byCount)}개 완료 (유저 ${scenarioUsers}명)`,
+      `🗣️ 시나리오 완료 ${scenarioUsers}명 · 1인당 ${averageFromDistribution(m.scenario.byCount)}개`,
     ),
     bullet(m.scenario.byCount.map((n, i) => `${i + 1}개 ${n}`).join(' · ')),
     bullet(
       `7개 완료 ${seven}명 · 유료 ${m.scenario.sevenPremium} / 무료 ${seven - m.scenario.sevenPremium}`,
     ),
     '',
-    bold(`💎 유료 ${m.active.premium}명이 쓴 것`),
+    bold(`💎 유료 ${m.active.premium}명이 일주일 동안 쓴 것`),
     bullet(
-      `시나리오 표현 · 한 사람이 평균 ${average(expression.scenario, m.active.premium)}개` +
-        ` · 한 판당 ${average(expression.scenario, m.scenario.completedPremium)}개 / 4개`,
+      `시나리오 표현 ${expression.scenario}개 완료 · 1인당 ${average(expression.scenario, m.active.premium)}개` +
+        ` · 시나리오 ${m.scenario.completedPremium}판당 ${average(expression.scenario, m.scenario.completedPremium)}개 / 4개`,
     ),
     bullet(
-      `스몰톡 표현 · 한 사람이 평균 ${average(expression.smalltalk, m.active.premium)}개` +
-        ` · 한 판당 ${average(expression.smalltalk, smalltalk.count)}개`,
+      `스몰톡 표현 ${expression.smalltalk}개 완료 · 1인당 ${average(expression.smalltalk, m.active.premium)}개` +
+        ` · 스몰톡 ${smalltalk.count}판당 ${average(expression.smalltalk, smalltalk.count)}개`,
     ),
     bullet(
-      `스몰톡 · 한 사람이 평균 ${average(smalltalk.count, m.active.premium)}판 · 한 판 ${smalltalk.turnsAverage.toFixed(1)}턴`,
+      `스몰톡 ${smalltalk.count}판 · 1인당 ${average(smalltalk.count, m.active.premium)}판 · 한 판 평균 ${smalltalk.turnsAverage.toFixed(1)}턴`,
     ),
     bullet(
-      `말한 시간 · 평균 ${formatDuration(smalltalk.speaking.average)} · 최소 ${formatDuration(smalltalk.speaking.min)} · 최대 ${formatDuration(smalltalk.speaking.max)}`,
+      `스몰톡 한 판에 말한 시간 · 평균 ${formatDuration(smalltalk.speaking.average)} · 최소 ${formatDuration(smalltalk.speaking.min)} · 최대 ${formatDuration(smalltalk.speaking.max)}`,
     ),
     '',
     bold(
