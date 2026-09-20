@@ -140,7 +140,15 @@ const weekly = {
   signups: 68,
   onboarding: { started: 92, completed: 68 },
   signupsWithScenario: 41,
-  entries: { notification: 201, widget: 96 },
+  entries: {
+    notificationByCampaign: {
+      daily_scenario_reminder: 152,
+      continue_expression: 23,
+      small_talk_reminder: 18,
+      mailbox_reply: 8,
+    },
+    widget: 96,
+  },
   scenario: {
     byCount: [61, 38, 29, 22, 18, 15, 27],
     completedPremium: 120,
@@ -187,6 +195,10 @@ test('위클리 메시지를 ANSI 코드 블록 하나로 스펙 그대로 조�
       '',
       B('🚪 어디서 들어왔나'),
       '   알림 201명',
+      '      오늘의 시나리오 152명',
+      '      표현 이어가기 23명',
+      '      스몰톡 18명',
+      '      편지 답장 8명',
       '   위젯 96명',
       '   직접 115명',
       '',

@@ -191,11 +191,21 @@ const averageFromDistribution = (byCount) => {
   return average(total, users);
 };
 
+// 알림 캠페인 이름 → 사람이 읽는 이름 (어휘는 landit-fe docs/analytics-utm.md). 모르는 캠페인은 이름 그대로
+const CAMPAIGN_LABELS = {
+  daily_scenario_reminder: '오늘의 시나리오',
+  continue_expression: '표현 이어가기',
+  small_talk_reminder: '스몰톡',
+  mailbox_reply: '편지 답장',
+};
+
 export const buildWeeklyMessage = (m, prev) => {
   const p = prev ?? {};
   const free = m.active.total - m.active.premium;
   const prevFree = p.active && p.active.total - p.active.premium;
-  const direct = m.active.total - m.entries.notification - m.entries.widget;
+  const byCampaign = Object.entries(m.entries.notificationByCampaign);
+  const notification = byCampaign.reduce((sum, [, n]) => sum + n, 0);
+  const direct = m.active.total - notification - m.entries.widget;
   const scenarioUsers = m.scenario.byCount.reduce((a, b) => a + b, 0);
   const seven = m.scenario.byCount[6];
   const { expression, smalltalk } = m.premiumUsage;
@@ -220,7 +230,10 @@ export const buildWeeklyMessage = (m, prev) => {
     bullet(`첫 시나리오까지 ${percent(m.signupsWithScenario, m.signups)}`),
     '',
     bold('🚪 어디서 들어왔나'),
-    bullet(`알림 ${m.entries.notification}명`),
+    bullet(`알림 ${notification}명`),
+    ...byCampaign.map(([campaign, n]) =>
+      subBullet(`${CAMPAIGN_LABELS[campaign] ?? campaign} ${n}명`),
+    ),
     bullet(`위젯 ${m.entries.widget}명`),
     bullet(`직접 ${direct}명`),
     '',

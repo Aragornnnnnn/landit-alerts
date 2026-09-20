@@ -21,6 +21,7 @@ const daily = {
     },
     smalltalk: { users: 7, count: 11, turnsAverage: 6.1 },
   },
+  retention: { cohort: 9, returned: 5 },
   subscriptions: { monthly: 30, yearlyTrial: 5, yearlyPaid: 14, promo: 3 },
 };
 const previousDaily = {
@@ -37,7 +38,15 @@ const weekly = {
   signups: 68,
   onboarding: { started: 92, completed: 68 },
   signupsWithScenario: 41,
-  entries: { notification: 201, widget: 96 },
+  entries: {
+    notificationByCampaign: {
+      daily_scenario_reminder: 152,
+      continue_expression: 23,
+      small_talk_reminder: 18,
+      mailbox_reply: 8,
+    },
+    widget: 96,
+  },
   scenario: {
     byCount: [61, 38, 29, 22, 18, 15, 27],
     completedPremium: 120,
