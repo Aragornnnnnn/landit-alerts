@@ -137,7 +137,7 @@ export const buildDailyMessage = (m, prev) => {
     ),
     '',
     bold(
-      `🔁 그제 가입한 ${m.retention.cohort}명 중 어제도 온 사람 ${m.retention.returned}명 (${percent(m.retention.returned, m.retention.cohort)})`,
+      `🔁 D1 리텐션 ${percent(m.retention.returned, m.retention.cohort)} · 그제 가입한 ${m.retention.cohort}명 중 어제도 온 사람 ${m.retention.returned}명`,
     ),
     '',
     headline(
@@ -273,7 +273,7 @@ export const buildWeeklyMessage = (m, prev) => {
     ),
     '',
     bold(
-      `🔁 ${shortDate(previousWeek(m.range).start)}~${shortDate(previousWeek(m.range).end)} 가입한 ${m.retention.cohort}명 중 지난주에 다시 온 사람 ${m.retention.returned}명 (${percent(m.retention.returned, m.retention.cohort)})`,
+      `🔁 주간 리텐션 ${percent(m.retention.returned, m.retention.cohort)} · ${shortDate(previousWeek(m.range).start)}~${shortDate(previousWeek(m.range).end)} 가입한 ${m.retention.cohort}명 중 지난주에 다시 온 사람 ${m.retention.returned}명`,
     ),
     '',
     headline(
