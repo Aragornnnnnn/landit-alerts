@@ -1,0 +1,64 @@
+# 지표 알림 — 매일 KST 9시 일일 지표, 월요일엔 이어서 주간 지표를 디스코드로 보낸다
+name: metrics
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # UTC 0시 = KST 9시
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'daily 또는 weekly'
+        required: true
+        default: 'daily'
+      date:
+        description: '기준일 YYYY-MM-DD (비우면 오늘 KST). 일일은 그 전날, 주간은 그 직전 월~일을 보낸다'
+        required: false
+
+concurrency:
+  group: metrics
+  cancel-in-progress: false
+
+jobs:
+  daily:
+    if: github.event_name == 'schedule' || inputs.mode == 'daily'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: 일일 지표 전송
+        run: node src/metrics/run.mjs daily ${{ inputs.date }}
+        env:
+          AMPLITUDE_API_KEY: ${{ secrets.AMPLITUDE_API_KEY }}
+          AMPLITUDE_SECRET_KEY: ${{ secrets.AMPLITUDE_SECRET_KEY }}
+          REVENUECAT_API_KEY: ${{ secrets.REVENUECAT_API_KEY }}
+          REVENUECAT_PROJECT_ID: ${{ secrets.REVENUECAT_PROJECT_ID }}
+          DISCORD_WEBHOOK_METRICS_DAILY: ${{ secrets.DISCORD_WEBHOOK_METRICS_DAILY }}
+
+  weekly:
+    # 크론은 월요일(UTC 기준 요일, 0시라 KST와 같다)에만, 수동은 mode=weekly일 때
+    if: (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') || inputs.mode == 'weekly'
+    needs: [daily]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: 월요일인지 확인
+        id: day
+        run: echo "monday=$([ "$(date -u +%u)" = 1 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        if: steps.day.outputs.monday == 'true' || inputs.mode == 'weekly'
+      - uses: actions/setup-node@v4
+        if: steps.day.outputs.monday == 'true' || inputs.mode == 'weekly'
+        with:
+          node-version: 22
+      - name: 주간 지표 전송
+        if: steps.day.outputs.monday == 'true' || inputs.mode == 'weekly'
+        run: node src/metrics/run.mjs weekly ${{ inputs.date }}
+        env:
+          AMPLITUDE_API_KEY: ${{ secrets.AMPLITUDE_API_KEY }}
+          AMPLITUDE_SECRET_KEY: ${{ secrets.AMPLITUDE_SECRET_KEY }}
+          REVENUECAT_API_KEY: ${{ secrets.REVENUECAT_API_KEY }}
+          REVENUECAT_PROJECT_ID: ${{ secrets.REVENUECAT_PROJECT_ID }}
+          DISCORD_WEBHOOK_METRICS_WEEKLY: ${{ secrets.DISCORD_WEBHOOK_METRICS_WEEKLY }}

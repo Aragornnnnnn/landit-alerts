@@ -14,12 +14,13 @@
 | 설문 응답                  | `#유료화-전-설문`              | 슈퍼베이스 웹훅       |
 | Sentry 새 이슈             | `#sentry-web` `#sentry-mobile` | Sentry 내부 연동 웹훅 |
 | 서드파티 서비스 장애·복구  | `#의존-서비스`                 | 15분마다 확인         |
+| 일일·주간 지표             | `#일일-지표` `#주간-지표`      | 매일 9시, 월요일 주간 |
 
 디스코드 카테고리는 뮤트 단위다. 🚨 장애 알림(sentry-web·sentry-mobile·sentry-server·grafana·의존-서비스·웹-상태) · 💰 결제·구독(revenuecat) · 📣 유저 목소리(앱-리뷰·앱-피드백·유료화-전-설문) · 🚀 배포·스토어(앱-소식·웹-소식).
-이 레포가 보내는 건 위 표의 일곱 가지다. sentry-server·grafana·revenuecat·웹-상태·웹-소식은 여기서 보내지 않는다.
+이 레포가 보내는 건 위 표의 여덟 가지다. sentry-server·grafana·revenuecat·웹-상태·웹-소식은 여기서 보내지 않는다.
 
 리뷰 알림에서는 버튼으로 바로 답글을 달 수 있다. [docs/reply.md](docs/reply.md) 참고.
-피드백은 [docs/feedback.md](docs/feedback.md), 설문은 [docs/survey.md](docs/survey.md), Sentry는 [docs/sentry.md](docs/sentry.md), 서드파티 상태는 [docs/status.md](docs/status.md)에 세팅 과정이 있다.
+피드백은 [docs/feedback.md](docs/feedback.md), 설문은 [docs/survey.md](docs/survey.md), Sentry는 [docs/sentry.md](docs/sentry.md), 서드파티 상태는 [docs/status.md](docs/status.md), 지표는 [docs/metrics.md](docs/metrics.md)에 세팅 과정이 있다.
 웹 접속 감시(`#웹-상태`)는 이 레포가 아니라 UptimeRobot이 보낸다. 세팅은 [docs/uptime.md](docs/uptime.md).
 
 별점만 남긴 평가는 스토어가 개별 조회를 막아둬서 알림 대상이 아니다.
