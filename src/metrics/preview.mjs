@@ -54,7 +54,6 @@ const weekly = {
       speaking: { average: 190000, min: 40000, max: 590000 },
     },
   },
-  retention: { cohort: 71, d1: 34, d7: 15 },
   subscriptions: { monthly: 30, yearlyTrial: 5, yearlyPaid: 14, promo: 3 },
 };
 

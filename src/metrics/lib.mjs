@@ -146,7 +146,6 @@ export const buildDailyMessage = (m, prev) => {
 };
 
 const shortDate = (iso) => iso.split('-').slice(1).map(Number).join('/');
-const formatRange = ({ start, end }) => `${shortDate(start)}~${shortDate(end)}`;
 
 const addDays = (iso, offset) => {
   const d = new Date(`${iso}T00:00:00Z`);
@@ -163,12 +162,6 @@ export const weekOfMonth = (monday) => {
 // "9월 2주차 (9/7 월 00:00 ~ 9/13 일 23:59)" — 어느 시각까지 센 건지 드러낸다
 const formatWeekRange = ({ start, end }) =>
   `${weekOfMonth(start)} (${shortDate(start)} ${weekdayOf(start)} 00:00 ~ ${shortDate(end)} ${weekdayOf(end)} 23:59)`;
-
-// 리텐션 코호트는 지난주가 아니라 그 전주 가입자다 — D7이 차려면 일주일이 지나야 한다
-const previousWeek = ({ start }) => ({
-  start: addDays(start, -7),
-  end: addDays(start, -1),
-});
 
 const average = (part, whole) =>
   whole > 0 ? (part / whole).toFixed(1) : '0.0';
@@ -254,13 +247,6 @@ export const buildWeeklyMessage = (m, prev) => {
     ),
     subBullet(
       `스몰톡 한 판당 ${average(expression.smalltalk.count, smalltalk.count)}개`,
-    ),
-    '',
-    bold(
-      `🔁 ${formatRange(previousWeek(m.range))} 가입 ${m.retention.cohort}명`,
-    ),
-    bullet(
-      `하루 뒤 ${percent(m.retention.d1, m.retention.cohort)} · 일주일 뒤 ${percent(m.retention.d7, m.retention.cohort)} 남음`,
     ),
     '',
     headline(
