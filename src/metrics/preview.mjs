@@ -15,8 +15,11 @@ const daily = {
   entries: { notification: 34, widget: 18 },
   scenario: { completed: 66, completedPremium: 12, abandoned: 9 },
   premiumUsage: {
-    expression: { users: 9, byCount: [2, 1, 1, 5] },
-    smalltalk: { users: 7, count: 11 },
+    expression: {
+      scenario: { users: 9, byCount: [2, 1, 1, 5] },
+      smalltalk: { users: 4, count: 7 },
+    },
+    smalltalk: { users: 7, count: 11, turnsAverage: 6.1 },
   },
   subscriptions: { monthly: 30, yearlyTrial: 5, yearlyPaid: 14, promo: 3 },
 };
@@ -42,8 +45,12 @@ const weekly = {
     completedPremium: 120,
   },
   premiumUsage: {
-    expression: { scenario: 288, smalltalk: 61 },
+    expression: {
+      scenario: { users: 29, count: 288 },
+      smalltalk: { users: 17, count: 61 },
+    },
     smalltalk: {
+      users: 21,
       count: 88,
       turnsAverage: 6.2,
       speaking: { average: 190000, min: 40000, max: 590000 },

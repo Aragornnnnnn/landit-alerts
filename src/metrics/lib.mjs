@@ -60,7 +60,8 @@ export const buildDailyMessage = (m, prev) => {
   const completedFree = m.scenario.completed - m.scenario.completedPremium;
   const { expression, smalltalk } = m.premiumUsage;
   // 0개 = 유료로 시나리오는 끝냈지만 표현을 하나도 안 한 사람
-  const expressionZero = m.scenario.completedPremium - expression.users;
+  const expressionZero =
+    m.scenario.completedPremium - expression.scenario.users;
   const subs = m.subscriptions;
   const prevSubs = p.subscriptions ?? {};
 
@@ -89,13 +90,16 @@ export const buildDailyMessage = (m, prev) => {
     '',
     bold(`💎 유료 ${m.active.premium}명이 쓴 것`),
     bullet(
-      `표현학습 ${expression.users}명 · ${percent(expression.users, m.active.premium)} · ` +
-        [expressionZero, ...expression.byCount]
+      `시나리오 표현 · ${expression.scenario.users}명이 함 (${percent(expression.scenario.users, m.active.premium)}) · ` +
+        [expressionZero, ...expression.scenario.byCount]
           .map((n, i) => `${i}개 ${n}`)
           .join(' / '),
     ),
     bullet(
-      `스몰톡 ${smalltalk.users}명 · ${percent(smalltalk.users, m.active.premium)} · ${smalltalk.count}건`,
+      `스몰톡 표현 · ${expression.smalltalk.users}명이 함 (${percent(expression.smalltalk.users, m.active.premium)}) · ${expression.smalltalk.count}개`,
+    ),
+    bullet(
+      `스몰톡 · ${smalltalk.users}명이 함 (${percent(smalltalk.users, m.active.premium)}) · ${smalltalk.count}판 · 한 판 평균 ${smalltalk.turnsAverage.toFixed(1)}턴`,
     ),
     '',
     headline(
@@ -208,15 +212,18 @@ export const buildWeeklyMessage = (m, prev) => {
     '',
     bold(`💎 유료 ${m.active.premium}명이 일주일 동안 쓴 것`),
     bullet(
-      `시나리오 표현 ${expression.scenario}개 완료 · 1인당 ${average(expression.scenario, m.active.premium)}개` +
-        ` · 시나리오 ${m.scenario.completedPremium}판당 ${average(expression.scenario, m.scenario.completedPremium)}개 / 4개`,
+      `시나리오 표현 · ${expression.scenario.users}명이 함 (${percent(expression.scenario.users, m.active.premium)})` +
+        ` · 한 사람이 ${average(expression.scenario.count, expression.scenario.users)}개` +
+        ` · 시나리오 한 판당 ${average(expression.scenario.count, m.scenario.completedPremium)}개 / 4개`,
     ),
     bullet(
-      `스몰톡 표현 ${expression.smalltalk}개 완료 · 1인당 ${average(expression.smalltalk, m.active.premium)}개` +
-        ` · 스몰톡 ${smalltalk.count}판당 ${average(expression.smalltalk, smalltalk.count)}개`,
+      `스몰톡 표현 · ${expression.smalltalk.users}명이 함 (${percent(expression.smalltalk.users, m.active.premium)})` +
+        ` · 한 사람이 ${average(expression.smalltalk.count, expression.smalltalk.users)}개` +
+        ` · 스몰톡 한 판당 ${average(expression.smalltalk.count, smalltalk.count)}개`,
     ),
     bullet(
-      `스몰톡 ${smalltalk.count}판 · 1인당 ${average(smalltalk.count, m.active.premium)}판 · 한 판 평균 ${smalltalk.turnsAverage.toFixed(1)}턴`,
+      `스몰톡 · ${smalltalk.users}명이 함 (${percent(smalltalk.users, m.active.premium)})` +
+        ` · 한 사람이 ${average(smalltalk.count, smalltalk.users)}판 · 한 판 평균 ${smalltalk.turnsAverage.toFixed(1)}턴`,
     ),
     bullet(
       `스몰톡 한 판에 말한 시간 · 평균 ${formatDuration(smalltalk.speaking.average)} · 최소 ${formatDuration(smalltalk.speaking.min)} · 최대 ${formatDuration(smalltalk.speaking.max)}`,

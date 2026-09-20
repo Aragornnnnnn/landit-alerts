@@ -22,8 +22,11 @@ const daily = {
   entries: { notification: 34, widget: 18 },
   scenario: { completed: 66, completedPremium: 12, abandoned: 9 },
   premiumUsage: {
-    expression: { users: 9, byCount: [2, 1, 1, 5] },
-    smalltalk: { users: 7, count: 11 },
+    expression: {
+      scenario: { users: 9, byCount: [2, 1, 1, 5] },
+      smalltalk: { users: 4, count: 7 },
+    },
+    smalltalk: { users: 7, count: 11, turnsAverage: 6.1 },
   },
   subscriptions: { monthly: 30, yearlyTrial: 5, yearlyPaid: 14, promo: 3 },
 };
@@ -83,8 +86,9 @@ test('데일리 메시지를 ANSI 코드 블록 하나로 스펙 그대로 조�
       '   무료 54',
       '',
       B('💎 유료 14명이 쓴 것'),
-      '   표현학습 9명 · 64% · 0개 3 / 1개 2 / 2개 1 / 3개 1 / 4개 5',
-      '   스몰톡 7명 · 50% · 11건',
+      '   시나리오 표현 · 9명이 함 (64%) · 0개 3 / 1개 2 / 2개 1 / 3개 1 / 4개 5',
+      '   스몰톡 표현 · 4명이 함 (29%) · 7개',
+      '   스몰톡 · 7명이 함 (50%) · 11판 · 한 판 평균 6.1턴',
       '',
       `${B('💳 구독 중 52명')} ${G('+3')}`,
       `   월간 30 ${G('+1')}`,
@@ -109,13 +113,16 @@ test('유료 활성이 0이면 비율 대신 0%로 둔다', () => {
       active: { total: 10, premium: 0 },
       scenario: { completed: 3, completedPremium: 0, abandoned: 0 },
       premiumUsage: {
-        expression: { users: 0, byCount: [0, 0, 0, 0] },
-        smalltalk: { users: 0, count: 0 },
+        expression: {
+          scenario: { users: 0, byCount: [0, 0, 0, 0] },
+          smalltalk: { users: 0, count: 0 },
+        },
+        smalltalk: { users: 0, count: 0, turnsAverage: 0 },
       },
     },
     null,
   );
-  assert.match(message, /표현학습 0명 · 0% ·/);
+  assert.match(message, /시나리오 표현 · 0명이 함 \(0%\)/);
   assert.match(message, /0개 0 \/ 1개 0/);
 });
 
@@ -137,8 +144,12 @@ const weekly = {
     completedPremium: 120,
   },
   premiumUsage: {
-    expression: { scenario: 288, smalltalk: 61 },
+    expression: {
+      scenario: { users: 29, count: 288 },
+      smalltalk: { users: 17, count: 61 },
+    },
     smalltalk: {
+      users: 21,
       count: 88,
       turnsAverage: 6.2,
       speaking: { average: 190000, min: 40000, max: 590000 },
@@ -179,9 +190,9 @@ test('위클리 메시지를 ANSI 코드 블록 하나로 스펙 그대로 조�
       '   7개 완료 27명 · 유료 8 / 무료 19',
       '',
       B('💎 유료 38명이 일주일 동안 쓴 것'),
-      '   시나리오 표현 288개 완료 · 1인당 7.6개 · 시나리오 120판당 2.4개 / 4개',
-      '   스몰톡 표현 61개 완료 · 1인당 1.6개 · 스몰톡 88판당 0.7개',
-      '   스몰톡 88판 · 1인당 2.3판 · 한 판 평균 6.2턴',
+      '   시나리오 표현 · 29명이 함 (76%) · 한 사람이 9.9개 · 시나리오 한 판당 2.4개 / 4개',
+      '   스몰톡 표현 · 17명이 함 (45%) · 한 사람이 3.6개 · 스몰톡 한 판당 0.7개',
+      '   스몰톡 · 21명이 함 (55%) · 한 사람이 4.2판 · 한 판 평균 6.2턴',
       '   스몰톡 한 판에 말한 시간 · 평균 3분 10초 · 최소 40초 · 최대 9분 50초',
       '',
       B('🔁 8/31~9/6 가입 71명'),
