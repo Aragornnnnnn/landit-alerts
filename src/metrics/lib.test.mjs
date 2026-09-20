@@ -20,7 +20,7 @@ const daily = {
   active: { total: 123, premium: 14 },
   signups: 12,
   entries: { notification: 34, widget: 18 },
-  scenario: { completed: 66, completedPremium: 12, abandoned: 9 },
+  scenario: { completed: 66, completedPremium: 12 },
   premiumUsage: {
     expression: {
       scenario: { users: 9, byCount: [2, 1, 1, 5] },
@@ -81,7 +81,7 @@ test('데일리 메시지를 ANSI 코드 블록 하나로 스펙 그대로 조�
       '   위젯 18명',
       '   직접 71명',
       '',
-      `${B('🗣️ 시나리오 완료 66명')} ${R('−2')} · 활성의 54% · 이탈 9`,
+      `${B('🗣️ 시나리오 완료 66명')} ${R('−2')} · 활성의 54%`,
       '   유료 12',
       '   무료 54',
       '',
@@ -111,7 +111,7 @@ test('유료 활성이 0이면 비율 대신 0%로 둔다', () => {
     {
       ...daily,
       active: { total: 10, premium: 0 },
-      scenario: { completed: 3, completedPremium: 0, abandoned: 0 },
+      scenario: { completed: 3, completedPremium: 0 },
       premiumUsage: {
         expression: {
           scenario: { users: 0, byCount: [0, 0, 0, 0] },

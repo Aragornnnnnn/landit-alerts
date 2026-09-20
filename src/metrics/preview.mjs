@@ -13,7 +13,7 @@ const daily = {
   active: { total: 123, premium: 14 },
   signups: 12,
   entries: { notification: 34, widget: 18 },
-  scenario: { completed: 66, completedPremium: 12, abandoned: 9 },
+  scenario: { completed: 66, completedPremium: 12 },
   premiumUsage: {
     expression: {
       scenario: { users: 9, byCount: [2, 1, 1, 5] },
