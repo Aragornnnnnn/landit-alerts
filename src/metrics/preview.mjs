@@ -15,7 +15,7 @@ const daily = {
   entries: { notification: 34, widget: 18 },
   scenario: { completed: 66, completedPremium: 12, abandoned: 9 },
   premiumUsage: {
-    expression: { users: 9, byCount: [2, 1, 1, 5], skipped: 2, started: 9 },
+    expression: { users: 9, byCount: [2, 1, 1, 5] },
     smalltalk: { users: 7, count: 11 },
   },
   subscriptions: { monthly: 30, yearlyTrial: 5, yearlyPaid: 14, promo: 3 },

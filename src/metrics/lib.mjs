@@ -76,6 +76,8 @@ export const buildDailyMessage = (m, prev) => {
   const direct = m.active.total - m.entries.notification - m.entries.widget;
   const completedFree = m.scenario.completed - m.scenario.completedPremium;
   const { expression, smalltalk } = m.premiumUsage;
+  // 0개 = 유료로 시나리오는 끝냈지만 표현을 하나도 안 한 사람
+  const expressionZero = m.scenario.completedPremium - expression.users;
   const subs = m.subscriptions;
   const prevSubs = p.subscriptions ?? {};
 
@@ -105,8 +107,9 @@ export const buildDailyMessage = (m, prev) => {
     bold(`💎 유료 ${m.active.premium}명이 쓴 것`),
     bullet(
       `표현학습 ${expression.users}명 · ${percent(expression.users, m.active.premium)} · ` +
-        expression.byCount.map((n, i) => `${i + 1}개 ${n}`).join(' / ') +
-        ` · 건너뜀 ${percent(expression.skipped, expression.skipped + expression.started)}`,
+        [expressionZero, ...expression.byCount]
+          .map((n, i) => `${i}개 ${n}`)
+          .join(' / '),
     ),
     bullet(
       `스몰톡 ${smalltalk.users}명 · ${percent(smalltalk.users, m.active.premium)} · ${smalltalk.count}건`,

@@ -21,7 +21,7 @@ const daily = {
   entries: { notification: 34, widget: 18 },
   scenario: { completed: 66, completedPremium: 12, abandoned: 9 },
   premiumUsage: {
-    expression: { users: 9, byCount: [2, 1, 1, 5], skipped: 2, started: 9 },
+    expression: { users: 9, byCount: [2, 1, 1, 5] },
     smalltalk: { users: 7, count: 11 },
   },
   subscriptions: { monthly: 30, yearlyTrial: 5, yearlyPaid: 14, promo: 3 },
@@ -82,7 +82,7 @@ test('데일리 메시지를 ANSI 코드 블록 하나로 스펙 그대로 조�
       '   무료 54',
       '',
       B('💎 유료 14명이 쓴 것'),
-      '   표현학습 9명 · 64% · 1개 2 / 2개 1 / 3개 1 / 4개 5 · 건너뜀 18%',
+      '   표현학습 9명 · 64% · 0개 3 / 1개 2 / 2개 1 / 3개 1 / 4개 5',
       '   스몰톡 7명 · 50% · 11건',
       '',
       `${B('💳 구독 중 52명')} ${G('+3')}`,
@@ -106,15 +106,16 @@ test('유료 활성이 0이면 비율 대신 0%로 둔다', () => {
     {
       ...daily,
       active: { total: 10, premium: 0 },
+      scenario: { completed: 3, completedPremium: 0, abandoned: 0 },
       premiumUsage: {
-        expression: { users: 0, byCount: [0, 0, 0, 0], skipped: 0, started: 0 },
+        expression: { users: 0, byCount: [0, 0, 0, 0] },
         smalltalk: { users: 0, count: 0 },
       },
     },
     null,
   );
   assert.match(message, /표현학습 0명 · 0% ·/);
-  assert.match(message, /건너뜀 0%/);
+  assert.match(message, /0개 0 \/ 1개 0/);
 });
 
 test('디스코드 한 메시지 한도(2000자) 안에 든다', () => {
