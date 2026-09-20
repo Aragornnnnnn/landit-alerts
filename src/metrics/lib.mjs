@@ -95,7 +95,7 @@ export const buildDailyMessage = (m, prev) => {
   const prevSubs = p.subscriptions ?? {};
 
   return wrapAnsi([
-    bold(`📊 랜딧 데일리 · ${formatDate(m.date)}`),
+    bold(`📊 랜딧 일일 지표 · ${formatDate(m.date)}`),
     '',
     headline(`👥 활성 ${m.active.total}명`, m.active.total, p.active?.total),
     bullet(`유료 ${m.active.premium}명`, m.active.premium, p.active?.premium),
@@ -213,7 +213,7 @@ export const buildWeeklyMessage = (m, prev) => {
   const prevSubs = p.subscriptions ?? {};
 
   return wrapAnsi([
-    bold(`📈 랜딧 위클리 · ${formatWeekRange(m.range)}`),
+    bold(`📈 랜딧 주간 지표 · ${formatWeekRange(m.range)}`),
     '',
     headline(
       `👥 주간 활성 ${m.active.total}명`,
