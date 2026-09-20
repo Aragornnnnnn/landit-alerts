@@ -113,7 +113,7 @@ export const buildDailyMessage = (m, prev) => {
       m.scenario.completed,
       p.scenario?.completed,
     ) +
-      ` · 활성의 ${percent(m.scenario.completed, m.active.total)} · 하다가 그만둠 ${m.scenario.abandoned}`,
+      ` · 활성의 ${percent(m.scenario.completed, m.active.total)} · 하다가 그만둠 ${m.scenario.abandoned}명`,
     bullet(`유료 ${m.scenario.completedPremium}명`),
     bullet(`무료 ${completedFree}명`),
     '',
