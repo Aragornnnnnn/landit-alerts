@@ -98,15 +98,15 @@ export const buildDailyMessage = (m, prev) => {
           .join(' / '),
     ),
     bullet(
+      `스몰톡 · ${smalltalk.users}명이 함 (${percent(smalltalk.users, m.active.premium)}) · ${smalltalk.count}판 · 한 판 평균 ${smalltalk.turnsAverage.toFixed(1)}턴`,
+    ),
+    bullet(
       `스몰톡 표현 · ${expression.smalltalk.users}명이 함 (${percent(expression.smalltalk.users, m.active.premium)}) · ` +
         [smalltalkExpressionZero, ...expression.smalltalk.byCount]
           .map((n, i, all) =>
             i === all.length - 1 ? `${i}개 이상 ${n}` : `${i}개 ${n}`,
           )
           .join(' / '),
-    ),
-    bullet(
-      `스몰톡 · ${smalltalk.users}명이 함 (${percent(smalltalk.users, m.active.premium)}) · ${smalltalk.count}판 · 한 판 평균 ${smalltalk.turnsAverage.toFixed(1)}턴`,
     ),
     '',
     headline(
@@ -224,16 +224,16 @@ export const buildWeeklyMessage = (m, prev) => {
         ` · 시나리오 한 판당 ${average(expression.scenario.count, m.scenario.completedPremium)}개 / 4개`,
     ),
     bullet(
-      `스몰톡 표현 · ${expression.smalltalk.users}명이 함 (${percent(expression.smalltalk.users, m.active.premium)})` +
-        ` · 한 사람이 ${average(expression.smalltalk.count, expression.smalltalk.users)}개` +
-        ` · 스몰톡 한 판당 ${average(expression.smalltalk.count, smalltalk.count)}개`,
-    ),
-    bullet(
       `스몰톡 · ${smalltalk.users}명이 함 (${percent(smalltalk.users, m.active.premium)})` +
         ` · 한 사람이 ${average(smalltalk.count, smalltalk.users)}판 · 한 판 평균 ${smalltalk.turnsAverage.toFixed(1)}턴`,
     ),
     bullet(
       `스몰톡 한 판에 말한 시간 · 평균 ${formatDuration(smalltalk.speaking.average)} · 최소 ${formatDuration(smalltalk.speaking.min)} · 최대 ${formatDuration(smalltalk.speaking.max)}`,
+    ),
+    bullet(
+      `스몰톡 표현 · ${expression.smalltalk.users}명이 함 (${percent(expression.smalltalk.users, m.active.premium)})` +
+        ` · 한 사람이 ${average(expression.smalltalk.count, expression.smalltalk.users)}개` +
+        ` · 스몰톡 한 판당 ${average(expression.smalltalk.count, smalltalk.count)}개`,
     ),
     '',
     bold(
