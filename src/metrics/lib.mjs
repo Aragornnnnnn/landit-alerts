@@ -113,6 +113,28 @@ const subscriptionLines = (subs, prevSubs) => {
   ];
 };
 
+// 알림 캠페인 이름 → 사람이 읽는 이름 (어휘는 landit-fe docs/analytics-utm.md). 모르는 캠페인은 이름 그대로
+const CAMPAIGN_LABELS = {
+  daily_scenario_reminder: '오늘의 시나리오',
+  continue_expression: '표현 이어가기',
+  small_talk_reminder: '스몰톡',
+  mailbox_reply: '편지 답장',
+  // 구 로컬 알림(LAN-406 제거 전 바이너리)이 아직 보내는 캠페인
+  daily_reminder: '오늘의 시나리오 (구 알림)',
+};
+
+// 유입 블록 — 알림 아래에 캠페인별로 한 단 더 쪼갠다.
+// 캠페인별 수는 겹쳐 들어온 사람이 있어 합이 알림 인원보다 클 수 있다
+const entryLines = (entries, direct) => [
+  bold('🚪 어디서 들어왔나'),
+  bullet(`알림 ${entries.notification}명`),
+  ...Object.entries(entries.notificationByCampaign).map(([campaign, n]) =>
+    subBullet(`${CAMPAIGN_LABELS[campaign] ?? campaign} ${n}명`),
+  ),
+  bullet(`위젯 ${entries.widget}명`),
+  bullet(`직접 ${direct}명`),
+];
+
 export const buildDailyMessage = (m, prev) => {
   const p = prev ?? {};
   const free = m.active.total - m.active.premium;
@@ -140,10 +162,7 @@ export const buildDailyMessage = (m, prev) => {
     '',
     headline(`🌱 가입 ${m.signups}명`, m.signups, p.signups),
     '',
-    bold('🚪 어디서 들어왔나'),
-    bullet(`알림 ${m.entries.notification}명`),
-    bullet(`위젯 ${m.entries.widget}명`),
-    bullet(`직접 ${direct}명`),
+    ...entryLines(m.entries, direct),
     '',
     headline(
       `🗣️ 시나리오 완료 ${m.scenario.completed}명`,
@@ -178,16 +197,6 @@ export const buildDailyMessage = (m, prev) => {
   ]);
 };
 
-// 알림 캠페인 이름 → 사람이 읽는 이름 (어휘는 landit-fe docs/analytics-utm.md). 모르는 캠페인은 이름 그대로
-const CAMPAIGN_LABELS = {
-  daily_scenario_reminder: '오늘의 시나리오',
-  continue_expression: '표현 이어가기',
-  small_talk_reminder: '스몰톡',
-  mailbox_reply: '편지 답장',
-  // 구 로컬 알림(LAN-406 제거 전 바이너리)이 아직 보내는 캠페인
-  daily_reminder: '오늘의 시나리오 (구 알림)',
-};
-
 export const buildWeeklyMessage = (m, prev) => {
   const p = prev ?? {};
   const free = m.active.total - m.active.premium;
@@ -212,14 +221,7 @@ export const buildWeeklyMessage = (m, prev) => {
     ),
     bullet(`첫 시나리오까지 ${percent(m.signupsWithScenario, m.signups)}`),
     '',
-    bold('🚪 어디서 들어왔나'),
-    bullet(`알림 ${m.entries.notification}명`),
-    // 캠페인별 수는 겹쳐 들어온 사람이 있어 합이 위 숫자보다 클 수 있다
-    ...Object.entries(m.entries.notificationByCampaign).map(([campaign, n]) =>
-      subBullet(`${CAMPAIGN_LABELS[campaign] ?? campaign} ${n}명`),
-    ),
-    bullet(`위젯 ${m.entries.widget}명`),
-    bullet(`직접 ${direct}명`),
+    ...entryLines(m.entries, direct),
     '',
     bold(
       `🗣️ 시나리오 완료 ${m.scenario.users}명 · 평균 ${average(m.scenario.count, m.scenario.users)}개`,

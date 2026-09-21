@@ -63,7 +63,7 @@
 src/shared/    discord.mjs · http.mjs      — 모든 기능이 쓰는 것
 src/store/     lib.mjs(순수) · asc.mjs · play.mjs(수집) · run.mjs(크론) · reply.mjs(답글 버튼)
 src/status/    lib.mjs(순수) · source.mjs(수집) · run.mjs(크론)
-src/metrics/   lib.mjs(순수) · amplitude.mjs · revenuecat.mjs(수집) · collect.mjs(조립) · run.mjs(크론)
+src/metrics/   lib.mjs(순수) · amplitude.mjs · revenuecat.mjs(수집) · collect.mjs(조립) · run.mjs(크론) · trigger.mjs(깨우기)
 src/feedback/  lib.mjs        src/survey/ lib.mjs        src/sentry/ lib.mjs
 api/           웹훅 수신 함수 — 위 순수 로직을 불러 쓴다
 ```
@@ -95,8 +95,9 @@ api/           웹훅 수신 함수 — 위 순수 로직을 불러 쓴다
 
 ### 매일 아침 지표
 
-매일 9시(KST)에 앰플리튜드와 RevenueCat에 어제와 그제를 물어 증감과 함께 보낸다. 월요일엔 주간 지표가 이어진다.
-상태 파일을 쓰지 않는다. 두 서비스가 과거를 그대로 기억하므로 날짜만 바꿔 다시 물으면 된다.
+매일 아침 앰플리튜드와 RevenueCat에 어제와 그제를 물어 증감과 함께 보낸다. 월요일엔 주간 지표가 이어진다.
+
+깨우는 건 버셀 크론이다. 이 레포는 깃허브 예약 실행이 심하게 밀려서(15분 크론이 실제로는 평균 195분 간격) 시각은 버셀이 정하고 실행만 깃허브에 맡긴다. 같은 기간을 두 번 보내지 않게 마지막으로 보낸 기간만 기록해 둔다.
 
 조회가 실패하면 침묵하지 않고 실패를 알린다. 구독(RevenueCat)만 실패하면 그 자리만 비우고 나머지 지표는 보낸다.
 지표 정의와 세팅은 [docs/metrics.md](docs/metrics.md)에 있다.
@@ -106,12 +107,13 @@ api/           웹훅 수신 함수 — 위 순수 로직을 불러 쓴다
 `api/` 아래 함수가 팀 Vercel의 landit-alerts 프로젝트(`https://landit-alerts.vercel.app`)에서 돈다.
 외부가 우리 주소로 보내면 검증하고 디스코드 형식으로 바꿔 보낸다.
 
-| 함수                   | 받는 것                        | 검증                          |
-| ---------------------- | ------------------------------ | ----------------------------- |
-| `api/interactions.mjs` | 디스코드 버튼·모달 (리뷰 답글) | Ed25519 서명 + 5분 타임스탬프 |
-| `api/feedback.mjs`     | 슈퍼베이스 Database Webhook    | `x-feedback-secret` 헤더      |
-| `api/survey.mjs`       | 슈퍼베이스 Database Webhook    | `x-survey-secret` 헤더        |
-| `api/sentry.mjs`       | Sentry 알림 규칙 액션          | HMAC 서명 (Client Secret)     |
+| 함수                   | 받는 것                          | 검증                          |
+| ---------------------- | -------------------------------- | ----------------------------- |
+| `api/interactions.mjs` | 디스코드 버튼·모달 (리뷰 답글)   | Ed25519 서명 + 5분 타임스탬프 |
+| `api/feedback.mjs`     | 슈퍼베이스 Database Webhook      | `x-feedback-secret` 헤더      |
+| `api/survey.mjs`       | 슈퍼베이스 Database Webhook      | `x-survey-secret` 헤더        |
+| `api/sentry.mjs`       | Sentry 알림 규칙 액션            | HMAC 서명 (Client Secret)     |
+| `api/metrics-cron.mjs` | 버셀 크론 (지표 워크플로 깨우기) | `CRON_SECRET` Bearer          |
 
 `api/`나 `src/`를 고치면 GitHub 푸시와 별개로 `npx vercel deploy --prod`를 돌려야 반영된다. 절차는 [docs/reply.md](docs/reply.md).
 
@@ -148,14 +150,15 @@ DISCORD_WEBHOOK_METRICS_DAILY=... node src/metrics/run.mjs daily
 
 ### Vercel 환경변수 (웹훅 수신)
 
-| 이름                                                   | 용도                                    | 문서                            |
-| ------------------------------------------------------ | --------------------------------------- | ------------------------------- |
-| `DISCORD_PUBLIC_KEY`                                   | 디스코드 버튼 요청 서명 검증            | [reply.md](docs/reply.md)       |
-| `ASC_ISSUER_ID` / `ASC_KEY_ID` / `ASC_PRIVATE_KEY`     | 리뷰 답글 게시 (GitHub Secrets와 동일)  | [reply.md](docs/reply.md)       |
-| `PLAY_SERVICE_ACCOUNT_JSON`                            | 리뷰 답글 게시 (GitHub Secrets와 동일)  | [reply.md](docs/reply.md)       |
-| `FEEDBACK_WEBHOOK_SECRET` / `DISCORD_WEBHOOK_FEEDBACK` | 피드백 웹훅 검증·앱-피드백 채널 웹훅    | [feedback.md](docs/feedback.md) |
-| `SURVEY_WEBHOOK_SECRET` / `DISCORD_WEBHOOK_SURVEY`     | 설문 웹훅 검증·유료화-전-설문 채널 웹훅 | [survey.md](docs/survey.md)     |
-| `SENTRY_CLIENT_SECRET` / `SENTRY_CHANNELS`             | Sentry 서명 검증·프로젝트별 채널 웹훅   | [sentry.md](docs/sentry.md)     |
+| 이름                                                   | 용도                                     | 문서                            |
+| ------------------------------------------------------ | ---------------------------------------- | ------------------------------- |
+| `DISCORD_PUBLIC_KEY`                                   | 디스코드 버튼 요청 서명 검증             | [reply.md](docs/reply.md)       |
+| `ASC_ISSUER_ID` / `ASC_KEY_ID` / `ASC_PRIVATE_KEY`     | 리뷰 답글 게시 (GitHub Secrets와 동일)   | [reply.md](docs/reply.md)       |
+| `PLAY_SERVICE_ACCOUNT_JSON`                            | 리뷰 답글 게시 (GitHub Secrets와 동일)   | [reply.md](docs/reply.md)       |
+| `FEEDBACK_WEBHOOK_SECRET` / `DISCORD_WEBHOOK_FEEDBACK` | 피드백 웹훅 검증·앱-피드백 채널 웹훅     | [feedback.md](docs/feedback.md) |
+| `SURVEY_WEBHOOK_SECRET` / `DISCORD_WEBHOOK_SURVEY`     | 설문 웹훅 검증·유료화-전-설문 채널 웹훅  | [survey.md](docs/survey.md)     |
+| `SENTRY_CLIENT_SECRET` / `SENTRY_CHANNELS`             | Sentry 서명 검증·프로젝트별 채널 웹훅    | [sentry.md](docs/sentry.md)     |
+| `CRON_SECRET` / `GH_WORKFLOW_TOKEN`                    | 버셀 크론 검증·깃허브 워크플로 실행 요청 | [metrics.md](docs/metrics.md)   |
 
 ASC 키는 GitHub Secrets와 Vercel 양쪽에 있다. 키를 바꾸면 둘 다 교체하고 Vercel은 재배포한다.
 

@@ -1,10 +1,12 @@
-# 지표 알림 — 매일 KST 9시 일일 지표, 월요일엔 이어서 주간 지표를 디스코드로 보낸다
+# 지표 알림 — 일일 지표를 매일, 월요일엔 주간 지표를 이어서 디스코드로 보낸다.
+# 깨우는 건 버셀 크론(KST 9시대)이다. 아래 schedule은 그게 실패했을 때의 예비책이다
 name: metrics
 
 on:
   schedule:
-    # UTC 0시 정각은 전 세계가 몰려 수십 분씩 밀린다 — 몇 분 비켜 잡는다 (KST 9시 12분)
-    - cron: '12 0 * * *'
+    # 버셀 크론이 KST 9시대에 깨우는 게 주 경로다. 이건 그게 실패했을 때의 늦은 예비책이라
+    # 두세 시간 밀려도 상관없다 — 이미 보낸 기간이면 상태 파일을 보고 아무것도 하지 않는다
+    - cron: '12 2 * * *'
   workflow_dispatch:
     inputs:
       mode:
@@ -39,6 +41,13 @@ jobs:
         with:
           node-version: 22
 
+      - name: 보낸 기간 복원
+        uses: actions/cache/restore@v4
+        with:
+          path: .state
+          key: metrics-state-${{ github.run_id }}
+          restore-keys: metrics-state-
+
       # UTC 0시는 KST 9시와 같은 날이라 UTC 요일로 판정해도 된다
       - name: 월요일인지 확인
         id: day
@@ -55,3 +64,10 @@ jobs:
           (inputs.mode == 'weekly' ||
             (github.event_name == 'schedule' && steps.day.outputs.monday == 'true'))
         run: node src/metrics/run.mjs weekly ${{ inputs.date }}
+
+      - name: 보낸 기간 저장
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .state
+          key: metrics-state-${{ github.run_id }}
