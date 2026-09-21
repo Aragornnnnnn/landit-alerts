@@ -61,9 +61,22 @@ RevenueCat 차트는 유료·체험만 세고 우리가 부여한 프로모션�
 - `src/metrics/run.mjs` — 실행부. `daily|weekly [기준일]`
 - `src/metrics/sample.mjs` — 예시 숫자. 입력 데이터 모양의 정본이고 테스트와 preview가 같이 쓴다
 - `src/metrics/preview.mjs` — 예시 숫자로 모양만 확인할 때
-- `.github/workflows/metrics.yml` — 매일 UTC 0시 12분(KST 9시 12분). 잡 하나 안에서 일일 step, 월요일이면 주간 step이 이어진다
+- `src/metrics/trigger.mjs` · `api/metrics-cron.mjs` — 버셀 크론이 깃허브를 깨우는 통로
+- `.github/workflows/metrics.yml` — 잡 하나 안에서 일일 step, 월요일이면 주간 step이 이어진다
 
 전일·전주 값은 저장하지 않고 같은 조회를 날짜만 바꿔 다시 부른다. 상태 파일이 없어 캐시 복원 단계도 없다. 다만 비교에 쓰는 줄은 네댓 개뿐이라 이전 기간은 `collectDailyBaseline`·`collectWeeklyBaseline`으로 그 줄만 부른다.
+
+## 누가 깨우나
+
+**버셀 크론이 주 경로다.** 매일 KST 9시대에 버셀이 `api/metrics-cron`을 부르고, 그 함수가 깃허브에 "지금 돌려"라는 실행 요청만 보낸다. 일하는 곳은 그대로 깃허브 Actions다.
+
+깃허브 자체 예약을 안 쓰는 이유가 있다. 이 레포는 예약 실행이 심하게 밀린다 — 15분·30분 크론이 실제로는 평균 195분 간격으로 돌고, 2026-09-21 첫 발송은 아예 건너뛰었다. 반면 실행 요청(dispatch) 경로는 몇 초 만에 시작한다.
+
+무료 요금제라 버셀도 분까지는 못 맞춘다. `0 0 * * *`로 적어도 KST 9시에서 9시 59분 사이 아무 때나 깨운다. 분 단위가 필요해지면 외부 크론 서비스로 같은 요청을 보내면 된다.
+
+워크플로에 남은 `schedule`(UTC 2시 12분)은 버셀이 실패했을 때의 예비책이다. 늦게 도착해도 상관없다 — 이미 보낸 기간이면 아무것도 하지 않는다.
+
+**같은 기간은 두 번 보내지 않는다.** 마지막으로 보낸 기간을 `.state/metrics.json`에 적어 두고(Actions 캐시), 같은 기간이면 조회도 하지 않고 끝낸다. 버셀 크론은 같은 실행을 두 번 부를 수 있고, 늦은 예비책이 겹칠 수도 있어서다.
 
 ## 조회가 실패하면
 
@@ -77,13 +90,16 @@ RevenueCat 차트는 유료·체험만 세고 우리가 부여한 프로모션�
 2. **앰플리튜드** — 설정 > Projects > production의 API Key·Secret Key. 새로 만들지 않고 프로젝트에 붙은 한 쌍을 쓴다.
 3. **RevenueCat** — 프로젝트 > API keys > v2 시크릿 키. 권한은 Charts metrics Read, Customer information Read 둘만. 프로젝트 id는 대시보드 주소의 `/projects/<id>/`.
 4. **GitHub Secrets** — `AMPLITUDE_API_KEY` `AMPLITUDE_SECRET_KEY` `REVENUECAT_API_KEY` `REVENUECAT_PROJECT_ID` `DISCORD_WEBHOOK_METRICS_DAILY` `DISCORD_WEBHOOK_METRICS_WEEKLY`.
-5. **첫 실행** — 크론이 돌 때까지 기다린다. 손으로 돌리면 실채널로 나가니 Actions > metrics > Run workflow는 확인이 필요할 때만.
+5. **깃허브 토큰** — 이 레포의 Actions 실행 권한만 가진 fine-grained 토큰(Actions: Read and write)을 만들어 버셀 환경변수 `GH_WORKFLOW_TOKEN`에 넣는다.
+6. **버셀 크론 비밀값** — 버셀 환경변수 `CRON_SECRET`에 아무 긴 문자열을 넣는다. 버셀이 크론 요청에 이 값을 실어 보내고, 함수는 그게 맞을 때만 움직인다. 없으면 아무나 주소를 눌러 알림을 쏠 수 있다.
+7. **배포** — `npx vercel deploy --prod`. `vercel.json`의 크론은 프로덕션 배포에만 붙는다.
+8. **첫 실행** — 크론이 돌 때까지 기다린다. 손으로 돌리면 실채널로 나가니 Actions > metrics > Run workflow는 확인이 필요할 때만.
 
 로컬에서 모양만 보려면 `DISCORD_WEBHOOK_METRICS_DAILY=<테스트 웹훅> node --env-file=~/.landit-discord.env src/metrics/run.mjs daily`. 명령줄 환경변수가 파일보다 우선이라 실채널 웹훅은 쓰이지 않는다. 실제 조회 없이 배치만 보려면 같은 방식으로 `src/metrics/preview.mjs`.
 
 ## 운영 주의
 
-- **정각 크론은 밀린다.** UTC 0시 정각은 전 세계가 몰리는 시간대라 GitHub 예약 실행이 수십 분씩 늦거나 건너뛴다. 2026-09-21 첫 발송이 그래서 안 왔고, 같은 레포의 15분 크론도 함께 밀렸다. 그래서 12분으로 비켜 잡았다. 그래도 늦으면 Actions에서 Run workflow로 손으로 돌린다(mode=daily 또는 weekly).
+- **깃허브 예약은 못 믿는다.** 이 레포의 15분·30분 크론이 실제로는 평균 195분 간격으로 돈다. 정각을 피하는 것만으로는 부족해서 버셀이 깨우게 바꿨다. 그래도 아침에 안 오면 Actions에서 Run workflow로 손으로 돌린다(mode=daily 또는 weekly).
 
 - **아침에 아무것도 안 오면 조회가 아니라 발송이 막힌 것이다.** 조회 실패는 실패대로 알리게 돼 있으므로, 채널이 완전히 조용하면 웹훅과 워크플로를 본다.
 - 앰플리튜드는 키당 동시 5개, 시간당 360건, 5분당 비용 한도가 있다. 일일 약 21건, 주간 약 24건이라 여유가 있지만 다른 스크립트와 같은 키를 동시에 쓰면 429가 난다. group_by가 붙는 조회(유입·말한 시간)가 비용이 크다.

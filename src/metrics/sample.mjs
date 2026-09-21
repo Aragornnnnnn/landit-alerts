@@ -4,7 +4,15 @@ export const daily = {
   date: '2026-09-19',
   active: { total: 123, premium: 14 },
   signups: 12,
-  entries: { notification: 34, widget: 18 },
+  entries: {
+    notification: 34,
+    notificationByCampaign: {
+      daily_scenario_reminder: 21,
+      continue_expression: 8,
+      mailbox_reply: 6,
+    },
+    widget: 18,
+  },
   scenario: { completed: 66, completedPremium: 12, abandoned: 9 },
   premiumUsage: {
     expression: {

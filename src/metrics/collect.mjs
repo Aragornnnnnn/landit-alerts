@@ -121,7 +121,11 @@ export const collectDaily = async ({ amplitude, revenuecat }, date) => {
     date,
     active: { total: activeTotal, premium: activePremium },
     signups,
-    entries: { notification: notificationEntries, widget: entryGroups.widget },
+    entries: {
+      notification: notificationEntries,
+      notificationByCampaign: entryGroups.notificationByCampaign,
+      widget: entryGroups.widget,
+    },
     scenario: {
       completed: scenarioCompleted,
       completedPremium: scenarioCompletedPremium,
