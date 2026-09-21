@@ -3,7 +3,8 @@ name: metrics
 
 on:
   schedule:
-    - cron: '0 0 * * *' # UTC 0시 = KST 9시
+    # UTC 0시 정각은 전 세계가 몰려 수십 분씩 밀린다 — 몇 분 비켜 잡는다 (KST 9시 12분)
+    - cron: '12 0 * * *'
   workflow_dispatch:
     inputs:
       mode:

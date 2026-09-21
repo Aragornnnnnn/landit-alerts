@@ -61,7 +61,7 @@ RevenueCat 차트는 유료·체험만 세고 우리가 부여한 프로모션�
 - `src/metrics/run.mjs` — 실행부. `daily|weekly [기준일]`
 - `src/metrics/sample.mjs` — 예시 숫자. 입력 데이터 모양의 정본이고 테스트와 preview가 같이 쓴다
 - `src/metrics/preview.mjs` — 예시 숫자로 모양만 확인할 때
-- `.github/workflows/metrics.yml` — 매일 UTC 0시. 잡 하나 안에서 일일 step, 월요일이면 주간 step이 이어진다
+- `.github/workflows/metrics.yml` — 매일 UTC 0시 12분(KST 9시 12분). 잡 하나 안에서 일일 step, 월요일이면 주간 step이 이어진다
 
 전일·전주 값은 저장하지 않고 같은 조회를 날짜만 바꿔 다시 부른다. 상태 파일이 없어 캐시 복원 단계도 없다. 다만 비교에 쓰는 줄은 네댓 개뿐이라 이전 기간은 `collectDailyBaseline`·`collectWeeklyBaseline`으로 그 줄만 부른다.
 
@@ -82,6 +82,8 @@ RevenueCat 차트는 유료·체험만 세고 우리가 부여한 프로모션�
 로컬에서 모양만 보려면 `DISCORD_WEBHOOK_METRICS_DAILY=<테스트 웹훅> node --env-file=~/.landit-discord.env src/metrics/run.mjs daily`. 명령줄 환경변수가 파일보다 우선이라 실채널 웹훅은 쓰이지 않는다. 실제 조회 없이 배치만 보려면 같은 방식으로 `src/metrics/preview.mjs`.
 
 ## 운영 주의
+
+- **정각 크론은 밀린다.** UTC 0시 정각은 전 세계가 몰리는 시간대라 GitHub 예약 실행이 수십 분씩 늦거나 건너뛴다. 2026-09-21 첫 발송이 그래서 안 왔고, 같은 레포의 15분 크론도 함께 밀렸다. 그래서 12분으로 비켜 잡았다. 그래도 늦으면 Actions에서 Run workflow로 손으로 돌린다(mode=daily 또는 weekly).
 
 - **아침에 아무것도 안 오면 조회가 아니라 발송이 막힌 것이다.** 조회 실패는 실패대로 알리게 돼 있으므로, 채널이 완전히 조용하면 웹훅과 워크플로를 본다.
 - 앰플리튜드는 키당 동시 5개, 시간당 360건, 5분당 비용 한도가 있다. 일일 약 21건, 주간 약 24건이라 여유가 있지만 다른 스크립트와 같은 키를 동시에 쓰면 429가 난다. group_by가 붙는 조회(유입·말한 시간)가 비용이 크다.
