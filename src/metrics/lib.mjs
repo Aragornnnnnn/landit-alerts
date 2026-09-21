@@ -156,16 +156,19 @@ export const buildDailyMessage = (m, prev) => {
     '',
     bold(`💎 유료 ${m.active.premium}명이 쓴 것`),
     bullet(
-      `시나리오 표현 ${expression.scenario.users}명 (${percent(expression.scenario.users, m.active.premium)}) · ` +
-        distribution(scenarioZero, expression.scenario.byCount),
+      `시나리오 표현 ${expression.scenario.users}명 (${percent(expression.scenario.users, m.active.premium)})`,
+    ),
+    subBullet(distribution(scenarioZero, expression.scenario.byCount)),
+    bullet(
+      `스몰톡 ${smalltalk.users}명 (${percent(smalltalk.users, m.active.premium)})`,
+    ),
+    subBullet(
+      `${smalltalk.count}판 · 한 판 평균 ${smalltalk.turnsAverage.toFixed(1)}턴`,
     ),
     bullet(
-      `스몰톡 ${smalltalk.users}명 (${percent(smalltalk.users, m.active.premium)}) · ${smalltalk.count}판 · 한 판 평균 ${smalltalk.turnsAverage.toFixed(1)}턴`,
+      `스몰톡 표현 ${expression.smalltalk.users}명 (${percent(expression.smalltalk.users, m.active.premium)})`,
     ),
-    bullet(
-      `스몰톡 표현 ${expression.smalltalk.users}명 (${percent(expression.smalltalk.users, m.active.premium)}) · ` +
-        distribution(smalltalkZero, expression.smalltalk.byCount),
-    ),
+    subBullet(distribution(smalltalkZero, expression.smalltalk.byCount)),
     '',
     bold(
       `🔁 D1 리텐션 ${percent(m.retention.returned, m.retention.cohort)} · 그제 가입한 ${m.retention.cohort}명 중 어제도 온 사람 ${m.retention.returned}명`,
