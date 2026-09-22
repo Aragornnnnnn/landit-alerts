@@ -115,3 +115,52 @@ test('고객 목록이 실패해도 스캔이 멈춘다 — 워커가 무한히 
     globalThis.fetch = original;
   }
 });
+
+test('해지예정은 다음 결제를 끈 채 아직 쓸 수 있는 구독만 센다', async () => {
+  const { cancelingAt } = await import('./revenuecat.mjs');
+  const day = (iso) => new Date(`${iso}T12:00:00+09:00`).getTime();
+  const subs = [
+    // 체험 중인데 갱신을 꺼 뒀다 — 해지예정
+    {
+      store: 'app_store',
+      environment: 'production',
+      product_id: 'com.saynow.app.premium.yearly',
+      auto_renewal_status: 'will_not_renew',
+      starts_at: day('2026-09-18'),
+      current_period_ends_at: day('2026-09-25'),
+    },
+    // 갱신 예정이라 아니다
+    {
+      store: 'app_store',
+      environment: 'production',
+      auto_renewal_status: 'will_renew',
+      starts_at: day('2026-09-18'),
+      current_period_ends_at: day('2026-09-25'),
+    },
+    // 프로모션은 원래 갱신이 없다
+    {
+      store: 'promotional',
+      environment: 'production',
+      auto_renewal_status: 'will_not_renew',
+      starts_at: day('2026-09-10'),
+      current_period_ends_at: day('2026-10-10'),
+    },
+    // 이미 기간이 끝났다
+    {
+      store: 'play_store',
+      environment: 'production',
+      auto_renewal_status: 'will_not_renew',
+      starts_at: day('2026-09-01'),
+      current_period_ends_at: day('2026-09-15'),
+    },
+    // 샌드박스
+    {
+      store: 'app_store',
+      environment: 'sandbox',
+      auto_renewal_status: 'will_not_renew',
+      starts_at: day('2026-09-18'),
+      current_period_ends_at: day('2026-09-25'),
+    },
+  ];
+  assert.equal(cancelingAt(subs, '2026-09-20'), 1);
+});

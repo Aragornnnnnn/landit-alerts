@@ -103,6 +103,12 @@ const subscriptionLines = (subs, prevSubs) => {
       yearly(subs),
       prevSubs && yearly(prevSubs),
     ),
+    // 바로 위 숫자에 이미 들어 있는 사람들이다 — 더하는 줄이 아니라 그중 얼마인지를 말한다
+    subBullet(
+      `이 중 해지예정 ${subs.canceling}명`,
+      subs.canceling,
+      prev.canceling,
+    ),
     subBullet(
       `무료체험 중 ${subs.yearlyTrial}명`,
       subs.yearlyTrial,

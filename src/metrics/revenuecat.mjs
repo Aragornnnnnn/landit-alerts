@@ -34,15 +34,32 @@ export const valuesAt = (chart, isoDate) => {
   return result;
 };
 
+// 그 시각에 아직 살아 있던 프로덕션 구독인가
+const aliveAt = (sub, at) => {
+  if (sub.environment !== 'production') return false;
+  const end = sub.ends_at ?? sub.current_period_ends_at;
+  return sub.starts_at <= at && (end == null || end > at);
+};
+
 // 그날 끝(KST)에 살아 있던 프로모션 구독 수. 샌드박스는 뺀다
 export const promoAt = (subscriptions, isoDate) => {
   const at = kstDayEndMs(isoDate);
-  return subscriptions.filter((sub) => {
-    if (sub.store !== 'promotional' || sub.environment !== 'production')
-      return false;
-    const end = sub.ends_at ?? sub.current_period_ends_at;
-    return sub.starts_at <= at && (end == null || end > at);
-  }).length;
+  return subscriptions.filter(
+    (sub) => sub.store === 'promotional' && aliveAt(sub, at),
+  ).length;
+};
+
+// 그날 끝에 아직 쓸 수 있지만 다음 결제를 끄둔 구독 수 — 체험 중 해지도 여기 들어간다.
+// 프로모션은 원래 갱신이 없어 제외한다. 구독 기록의 상품 번호가 레비뉴캣 내부 id(prod…)라
+// 월간·연간을 가를 수 없다 — 지금은 스토어 구독이 연간뿐이라 연간 아래에 붙인다
+export const cancelingAt = (subscriptions, isoDate) => {
+  const at = kstDayEndMs(isoDate);
+  return subscriptions.filter(
+    (sub) =>
+      sub.store !== 'promotional' &&
+      sub.auto_renewal_status === 'will_not_renew' &&
+      aliveAt(sub, at),
+  ).length;
 };
 
 export const createRevenueCatClient = ({ apiKey, projectId }) => {
@@ -149,6 +166,7 @@ export const createRevenueCatClient = ({ apiKey, projectId }) => {
       yearlyTrial: trial.yearly + trial.monthly,
       yearlyPaid: paid.yearly,
       promo: promoAt(all, date),
+      canceling: cancelingAt(all, date),
     };
   };
 
