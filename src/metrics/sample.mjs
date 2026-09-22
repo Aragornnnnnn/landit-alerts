@@ -22,7 +22,13 @@ export const daily = {
     smalltalk: { users: 7, count: 11, turnsAverage: 6.1 },
   },
   retention: { cohort: 9, returned: 5, start: '2026-09-18', end: '2026-09-18' },
-  subscriptions: { monthly: 30, yearlyTrial: 5, yearlyPaid: 14, promo: 3 },
+  subscriptions: {
+    monthly: 30,
+    yearlyTrial: 5,
+    yearlyPaid: 14,
+    promo: 3,
+    canceling: 2,
+  },
 };
 
 // 전일·전주 비교값은 증감에 쓰는 줄만 담는다 (collectDailyBaseline이 돌려주는 모양)
@@ -30,7 +36,13 @@ export const previousDaily = {
   active: { total: 114, premium: 13 },
   signups: 9,
   scenario: { completed: 68 },
-  subscriptions: { monthly: 29, yearlyTrial: 3, yearlyPaid: 14, promo: 3 },
+  subscriptions: {
+    monthly: 29,
+    yearlyTrial: 3,
+    yearlyPaid: 14,
+    promo: 3,
+    canceling: 1,
+  },
 };
 
 export const weekly = {
@@ -79,11 +91,23 @@ export const weekly = {
     start: '2026-08-31',
     end: '2026-09-06',
   },
-  subscriptions: { monthly: 30, yearlyTrial: 5, yearlyPaid: 14, promo: 3 },
+  subscriptions: {
+    monthly: 30,
+    yearlyTrial: 5,
+    yearlyPaid: 14,
+    promo: 3,
+    canceling: 2,
+  },
 };
 
 export const previousWeekly = {
   active: { total: 392, premium: 32 },
   signups: 57,
-  subscriptions: { monthly: 27, yearlyTrial: 1, yearlyPaid: 12, promo: 5 },
+  subscriptions: {
+    monthly: 27,
+    yearlyTrial: 1,
+    yearlyPaid: 12,
+    promo: 5,
+    canceling: 4,
+  },
 };
