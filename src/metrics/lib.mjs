@@ -125,9 +125,17 @@ const CAMPAIGN_LABELS = {
   continue_expression: '표현 이어가기',
   small_talk_reminder: '스몰톡',
   mailbox_reply: '편지 답장',
+  expression_review: '복습 퀴즈',
   // 구 로컬 알림(LAN-406 제거 전 바이너리)이 아직 보내는 캠페인
   daily_reminder: '오늘의 시나리오 (구 알림)',
 };
+
+// 어드민이 손으로 보낸 공지는 캠페인 이름에 문구가 그대로 들어 있다 — 밑줄만 풀어 읽히게 한다
+export const campaignLabel = (campaign) =>
+  CAMPAIGN_LABELS[campaign] ??
+  (campaign.startsWith('admin_')
+    ? campaign.slice('admin_'.length).replaceAll('_', ' ')
+    : campaign);
 
 // 유입 블록 — 알림 아래에 캠페인별로 한 단 더 쪼갠다.
 // 캠페인별 수는 겹쳐 들어온 사람이 있어 합이 알림 인원보다 클 수 있다
@@ -135,7 +143,7 @@ const entryLines = (entries, direct) => [
   bold('🚪 어디서 들어왔나'),
   bullet(`알림 ${entries.notification}명`),
   ...Object.entries(entries.notificationByCampaign).map(([campaign, n]) =>
-    subBullet(`${CAMPAIGN_LABELS[campaign] ?? campaign} ${n}명`),
+    subBullet(`${campaignLabel(campaign)} ${n}명`),
   ),
   bullet(`위젯 ${entries.widget}명`),
   bullet(`직접 ${direct}명`),

@@ -26,7 +26,7 @@ concurrency:
 jobs:
   send:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 120
     env:
       AMPLITUDE_API_KEY: ${{ secrets.AMPLITUDE_API_KEY }}
       AMPLITUDE_SECRET_KEY: ${{ secrets.AMPLITUDE_SECRET_KEY }}
@@ -48,7 +48,19 @@ jobs:
           key: metrics-state-${{ github.run_id }}
           restore-keys: metrics-state-
 
-      # UTC 0시는 KST 9시와 같은 날이라 UTC 요일로 판정해도 된다
+      # 버셀 무료 요금제는 크론을 그 시간대 끝(HH:59)에 돌린다. UTC 23시로 잡아 두고
+      # 여기서 9시 정각까지 기다린다 — 늦게 도는 예비책은 이미 9시를 지나 그냥 통과한다
+      - name: 아침 9시까지 기다린다
+        run: |
+          # 날짜 계산이 실패하면 기다리지 않고 그냥 보낸다 (늦게 보내는 것보다 안 보내는 게 나쁘다)
+          target=$(TZ=Asia/Seoul date -d 'today 09:00' +%s 2>/dev/null || echo 0)
+          wait=$(( target - $(date +%s) ))
+          if [ "$wait" -gt 0 ] && [ "$wait" -le 4200 ]; then
+            echo "9시까지 ${wait}초 기다립니다."
+            sleep "$wait"
+          fi
+
+      # KST 9시에 보내므로 UTC 요일로 판정해도 같은 날이다
       - name: 월요일인지 확인
         id: day
         run: echo "monday=$([ "$(date -u +%u)" = 1 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
