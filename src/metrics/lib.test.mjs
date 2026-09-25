@@ -210,3 +210,16 @@ test('디스코드 한 메시지 한도(2000자) 안에 든다', () => {
   assert.ok(buildDailyMessage(daily, previousDaily).length < 2000);
   assert.ok(buildWeeklyMessage(weekly, previousWeekly).length < 2000);
 });
+
+test('알림 캠페인 이름을 사람이 읽는 이름으로 바꾼다', async () => {
+  const { campaignLabel } = await import('./lib.mjs');
+  assert.equal(campaignLabel('daily_scenario_reminder'), '오늘의 시나리오');
+  assert.equal(campaignLabel('expression_review'), '복습 퀴즈');
+  // 어드민 공지는 캠페인 이름이 곧 문구다
+  assert.equal(
+    campaignLabel('admin_신규_기능이_생겼어요_0924'),
+    '신규 기능이 생겼어요 0924',
+  );
+  // 모르는 캠페인은 그대로
+  assert.equal(campaignLabel('launch_event'), 'launch_event');
+});
