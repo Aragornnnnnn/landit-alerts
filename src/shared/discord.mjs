@@ -23,3 +23,17 @@ export const sendEmbed = (webhookUrl, embed, components) =>
 // 지표처럼 복사·검색돼야 하는 알림은 embed 대신 content로 보낸다
 export const sendMessage = (webhookUrl, content) =>
   post(webhookUrl, { content });
+
+// 보낸 메시지(id·channel_id)를 돌려받는다 — 카드에 스레드를 달 때 필요하다
+export const sendEmbedWithReceipt = async (webhookUrl, embed) => {
+  const res = await fetch(`${webhookUrl}?wait=true`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'User-Agent': 'LanditAlerts/1.0',
+    },
+    body: JSON.stringify({ embeds: [embed] }),
+  });
+  await assertOk(res, '디스코드 전송');
+  return res.json();
+};
