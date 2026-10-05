@@ -39,20 +39,25 @@ Sentry 알림 규칙 발동
     ├─ Sentry-Hook-Signature 검증 (HMAC-SHA256, Client Secret) — 실패 시 401
     ├─ Sentry-Hook-Resource가 event_alert가 아니면 200 skipped (설치 이벤트 등)
     ├─ event.project id → SENTRY_CHANNELS에서 채널 웹훅 조회, 없으면 200 skipped
-    └─ embed 생성 → 디스코드 웹훅 전송
+    ├─ embed 생성 → 디스코드 웹훅 전송(?wait=true로 메시지 id·채널 id 받음)
+    └─ TRIAGE_DISPATCH_TOKEN 있으면 landit-triage 분석 요청(workflow_dispatch)
+         → 1~4분 뒤 landit-triage가 카드에 분석 스레드를 붙인다
 ```
 
 - 코드는 `api/sentry.mjs`(수신)와 `src/sentry/lib.mjs`(순수 로직)에 있다.
 - 서명은 raw body로 먼저 보고, 안 맞으면 `JSON.stringify(JSON.parse(body))`로 한 번 더 본다. Sentry 문서가 후자 기준으로 서명한다고 안내하기 때문이다.
 - 관심 없는 요청도 200으로 답한다. 실패 응답이 쌓이면 Sentry가 웹훅을 자동으로 끈다.
+- 분석 요청이 실패해도 카드는 이미 나갔으니 200을 돌려준다. 결과는 응답의 `triage`(`requested`·`failed`·`no-issue-id`·`disabled`)와 Vercel 로그에 남는다.
+- 분석 쪽 구조는 [landit-triage](https://github.com/Aragornnnnnn/landit-triage) README에 있다.
 - payload에는 프로젝트 슬러그가 없고 숫자 id만 온다. 그래서 채널 매핑 키가 프로젝트 id다.
 
 ## Vercel 환경변수
 
-| 이름                   | 내용                                                                     |
-| ---------------------- | ------------------------------------------------------------------------ |
-| `SENTRY_CLIENT_SECRET` | 내부 연동 상세 화면의 Client Secret                                      |
-| `SENTRY_CHANNELS`      | `{"<web 프로젝트 id>":"<웹훅 URL>","<mobile 프로젝트 id>":"<웹훅 URL>"}` |
+| 이름                    | 내용                                                                                                  |
+| ----------------------- | ----------------------------------------------------------------------------------------------------- |
+| `SENTRY_CLIENT_SECRET`  | 내부 연동 상세 화면의 Client Secret                                                                   |
+| `SENTRY_CHANNELS`       | `{"<web 프로젝트 id>":"<웹훅 URL>","<mobile 프로젝트 id>":"<웹훅 URL>"}`                              |
+| `TRIAGE_DISPATCH_TOKEN` | 선택. landit-triage 분석 요청용 fine-grained 토큰(그 레포 하나, Actions 쓰기만). 없으면 카드만 보낸다 |
 
 등록은 [reply.md](reply.md)의 방식과 같다.
 

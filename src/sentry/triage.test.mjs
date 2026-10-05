@@ -1,4 +1,4 @@
-// landit-triage에 보낼 분석 요청을 만드는 로직의 테스트
+// landit-triage에 보낼 분석 요청(workflow_dispatch)을 만드는 로직의 테스트
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
@@ -31,14 +31,20 @@ test('카드 메시지 위치와 이슈·이벤트 id를 담은 dispatch 본문�
 
   // Then landit-triage 워크플로우가 읽는 형식이다
   assert.deepEqual(dispatch, {
-    event_type: 'sentry-issue',
-    client_payload: {
+    ref: 'main',
+    inputs: {
       issue_id: '7773966015',
       event_id: 'c60fd1d7',
       channel_id: '222',
       message_id: '111',
     },
   });
+});
+
+test('이벤트 id가 없으면 빈 문자열로 보낸다 — workflow_dispatch 입력은 문자열만 받는다', () => {
+  const dispatch = buildTriageDispatch({ issue_id: '1' }, message);
+
+  assert.equal(dispatch.inputs.event_id, '');
 });
 
 test('이슈를 알 수 없으면 요청을 만들지 않는다', () => {

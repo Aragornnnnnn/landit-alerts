@@ -19,6 +19,19 @@ const readRawBody = (req) =>
     req.on('error', reject);
   });
 
+// 분석 요청이 실패해도 카드는 이미 나갔다 — 결과만 남기고 알림 응답은 성공으로 돌려준다
+const requestTriageSafely = async (token, dispatch) => {
+  if (!token) return 'disabled';
+  if (!dispatch) return 'no-issue-id';
+  try {
+    await requestTriage(token, dispatch);
+    return 'requested';
+  } catch (error) {
+    console.error(error);
+    return 'failed';
+  }
+};
+
 export default async (req, res) => {
   if (req.method !== 'POST') return res.status(405).end();
 
@@ -49,21 +62,13 @@ export default async (req, res) => {
     return res.status(200).json({ skipped: true });
   }
 
-  const embed = buildSentryEmbed(alert.event);
-  const triageToken = process.env.TRIAGE_DISPATCH_TOKEN;
-  if (!triageToken) {
-    await sendEmbed(webhookUrl, embed);
-    return res.status(200).json({ sent: true });
-  }
-
-  // 분석 요청이 실패해도 카드는 이미 나갔다 — 알림 응답은 그대로 성공으로 돌려준다
-  const message = await sendEmbedWithReceipt(webhookUrl, embed);
-  const dispatch = buildTriageDispatch(alert.event, message);
-  try {
-    if (dispatch) await requestTriage(triageToken, dispatch);
-    else console.warn('이슈 id를 몰라 분석을 요청하지 않았어요');
-  } catch (error) {
-    console.error(error);
-  }
-  return res.status(200).json({ sent: true, triage: Boolean(dispatch) });
+  const message = await sendEmbedWithReceipt(
+    webhookUrl,
+    buildSentryEmbed(alert.event),
+  );
+  const triage = await requestTriageSafely(
+    process.env.TRIAGE_DISPATCH_TOKEN,
+    buildTriageDispatch(alert.event, message),
+  );
+  return res.status(200).json({ sent: true, triage });
 };
