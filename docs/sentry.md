@@ -47,7 +47,7 @@ Sentry 알림 규칙 발동
 - 코드는 `api/sentry.mjs`(수신)와 `src/sentry/lib.mjs`(순수 로직)에 있다.
 - 서명은 raw body로 먼저 보고, 안 맞으면 `JSON.stringify(JSON.parse(body))`로 한 번 더 본다. Sentry 문서가 후자 기준으로 서명한다고 안내하기 때문이다.
 - 관심 없는 요청도 200으로 답한다. 실패 응답이 쌓이면 Sentry가 웹훅을 자동으로 끈다.
-- 분석 요청이 실패해도 카드는 이미 나갔으니 200을 돌려준다. 결과는 응답의 `triage`(`requested`·`failed`·`no-issue-id`·`disabled`)와 Vercel 로그에 남는다.
+- Sentry는 웹훅이 1초 안에 응답하길 요구한다. 카드까지만 기다려 200으로 답하고, 분석 요청은 `waitUntil`로 응답 뒤에 보낸다. 결과(`requested`·`failed`·`no-issue-id`·`disabled`)는 Vercel 로그의 `분석 요청:` 줄에 남는다.
 - 분석 쪽 구조는 [landit-triage](https://github.com/Aragornnnnnn/landit-triage) README에 있다.
 - payload에는 프로젝트 슬러그가 없고 숫자 id만 온다. 그래서 채널 매핑 키가 프로젝트 id다.
 

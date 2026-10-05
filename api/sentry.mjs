@@ -1,5 +1,7 @@
 // Sentry 이슈 알림 웹훅 수신 엔드포인트 (Vercel 서버리스 함수) — 새 이슈를 프로젝트별 디스코드 채널로 보낸다
-import { sendEmbed, sendEmbedWithReceipt } from '../src/shared/discord.mjs';
+import { waitUntil } from '@vercel/functions';
+
+import { sendEmbedWithReceipt } from '../src/shared/discord.mjs';
 import {
   buildSentryEmbed,
   isValidSentrySignature,
@@ -66,9 +68,12 @@ export default async (req, res) => {
     webhookUrl,
     buildSentryEmbed(alert.event),
   );
-  const triage = await requestTriageSafely(
-    process.env.TRIAGE_DISPATCH_TOKEN,
-    buildTriageDispatch(alert.event, message),
+  // Sentry는 1초 안에 응답을 받아야 한다 — 카드까지만 기다리고 응답한 뒤, 분석 요청은 함수가 살아 있는 동안 마저 보낸다
+  waitUntil(
+    requestTriageSafely(
+      process.env.TRIAGE_DISPATCH_TOKEN,
+      buildTriageDispatch(alert.event, message),
+    ).then((triage) => console.log(`분석 요청: ${triage}`)),
   );
-  return res.status(200).json({ sent: true, triage });
+  return res.status(200).json({ sent: true });
 };

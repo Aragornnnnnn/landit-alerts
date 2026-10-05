@@ -4,7 +4,7 @@ import { test } from 'node:test';
 
 import { buildTriageDispatch, issueIdOf } from './triage.mjs';
 
-const message = { id: '111', channel_id: '222' };
+const message = { id: '1416012345678909999', channel_id: '1416012345678901234' };
 
 test('이벤트의 issue_id로 이슈를 찾는다', () => {
   assert.equal(issueIdOf({ issue_id: '7773966015' }), '7773966015');
@@ -24,7 +24,10 @@ test('이슈를 알 수 없으면 null', () => {
 
 test('카드 메시지 위치와 이슈·이벤트 id를 담은 dispatch 본문을 만든다', () => {
   // Given 이슈 알림 이벤트와 올라간 카드 메시지
-  const event = { issue_id: '7773966015', event_id: 'c60fd1d7' };
+  const event = {
+    issue_id: '7773966015',
+    event_id: 'c60fd1d7caed41109ac226968f4ec748',
+  };
 
   // When 분석 요청을 만들면
   const dispatch = buildTriageDispatch(event, message);
@@ -34,9 +37,9 @@ test('카드 메시지 위치와 이슈·이벤트 id를 담은 dispatch 본문�
     ref: 'main',
     inputs: {
       issue_id: '7773966015',
-      event_id: 'c60fd1d7',
-      channel_id: '222',
-      message_id: '111',
+      event_id: 'c60fd1d7caed41109ac226968f4ec748',
+      channel_id: '1416012345678901234',
+      message_id: '1416012345678909999',
     },
   });
 });

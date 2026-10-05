@@ -13,6 +13,7 @@ export const issueIdOf = (event) =>
     : (event.web_url?.match(ISSUE_URL_PATTERN)?.[1] ?? null);
 
 // inputs 이름은 landit-triage triage.yml의 workflow_dispatch inputs와 맞춘다. 값은 전부 문자열이어야 한다
+// 형식(그쪽 가드가 검사): issue_id 숫자, event_id 32자리 hex(없으면 ''), channel_id·message_id 디스코드 숫자 id
 export const buildTriageDispatch = (event, message) => {
   const issueId = issueIdOf(event);
   if (!issueId) return null;
