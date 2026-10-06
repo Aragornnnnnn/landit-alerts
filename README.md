@@ -158,6 +158,7 @@ DISCORD_WEBHOOK_METRICS_DAILY=... node src/metrics/run.mjs daily
 | `FEEDBACK_WEBHOOK_SECRET` / `DISCORD_WEBHOOK_FEEDBACK` | 피드백 웹훅 검증·앱-피드백 채널 웹훅     | [feedback.md](docs/feedback.md) |
 | `SURVEY_WEBHOOK_SECRET` / `DISCORD_WEBHOOK_SURVEY`     | 설문 웹훅 검증·유료화-전-설문 채널 웹훅  | [survey.md](docs/survey.md)     |
 | `SENTRY_CLIENT_SECRET` / `SENTRY_CHANNELS`             | Sentry 서명 검증·프로젝트별 채널 웹훅    | [sentry.md](docs/sentry.md)     |
+| `TRIAGE_DISPATCH_TOKEN`                                | (선택) landit-triage 분석 요청           | [sentry.md](docs/sentry.md)     |
 | `CRON_SECRET` / `GH_WORKFLOW_TOKEN`                    | 버셀 크론 검증·깃허브 워크플로 실행 요청 | [metrics.md](docs/metrics.md)   |
 
 ASC 키는 GitHub Secrets와 Vercel 양쪽에 있다. 키를 바꾸면 둘 다 교체하고 Vercel은 재배포한다.

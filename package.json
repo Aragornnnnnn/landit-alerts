@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "description": "landit 스토어·Sentry·설문·지표 디스코드 알림 (Vercel 함수 의존성만 둔다)",
+  "dependencies": {
+    "@vercel/functions": "^3.9.11"
+  }
+}
