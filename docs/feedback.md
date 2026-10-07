@@ -14,6 +14,18 @@
 - 본문은 유저가 쓴 글 그대로. 그 아래 `어드민에서 보기` 링크 한 줄(`https://admin.landit.im/feedbacks?open=<피드백 id>`). 링크까지 합쳐 4096자를 넘으면 본문을 말줄임.
 - footer에 보낸 사람 id만 적는다. 닉네임·이메일·피드백 id는 싣지 않는다(어드민에서 본다).
 - 보낸 시각을 footer 옆에 붙인다. 저장값(`created_at`)은 시간대 없는 한국 시각이라 +09:00으로 읽는다.
+- 앰플리튜드에서 그 피드백을 보낸 세션을 찾으면 어드민 링크 옆에 `리플레이 보기`를 붙인다(제출한 순간부터 재생).
+
+## 리플레이 링크
+
+앰플리튜드는 이벤트가 들어오기까지 수십 초~몇 분 걸린다. 그래서 카드는 바로 보내고, 응답한 뒤 함수가 살아 있는 동안(`waitUntil`) 리플레이를 찾아 같은 카드를 고쳐 쓴다.
+
+1. 유저 id(`user_profile_id`)로 앰플리튜드 유저 검색 → 앰플리튜드 id.
+2. 그 유저의 최근 이벤트 50개에서 `Feedback Submitted`를 찾는다. 피드백 저장 시각과 10분 넘게 떨어진 건 다른 피드백이라 고르지 않는다.
+3. 이벤트의 `device_id/session_id`가 리플레이 id다. 재생 위치는 이벤트 시각 − `session_id`.
+4. 20·40·70·130·190·250초에 다시 본다. 끝까지 못 찾으면 카드는 그대로 둔다. 그래서 `maxDuration`을 300초로 잡았다(`vercel.json`).
+
+앰플리튜드 키가 Vercel에 없으면 이 단계를 건너뛴다.
 
 아이콘은 리뷰 카드의 스토어 로고와 같은 방식이다. 토스페이스 SVG(landit-fe `shared/ui/emoji/emoji-map.ts`)를 브라우저 캔버스로 128px PNG로 굽고, `scripts/upload-app-emoji.mjs`로 앱 이모지에 올린 뒤 그 id로 `https://cdn.discordapp.com/emojis/<id>.png`를 author 아이콘에 쓴다.
 
@@ -32,7 +44,8 @@ mailbox_feedback INSERT
   → POST https://landit-alerts.vercel.app/api/feedback
     ├─ x-feedback-secret 헤더가 FEEDBACK_WEBHOOK_SECRET과 다르면 401
     ├─ type이 INSERT가 아니거나 테이블이 다르면 200 skipped
-    └─ embed 생성 → DISCORD_WEBHOOK_FEEDBACK으로 전송
+    ├─ embed 생성 → DISCORD_WEBHOOK_FEEDBACK으로 전송 → 200 응답
+    └─ (waitUntil) 앰플리튜드에서 리플레이를 찾으면 같은 카드에 링크 추가
 ```
 
 - 코드는 `api/feedback.mjs`(수신)와 `src/feedback/lib.mjs`(순수 로직)에 있다.
@@ -40,10 +53,12 @@ mailbox_feedback INSERT
 
 ## Vercel 환경변수
 
-| 이름                       | 내용                                            |
-| -------------------------- | ----------------------------------------------- |
-| `FEEDBACK_WEBHOOK_SECRET`  | 슈퍼베이스 웹훅 헤더에 넣어 둔 값과 같은 문자열 |
-| `DISCORD_WEBHOOK_FEEDBACK` | `#앱-피드백` 채널 웹훅 URL                      |
+| 이름                       | 내용                                             |
+| -------------------------- | ------------------------------------------------ |
+| `FEEDBACK_WEBHOOK_SECRET`  | 슈퍼베이스 웹훅 헤더에 넣어 둔 값과 같은 문자열  |
+| `DISCORD_WEBHOOK_FEEDBACK` | `#앱-피드백` 채널 웹훅 URL                       |
+| `AMPLITUDE_API_KEY`        | 운영 프로젝트 키 (리플레이 찾기, 지표와 같은 값) |
+| `AMPLITUDE_SECRET_KEY`     | 운영 프로젝트 시크릿 키                          |
 
 ```bash
 printf '%s' "$값" | npx vercel env add FEEDBACK_WEBHOOK_SECRET production

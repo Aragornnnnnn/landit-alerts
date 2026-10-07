@@ -37,18 +37,18 @@ const truncate = (text, max) =>
   text.length > max ? `${text.slice(0, max - 1)}…` : text;
 
 // created_at은 시간대 없는 timestamp인데 백엔드가 한국 시각으로 쓴다(어드민도 그렇게 읽는다)
-const toSeoulIso = (createdAt) => new Date(`${createdAt}+09:00`).toISOString();
+export const toSeoulIso = (createdAt) =>
+  new Date(`${createdAt}+09:00`).toISOString();
 
-// 본문이 카드의 전부다. 누가 보냈는지는 footer에 user id와 보낸 시각만 적고, 피드백 id는 링크에만 들어간다
-export const buildFeedbackEmbed = ({
-  id,
-  user_profile_id,
-  feedback_type,
-  content_text,
-  created_at,
-}) => {
+// 본문이 카드의 전부다. 누가 보냈는지는 footer에 user id와 보낸 시각만 적고, 피드백 id는 링크에만 들어간다.
+// 리플레이는 앰플리튜드 수집이 늦어 카드를 보낸 뒤에 찾으므로, 찾으면 같은 카드를 주소와 함께 다시 만든다
+export const buildFeedbackEmbed = (
+  { id, user_profile_id, feedback_type, content_text, created_at },
+  replayUrl,
+) => {
   const type = FEEDBACK_TYPES[feedback_type] ?? UNKNOWN_TYPE;
-  const link = `\n\n${adminLink(id)}`;
+  const replayLink = replayUrl ? ` · [리플레이 보기](${replayUrl})` : '';
+  const link = `\n\n${adminLink(id)}${replayLink}`;
   return {
     author: {
       name: type.label,

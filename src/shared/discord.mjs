@@ -10,9 +10,9 @@ const withQuery = (url, key, value) => {
   return parsed.toString();
 };
 
-const post = async (url, payload) => {
+const send = async (method, url, payload) => {
   const res = await fetch(url, {
-    method: 'POST',
+    method,
     headers: {
       'Content-Type': 'application/json',
       'User-Agent': 'LanditAlerts/1.0',
@@ -22,6 +22,8 @@ const post = async (url, payload) => {
   });
   return assertOk(res, '디스코드 전송');
 };
+
+const post = (url, payload) => send('POST', url, payload);
 
 // components(버튼)는 앱 소유 웹훅에서만 렌더링되며 with_components 플래그가 필요하다
 export const sendEmbed = async (webhookUrl, embed, components) => {
@@ -42,4 +44,11 @@ export const sendEmbedWithReceipt = async (webhookUrl, embed) => {
     embeds: [embed],
   });
   return res.json();
+};
+
+// 이미 보낸 카드를 바꾼다 — 나중에 알게 된 정보(리플레이 주소 등)를 덧붙일 때 쓴다
+export const editEmbed = async (webhookUrl, messageId, embed) => {
+  const url = new URL(webhookUrl);
+  url.pathname += `/messages/${messageId}`;
+  await send('PATCH', url.toString(), { embeds: [embed] });
 };

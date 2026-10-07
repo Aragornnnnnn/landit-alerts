@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { afterEach, test } from 'node:test';
 
-import { sendEmbedWithReceipt } from './discord.mjs';
+import { editEmbed, sendEmbedWithReceipt } from './discord.mjs';
 
 const realFetch = globalThis.fetch;
 const HOOK = 'https://discord.com/api/webhooks/1/abc';
@@ -47,4 +47,21 @@ test('웹훅 주소에 쿼리가 이미 있어도 wait를 덧붙인다', async (
   await sendEmbedWithReceipt(`${HOOK}?thread_id=9`, {});
 
   assert.equal(calledUrl, `${HOOK}?thread_id=9&wait=true`);
+});
+
+test('보낸 메시지의 카드를 PATCH로 바꾼다', async () => {
+  // Given 수정 요청을 받는 웹훅
+  let called;
+  globalThis.fetch = async (url, init) => {
+    called = { url, method: init.method, body: JSON.parse(init.body) };
+    return new Response('{}');
+  };
+
+  // When 메시지 id로 카드를 바꾸면
+  await editEmbed(HOOK, '111', { title: '새 카드' });
+
+  // Then 그 메시지 주소로 embed만 다시 보낸다
+  assert.equal(called.url, `${HOOK}/messages/111`);
+  assert.equal(called.method, 'PATCH');
+  assert.deepEqual(called.body, { embeds: [{ title: '새 카드' }] });
 });
