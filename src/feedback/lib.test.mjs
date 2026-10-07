@@ -28,6 +28,16 @@ test('유형 이름을 author에, 본문과 어드민 링크를 설명에, 보�
   assert.equal(embed.color, 0xe74c3c);
 });
 
+test('리플레이 주소가 있으면 어드민 링크 옆에 리플레이 링크를 붙인다', () => {
+  const embed = buildFeedbackEmbed(row(), 'https://replay.example/1');
+
+  assert.ok(
+    embed.description.endsWith(
+      '[어드민에서 보기](https://admin.landit.im/feedbacks?open=34) · [리플레이 보기](https://replay.example/1)',
+    ),
+  );
+});
+
 test('네 유형의 이름은 앱 선택 화면과 같다', () => {
   const names = ['BUG_REPORT', 'FEATURE_REQUEST', 'QUESTION', 'CHEER'].map(
     (feedback_type) => buildFeedbackEmbed(row({ feedback_type })).author.name,
