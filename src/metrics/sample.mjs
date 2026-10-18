@@ -12,6 +12,7 @@ export const daily = {
       mailbox_reply: 6,
     },
     widget: 18,
+    alarm: 5,
   },
   scenario: { completed: 66, completedPremium: 12, abandoned: 9, max: 4 },
   premiumUsage: {
@@ -63,6 +64,7 @@ export const weekly = {
       mailbox_reply: 8,
     },
     widget: 96,
+    alarm: 27,
   },
   scenario: {
     users: 210,

@@ -1,6 +1,12 @@
 // 지표 조립 — 수집기를 불러 lib.mjs가 받는 입력 모양을 만든다.
 // 전일·전주 값은 저장하지 않고 같은 방식으로 다시 조회한다. 다만 비교에 쓰는 줄만 부른다(조회 비용이 배로 들지 않게)
-import { WIDGET_CAMPAIGN, hasProp, propIs, propIsNot } from './amplitude.mjs';
+import {
+  ALARM_CAMPAIGN,
+  WIDGET_CAMPAIGN,
+  hasProp,
+  propIs,
+  propIsNot,
+} from './amplitude.mjs';
 
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
@@ -38,10 +44,10 @@ const EVENT = {
     event_type: 'Expression Completed',
     filters: [hasProp('session_id')],
   },
-  // 알림 유입 = 캠페인이 붙었고 위젯이 아닌 첫 화면
+  // 알림 유입 = 캠페인이 붙었고 위젯·알람이 아닌 첫 화면
   notificationEntry: {
     event_type: 'Page Viewed',
-    filters: [propIsNot('entry_campaign', [WIDGET_CAMPAIGN])],
+    filters: [propIsNot('entry_campaign', [WIDGET_CAMPAIGN, ALARM_CAMPAIGN])],
   },
   // 환급 챌린지 100일 이용권 결제 (landit-fe docs/subscription.md). 구독이 아니라 RevenueCat 차트에 안 잡힌다
   challengePurchase: {
@@ -159,6 +165,7 @@ export const collectDaily = async (
       notification: notificationEntries,
       notificationByCampaign: entryGroups.notificationByCampaign,
       widget: entryGroups.widget,
+      alarm: entryGroups.alarm,
     },
     scenario: {
       completed: scenarioCompleted,
@@ -292,6 +299,7 @@ export const collectWeekly = async (
       notification: notificationEntries,
       notificationByCampaign: entryGroups.notificationByCampaign,
       widget: entryGroups.widget,
+      alarm: entryGroups.alarm,
     },
     scenario: {
       users: scenarioUsers,

@@ -156,7 +156,7 @@ export const campaignLabel = (campaign) =>
     ? campaign.slice('admin_'.length).replaceAll('_', ' ')
     : campaign);
 
-// 유입 블록 — 알림 아래에 캠페인별로 한 단 더 쪼갠다.
+// 유입 블록 — 알림 아래에 캠페인별로 한 단 더 쪼갠다. 알람은 잠금화면 알람의 「대화하러 가기」.
 // 캠페인별 수는 겹쳐 들어온 사람이 있어 합이 알림 인원보다 클 수 있다
 const entryLines = (entries, direct) => [
   bold('🚪 어디서 들어왔나'),
@@ -165,15 +165,20 @@ const entryLines = (entries, direct) => [
     subBullet(`${campaignLabel(campaign)} ${n}명`),
   ),
   bullet(`위젯 ${entries.widget}명`),
+  bullet(`알람 ${entries.alarm}명`),
   bullet(`직접 ${direct}명`),
 ];
+
+// 직접 = 활성 중 캠페인 없이 들어온 사람
+const directOf = (m) =>
+  m.active.total - m.entries.notification - m.entries.widget - m.entries.alarm;
 
 // insight는 Claude가 쓴 분석·응원 문구(일반 텍스트). 없으면 코드 블록만 나간다
 export const buildDailyMessage = (m, prev, insight) => {
   const p = prev ?? {};
   const free = m.active.total - m.active.premium;
   const prevFree = p.active && p.active.total - p.active.premium;
-  const direct = m.active.total - m.entries.notification - m.entries.widget;
+  const direct = directOf(m);
   const completedFree = m.scenario.completed - m.scenario.completedPremium;
   const { expression, smalltalk } = m.premiumUsage;
   // 0개 = 시나리오나 스몰톡은 했는데 표현을 하나도 안 한 사람.
@@ -215,10 +220,7 @@ export const buildDailyMessage = (m, prev, insight) => {
       ),
       subBullet(distribution(scenarioZero, expression.scenario.byCount)),
       bullet(
-        `스몰톡 ${smalltalk.users}명 (${percent(smalltalk.users, m.active.premium)})`,
-      ),
-      subBullet(
-        `${smalltalk.count}판 · 한 판 평균 ${smalltalk.turnsAverage.toFixed(1)}턴`,
+        `스몰톡 ${smalltalk.users}명 (${percent(smalltalk.users, m.active.premium)}) · ${smalltalk.count}판 · 한 판 평균 ${smalltalk.turnsAverage.toFixed(1)}턴`,
       ),
       bullet(
         `스몰톡 표현 ${expression.smalltalk.users}명 (${percent(expression.smalltalk.users, m.active.premium)})`,
@@ -246,7 +248,7 @@ export const buildWeeklyMessage = (m, prev) => {
   const p = prev ?? {};
   const free = m.active.total - m.active.premium;
   const prevFree = p.active && p.active.total - p.active.premium;
-  const direct = m.active.total - m.entries.notification - m.entries.widget;
+  const direct = directOf(m);
   const { expression, smalltalk } = m.premiumUsage;
 
   return wrapAnsi([
@@ -276,26 +278,15 @@ export const buildWeeklyMessage = (m, prev) => {
     ),
     '',
     bold(`💎 유료 ${m.active.premium}명이 일주일 동안 쓴 것`),
+    // 항목마다 한 줄 — 휴대폰에서 훑어 읽게
     bullet(
-      `시나리오 표현 ${expression.scenario.users}명 (${percent(expression.scenario.users, m.active.premium)})`,
-    ),
-    subBullet(
-      `평균 ${average(expression.scenario.count, expression.scenario.users)}개`,
+      `시나리오 표현 ${expression.scenario.users}명 (${percent(expression.scenario.users, m.active.premium)}) · 평균 ${average(expression.scenario.count, expression.scenario.users)}개`,
     ),
     bullet(
-      `스몰톡 ${smalltalk.users}명 (${percent(smalltalk.users, m.active.premium)})`,
-    ),
-    subBullet(
-      `평균 ${average(smalltalk.count, smalltalk.users)}판 · 한 판 평균 ${smalltalk.turnsAverage.toFixed(1)}턴`,
-    ),
-    subBullet(
-      `말한 시간 평균 ${formatDuration(smalltalk.speaking.average)} (최소 ${formatDuration(smalltalk.speaking.min)} · 최대 ${formatDuration(smalltalk.speaking.max)})`,
+      `스몰톡 ${smalltalk.users}명 (${percent(smalltalk.users, m.active.premium)}) · 평균 ${average(smalltalk.count, smalltalk.users)}판 · 한 판 ${smalltalk.turnsAverage.toFixed(1)}턴 · 말한 시간 ${formatDuration(smalltalk.speaking.average)} (${formatDuration(smalltalk.speaking.min)}~${formatDuration(smalltalk.speaking.max)})`,
     ),
     bullet(
-      `스몰톡 표현 ${expression.smalltalk.users}명 (${percent(expression.smalltalk.users, m.active.premium)})`,
-    ),
-    subBullet(
-      `평균 ${average(expression.smalltalk.count, expression.smalltalk.users)}개`,
+      `스몰톡 표현 ${expression.smalltalk.users}명 (${percent(expression.smalltalk.users, m.active.premium)}) · 평균 ${average(expression.smalltalk.count, expression.smalltalk.users)}개`,
     ),
     '',
     bold(

@@ -48,18 +48,20 @@ test('frequency 라벨이 없으면 전부 0이다', () => {
   );
 });
 
-test('entry_campaign 그룹에서 (none)은 버리고 위젯과 알림 캠페인을 가른다', () => {
+test('entry_campaign 그룹에서 (none)은 버리고 위젯·알람과 알림 캠페인을 가른다', () => {
   const data = {
     seriesLabels: [
       [0, '(none)'],
       [0, 'streak_widget'],
+      [0, 'scenario_alarm'],
       [0, 'daily_scenario_reminder'],
       [0, 'mailbox_reply'],
     ],
-    series: [[134], [13], [6], [3]],
+    series: [[134], [13], [4], [6], [3]],
   };
   assert.deepEqual(campaignsFromSeries(data), {
     widget: 13,
+    alarm: 4,
     notificationByCampaign: { daily_scenario_reminder: 6, mailbox_reply: 3 },
   });
 });

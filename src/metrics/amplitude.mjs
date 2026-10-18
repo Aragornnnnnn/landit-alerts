@@ -117,21 +117,23 @@ export const bucketsByFrequency = (data) =>
     })
     .filter(Boolean);
 
-// group_by entry_campaign 응답 → 위젯 유입 수와 알림 캠페인별 유입 수.
+// group_by entry_campaign 응답 → 위젯·알람 유입 수와 알림 캠페인별 유입 수.
 // 캠페인별 수는 사람이 겹칠 수 있어 합계로 쓰지 않는다 (알림 전체 인원은 따로 조회한다)
 export const campaignsFromSeries = (data) => {
-  const result = { widget: 0, notificationByCampaign: {} };
+  const result = { widget: 0, alarm: 0, notificationByCampaign: {} };
   (data.seriesLabels ?? []).forEach(([, label], i) => {
     if (label === NONE) return;
     const value = bucketTotal(data, i);
     if (label === WIDGET_CAMPAIGN) result.widget = value;
+    else if (label === ALARM_CAMPAIGN) result.alarm = value;
     else result.notificationByCampaign[label] = value;
   });
   return result;
 };
 
-// 위젯 탭 유입 캠페인 — 나머지 캠페인은 전부 알림이다 (어휘는 landit-fe docs/analytics-utm.md)
+// 위젯 탭·잠금화면 알람 유입 캠페인 — 나머지 캠페인은 전부 알림이다 (어휘는 landit-fe docs/analytics-utm.md)
 export const WIDGET_CAMPAIGN = 'streak_widget';
+export const ALARM_CAMPAIGN = 'scenario_alarm';
 
 // --- 조회 ---
 
