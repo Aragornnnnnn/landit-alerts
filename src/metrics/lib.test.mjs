@@ -165,10 +165,11 @@ test('구독을 못 가져오면 그 자리만 비우고 나머지는 보낸다'
   assert.ok(message.includes(`   챌린지 6명 ${G('+1')}`));
 });
 
-test('기록을 못 가져오면 그 자리만 비우고, 스트릭이 아무도 없으면 0일로 쓴다', () => {
+test('기록을 못 가져오면 줄째 숨기고, 스트릭이 아무도 없으면 0일로 쓴다', () => {
   const missing = buildDailyMessage({ ...daily, records: null }, null);
-  assert.ok(missing.includes(B('🏆 스트릭·누적 기록을 못 가져왔어요')));
-  assert.doesNotMatch(missing, /최고 스트릭/);
+  assert.doesNotMatch(missing, /스트릭|누적 최다|못 가져왔어요/);
+  // 숨겨도 빈 줄이 겹치지 않는다
+  assert.doesNotMatch(missing, /\n\n\n/);
   const nobody = buildDailyMessage(
     {
       ...daily,

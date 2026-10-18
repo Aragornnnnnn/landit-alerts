@@ -146,9 +146,10 @@ const subscriptionLines = (subs, prevSubs, challenge, prevChallenge) => {
   ];
 };
 
-// 기록 줄 — 최고 스트릭과 시나리오 누적 최다. 슈퍼베이스에서 오고, 못 읽으면 이 자리만 비운다
+// 기록 줄 — 최고 스트릭과 시나리오 누적 최다. 슈퍼베이스에서 온다.
+// 못 읽으면(비밀값이 아직 없는 동안 포함) 아직 없는 기능처럼 줄째 숨긴다. 뒤 빈 줄도 여기서 붙인다
 const recordLines = (records) => {
-  if (!records) return [bold('🏆 스트릭·누적 기록을 못 가져왔어요')];
+  if (!records) return [];
   const { streak, scenarios } = records;
   // 누가 이어가는지 어드민에서 찾아볼 수 있게 id를 같이 적는다
   const streakLine = streak.top
@@ -159,6 +160,7 @@ const recordLines = (records) => {
     bold(
       `🏆 시나리오 누적 최다 ${scenarios.top}개 (id ${scenarios.users.join(', ')})`,
     ),
+    '',
   ];
 };
 
@@ -254,7 +256,6 @@ export const buildDailyMessage = (m, prev) => {
     ),
     '',
     ...recordLines(m.records),
-    '',
     ...subscriptionLines(
       m.subscriptions,
       p.subscriptions,
@@ -316,7 +317,6 @@ export const buildWeeklyMessage = (m, prev) => {
     ),
     '',
     ...recordLines(m.records),
-    '',
     ...subscriptionLines(
       m.subscriptions,
       p.subscriptions,
