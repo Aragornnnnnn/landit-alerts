@@ -81,33 +81,33 @@ const distribution = (zero, byCount) =>
 
 const wrapAnsi = (lines) => '```ansi\n' + lines.join('\n') + '\n```';
 
-const total = (subs) =>
-  subs.monthly + subs.yearlyTrial + subs.yearlyPaid + subs.promo;
+// 구독·챌린지를 합친 유료 인원. 챌린지(100일 이용권)는 앰플리튜드에서 따로 와서 구독이 없어도 더한다
+const total = (subs, challenge) =>
+  (subs ? subs.monthly + subs.yearlyTrial + subs.yearlyPaid + subs.promo : 0) +
+  challenge;
 
 const yearly = (subs) => subs.yearlyTrial + subs.yearlyPaid;
 
-// 구독 블록 — 연간은 체험 중과 결제 중으로 한 단 더 쪼갠다.
-// RevenueCat만 못 읽은 경우엔 나머지 지표를 살리고 이 자리만 비운다
-const subscriptionLines = (subs, prevSubs) => {
-  if (!subs) return [bold('💳 구독 정보를 못 가져왔어요')];
+// 구독 블록 — 연간(체험·결제·해지예정) / 월간 / 챌린지 / 프로모션.
+// RevenueCat만 못 읽은 경우엔 나머지 지표를 살리고 구독 줄만 비운다. 챌린지는 출처가 달라 그대로 남는다
+const subscriptionLines = (subs, prevSubs, challenge, prevChallenge) => {
   const prev = prevSubs ?? {};
+  const challengeLine = bullet(
+    `챌린지 ${challenge}명`,
+    challenge,
+    prevChallenge,
+  );
+  if (!subs) return [bold('💳 구독 정보를 못 가져왔어요'), challengeLine];
   return [
     headline(
-      `💳 구독 중 ${total(subs)}명`,
-      total(subs),
-      prevSubs && total(prevSubs),
+      `💳 구독·챌린지 ${total(subs, challenge)}명`,
+      total(subs, challenge),
+      prevSubs && total(prevSubs, prevChallenge ?? 0),
     ),
-    bullet(`월간 ${subs.monthly}명`, subs.monthly, prev.monthly),
     bullet(
       `연간 ${yearly(subs)}명`,
       yearly(subs),
       prevSubs && yearly(prevSubs),
-    ),
-    // 바로 위 숫자에 이미 들어 있는 사람들이다 — 더하는 줄이 아니라 그중 얼마인지를 말한다
-    subBullet(
-      `이 중 해지예정 ${subs.canceling}명`,
-      subs.canceling,
-      prev.canceling,
     ),
     subBullet(
       `무료체험 중 ${subs.yearlyTrial}명`,
@@ -115,7 +115,31 @@ const subscriptionLines = (subs, prevSubs) => {
       prev.yearlyTrial,
     ),
     subBullet(`결제 중 ${subs.yearlyPaid}명`, subs.yearlyPaid, prev.yearlyPaid),
+    // 바로 위 숫자에 이미 들어 있는 사람들이다 — 더하는 줄이 아니라 그중 얼마인지를 말한다
+    subBullet(
+      `이 중 해지예정 ${subs.canceling}명`,
+      subs.canceling,
+      prev.canceling,
+    ),
+    bullet(`월간 ${subs.monthly}명`, subs.monthly, prev.monthly),
+    challengeLine,
     bullet(`프로모션 ${subs.promo}명`, subs.promo, prev.promo),
+  ];
+};
+
+// 기록 줄 — 최고 스트릭과 시나리오 누적 최다. 슈퍼베이스에서 오고, 못 읽으면 이 자리만 비운다
+const recordLines = (records) => {
+  if (!records) return [bold('🏆 스트릭·누적 기록을 못 가져왔어요')];
+  const { streak, scenarios } = records;
+  // 누가 이어가는지 어드민에서 찾아볼 수 있게 id를 같이 적는다
+  const streakLine = streak.top
+    ? `🔥 최고 스트릭 ${streak.top}일 · ${streak.users.length}명이 이어가는 중 (id ${streak.users.join(', ')})`
+    : '🔥 최고 스트릭 0일 · 이어가는 사람이 없어요';
+  return [
+    bold(streakLine),
+    bold(
+      `🏆 시나리오 누적 최다 ${scenarios.top}개 (id ${scenarios.users.join(', ')})`,
+    ),
   ];
 };
 
@@ -137,7 +161,7 @@ export const campaignLabel = (campaign) =>
     ? campaign.slice('admin_'.length).replaceAll('_', ' ')
     : campaign);
 
-// 유입 블록 — 알림 아래에 캠페인별로 한 단 더 쪼갠다.
+// 유입 블록 — 알림 아래에 캠페인별로 한 단 더 쪼갠다. 알람은 잠금화면 알람의 「대화하러 가기」.
 // 캠페인별 수는 겹쳐 들어온 사람이 있어 합이 알림 인원보다 클 수 있다
 const entryLines = (entries, direct) => [
   bold('🚪 어디서 들어왔나'),
@@ -146,14 +170,19 @@ const entryLines = (entries, direct) => [
     subBullet(`${campaignLabel(campaign)} ${n}명`),
   ),
   bullet(`위젯 ${entries.widget}명`),
+  bullet(`알람 ${entries.alarm}명`),
   bullet(`직접 ${direct}명`),
 ];
+
+// 직접 = 활성 중 캠페인 없이 들어온 사람
+const directOf = (m) =>
+  m.active.total - m.entries.notification - m.entries.widget - m.entries.alarm;
 
 export const buildDailyMessage = (m, prev) => {
   const p = prev ?? {};
   const free = m.active.total - m.active.premium;
   const prevFree = p.active && p.active.total - p.active.premium;
-  const direct = m.active.total - m.entries.notification - m.entries.widget;
+  const direct = directOf(m);
   const completedFree = m.scenario.completed - m.scenario.completedPremium;
   const { expression, smalltalk } = m.premiumUsage;
   // 0개 = 시나리오나 스몰톡은 했는데 표현을 하나도 안 한 사람.
@@ -186,6 +215,7 @@ export const buildDailyMessage = (m, prev) => {
       ` · 활성의 ${percent(m.scenario.completed, m.active.total)} · 하다가 그만둠 ${m.scenario.abandoned}명`,
     bullet(`유료 ${m.scenario.completedPremium}명`),
     bullet(`무료 ${completedFree}명`),
+    bullet(`가장 많이 한 사람 ${m.scenario.max}개`),
     '',
     bold(`💎 유료 ${m.active.premium}명이 쓴 것`),
     bullet(
@@ -193,10 +223,7 @@ export const buildDailyMessage = (m, prev) => {
     ),
     subBullet(distribution(scenarioZero, expression.scenario.byCount)),
     bullet(
-      `스몰톡 ${smalltalk.users}명 (${percent(smalltalk.users, m.active.premium)})`,
-    ),
-    subBullet(
-      `${smalltalk.count}판 · 한 판 평균 ${smalltalk.turnsAverage.toFixed(1)}턴`,
+      `스몰톡 ${smalltalk.users}명 (${percent(smalltalk.users, m.active.premium)}) · ${smalltalk.count}판 · 한 판 평균 ${smalltalk.turnsAverage.toFixed(1)}턴`,
     ),
     bullet(
       `스몰톡 표현 ${expression.smalltalk.users}명 (${percent(expression.smalltalk.users, m.active.premium)})`,
@@ -207,7 +234,14 @@ export const buildDailyMessage = (m, prev) => {
       `🔁 D1 리텐션 ${percent(m.retention.returned, m.retention.cohort)} · 그제 가입한 ${m.retention.cohort}명 중 어제도 온 사람 ${m.retention.returned}명`,
     ),
     '',
-    ...subscriptionLines(m.subscriptions, p.subscriptions),
+    ...recordLines(m.records),
+    '',
+    ...subscriptionLines(
+      m.subscriptions,
+      p.subscriptions,
+      m.challenge,
+      p.challenge,
+    ),
   ]);
 };
 
@@ -215,7 +249,7 @@ export const buildWeeklyMessage = (m, prev) => {
   const p = prev ?? {};
   const free = m.active.total - m.active.premium;
   const prevFree = p.active && p.active.total - p.active.premium;
-  const direct = m.active.total - m.entries.notification - m.entries.widget;
+  const direct = directOf(m);
   const { expression, smalltalk } = m.premiumUsage;
 
   return wrapAnsi([
@@ -238,40 +272,36 @@ export const buildWeeklyMessage = (m, prev) => {
     ...entryLines(m.entries, direct),
     '',
     bold(
-      `🗣️ 시나리오 완료 ${m.scenario.users}명 · 평균 ${average(m.scenario.count, m.scenario.users)}개`,
+      `🗣️ 시나리오 완료 ${m.scenario.users}명 · 평균 ${average(m.scenario.count, m.scenario.users)}개 · 가장 많이 한 사람 ${m.scenario.max}개`,
     ),
     bullet(
       m.scenario.buckets.map(([label, n]) => `${label} ${n}명`).join(' · '),
     ),
     '',
     bold(`💎 유료 ${m.active.premium}명이 일주일 동안 쓴 것`),
+    // 항목마다 한 줄 — 휴대폰에서 훑어 읽게
     bullet(
-      `시나리오 표현 ${expression.scenario.users}명 (${percent(expression.scenario.users, m.active.premium)})`,
-    ),
-    subBullet(
-      `평균 ${average(expression.scenario.count, expression.scenario.users)}개`,
+      `시나리오 표현 ${expression.scenario.users}명 (${percent(expression.scenario.users, m.active.premium)}) · 평균 ${average(expression.scenario.count, expression.scenario.users)}개`,
     ),
     bullet(
-      `스몰톡 ${smalltalk.users}명 (${percent(smalltalk.users, m.active.premium)})`,
-    ),
-    subBullet(
-      `평균 ${average(smalltalk.count, smalltalk.users)}판 · 한 판 평균 ${smalltalk.turnsAverage.toFixed(1)}턴`,
-    ),
-    subBullet(
-      `말한 시간 평균 ${formatDuration(smalltalk.speaking.average)} (최소 ${formatDuration(smalltalk.speaking.min)} · 최대 ${formatDuration(smalltalk.speaking.max)})`,
+      `스몰톡 ${smalltalk.users}명 (${percent(smalltalk.users, m.active.premium)}) · 평균 ${average(smalltalk.count, smalltalk.users)}판 · 한 판 ${smalltalk.turnsAverage.toFixed(1)}턴 · 말한 시간 ${formatDuration(smalltalk.speaking.average)} (${formatDuration(smalltalk.speaking.min)}~${formatDuration(smalltalk.speaking.max)})`,
     ),
     bullet(
-      `스몰톡 표현 ${expression.smalltalk.users}명 (${percent(expression.smalltalk.users, m.active.premium)})`,
-    ),
-    subBullet(
-      `평균 ${average(expression.smalltalk.count, expression.smalltalk.users)}개`,
+      `스몰톡 표현 ${expression.smalltalk.users}명 (${percent(expression.smalltalk.users, m.active.premium)}) · 평균 ${average(expression.smalltalk.count, expression.smalltalk.users)}개`,
     ),
     '',
     bold(
       `🔁 주간 리텐션 ${percent(m.retention.returned, m.retention.cohort)} · ${shortDate(m.retention.start)}~${shortDate(m.retention.end)} 가입한 ${m.retention.cohort}명 중 지난주에 다시 온 사람 ${m.retention.returned}명`,
     ),
     '',
-    ...subscriptionLines(m.subscriptions, p.subscriptions),
+    ...recordLines(m.records),
+    '',
+    ...subscriptionLines(
+      m.subscriptions,
+      p.subscriptions,
+      m.challenge,
+      p.challenge,
+    ),
   ]);
 };
 

@@ -20,6 +20,7 @@ import {
   buildWeeklyMessage,
 } from './lib.mjs';
 import { createRevenueCatClient } from './revenuecat.mjs';
+import { createSupabaseClient } from './supabase.mjs';
 
 const MODES = {
   daily: { label: '일일', webhookKey: 'DISCORD_WEBHOOK_METRICS_DAILY' },
@@ -61,6 +62,13 @@ if (missing.length) {
   process.exit(1);
 }
 
+// 스트릭(슈퍼베이스)은 없어도 지표는 나간다 — 비밀값을 아직 안 넣었다고 아침이 조용해지면 안 된다
+const optionalClient = (keys, create, label) => {
+  if (keys.every((key) => process.env[key])) return create();
+  console.error(`${label} 건너뜀 — ${keys.join('·')} 없음.`);
+  return undefined;
+};
+
 const clients = {
   amplitude: createAmplitudeClient({
     apiKey: process.env.AMPLITUDE_API_KEY,
@@ -70,6 +78,15 @@ const clients = {
     apiKey: process.env.REVENUECAT_API_KEY,
     projectId: process.env.REVENUECAT_PROJECT_ID,
   }),
+  supabase: optionalClient(
+    ['SUPABASE_URL', 'SUPABASE_SECRET_KEY'],
+    () =>
+      createSupabaseClient({
+        url: process.env.SUPABASE_URL,
+        secretKey: process.env.SUPABASE_SECRET_KEY,
+      }),
+    '스트릭',
+  ),
 };
 
 // 기간 이름 — 상태 파일에 이걸로 적어 두고 같은 기간을 두 번 보내지 않는다

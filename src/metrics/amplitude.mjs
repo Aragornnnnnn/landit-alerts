@@ -63,6 +63,13 @@ export const hasProp = (key) => ({
   subprop_value: [NONE],
 });
 
+export const propIs = (key, values) => ({
+  subprop_type: 'event',
+  subprop_key: key,
+  subprop_op: 'is',
+  subprop_value: values,
+});
+
 export const propIsNot = (key, values) => ({
   subprop_type: 'event',
   subprop_key: key,
@@ -76,6 +83,14 @@ export const singleValue = (data) => data.series?.[0]?.[0] ?? 0;
 
 export const sumSeries = (data) =>
   (data.series ?? []).flat().reduce((a, b) => a + b, 0);
+
+// 기간 전체를 한 칸으로 합친 값 — i는 1·7·30만 되지만 seriesCollapsed는 기간 길이와 무관하게 전체 uniques를 준다
+export const collapsedValue = (data) =>
+  data.seriesCollapsed?.[0]?.[0]?.value ?? 0;
+
+// group_by user_id 응답은 값 내림차순이라 첫 줄이 가장 많이 한 사람이다
+export const topSeries = (data) =>
+  (data.series?.[0] ?? []).reduce((a, b) => a + b, 0);
 
 const bucketTotal = (data, index) =>
   data.series[index].reduce((a, b) => a + b, 0);
@@ -102,27 +117,31 @@ export const bucketsByFrequency = (data) =>
     })
     .filter(Boolean);
 
-// group_by entry_campaign 응답 → 위젯 유입 수와 알림 캠페인별 유입 수.
+// group_by entry_campaign 응답 → 위젯·알람 유입 수와 알림 캠페인별 유입 수.
 // 캠페인별 수는 사람이 겹칠 수 있어 합계로 쓰지 않는다 (알림 전체 인원은 따로 조회한다)
 export const campaignsFromSeries = (data) => {
-  const result = { widget: 0, notificationByCampaign: {} };
+  const result = { widget: 0, alarm: 0, notificationByCampaign: {} };
   (data.seriesLabels ?? []).forEach(([, label], i) => {
     if (label === NONE) return;
     const value = bucketTotal(data, i);
     if (label === WIDGET_CAMPAIGN) result.widget = value;
+    else if (label === ALARM_CAMPAIGN) result.alarm = value;
     else result.notificationByCampaign[label] = value;
   });
   return result;
 };
 
-// 위젯 탭 유입 캠페인 — 나머지 캠페인은 전부 알림이다 (어휘는 landit-fe docs/analytics-utm.md)
+// 위젯 탭·잠금화면 알람 유입 캠페인 — 나머지 캠페인은 전부 알림이다 (어휘는 landit-fe docs/analytics-utm.md)
 export const WIDGET_CAMPAIGN = 'streak_widget';
+export const ALARM_CAMPAIGN = 'scenario_alarm';
 
 // --- 조회 ---
 
-// 랜딧 팀이 테스트로 남긴 계정 — landit-fe .claude/skills/amplitude/SKILL.md 표준 조건과 같다
-const TEAM_USER_IDS =
-  '1 2 3 4 5 7 11 12 34 35 36 37 38 39 172 297 327 465 467 470 476 477 480 509'.split(
+// 랜딧 팀이 테스트로 남긴 계정 — landit-fe .claude/skills/amplitude/SKILL.md 표준 조건과 같다.
+// user_id는 백엔드 user_profile_id라 슈퍼베이스 조회도 같은 목록으로 뺀다
+// 141·1035·1411·1476·2798·2827은 2026-10-19 슈퍼베이스에서 찾은 팀원 계정(준서·박상민·준서·김준서·김준서·손예원) — landit-fe 목록엔 아직 없다
+export const TEAM_USER_IDS =
+  '1 2 3 4 5 7 11 12 34 35 36 37 38 39 172 297 327 465 467 470 476 477 480 509 141 1035 1411 1476 2798 2827'.split(
     ' ',
   );
 
@@ -170,6 +189,21 @@ export const createAmplitudeClient = ({ apiKey, secretKey }) => {
 
   const totals = async (event, range) =>
     sumSeries(await query({ event, m: 'totals', ...range }));
+
+  // 기간이 30일을 넘어도 되는 uniques — 챌린지(100일 이용권)처럼 긴 창을 셀 때
+  const uniquesOver = async (event, { start, end }) =>
+    collapsedValue(await query({ event, m: 'uniques', start, end, days: 30 }));
+
+  // 한 사람이 가장 많이 한 횟수
+  const topCount = async (event, range) =>
+    topSeries(
+      await query({
+        event: { ...event, group_by: [{ type: 'user', value: 'user_id' }] },
+        m: 'totals',
+        limit: '1',
+        ...range,
+      }),
+    );
 
   // 유저별 횟수 분포 [1개, 2개, …, max개 이상]
   const frequency = async (event, { max, ...range }) =>
@@ -241,6 +275,8 @@ export const createAmplitudeClient = ({ apiKey, secretKey }) => {
     query,
     uniques,
     totals,
+    uniquesOver,
+    topCount,
     frequency,
     frequencyBuckets,
     propStat,

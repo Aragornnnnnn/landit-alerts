@@ -48,18 +48,20 @@ test('frequency 라벨이 없으면 전부 0이다', () => {
   );
 });
 
-test('entry_campaign 그룹에서 (none)은 버리고 위젯과 알림 캠페인을 가른다', () => {
+test('entry_campaign 그룹에서 (none)은 버리고 위젯·알람과 알림 캠페인을 가른다', () => {
   const data = {
     seriesLabels: [
       [0, '(none)'],
       [0, 'streak_widget'],
+      [0, 'scenario_alarm'],
       [0, 'daily_scenario_reminder'],
       [0, 'mailbox_reply'],
     ],
-    series: [[134], [13], [6], [3]],
+    series: [[134], [13], [4], [6], [3]],
   };
   assert.deepEqual(campaignsFromSeries(data), {
     widget: 13,
+    alarm: 4,
     notificationByCampaign: { daily_scenario_reminder: 6, mailbox_reply: 3 },
   });
 });
@@ -80,4 +82,27 @@ test('frequency 버킷을 앰플리튜드 구간 그대로 한글 라벨로 옮�
     ['6~10개', 14],
     ['11~20개', 1],
   ]);
+});
+
+test('seriesCollapsed에서 기간 전체 uniques를, group_by user_id 첫 줄에서 최다 횟수를 꺼낸다', async () => {
+  const { collapsedValue, topSeries } = await import('./amplitude.mjs');
+  assert.equal(
+    collapsedValue({
+      series: [[0, 0, 0, 6]],
+      seriesCollapsed: [[{ setId: '', value: 6 }]],
+    }),
+    6,
+  );
+  assert.equal(collapsedValue({}), 0);
+  // 값 내림차순이라 첫 줄이 가장 많이 한 사람. 일주일이면 날짜 칸을 더한다
+  assert.equal(
+    topSeries({
+      series: [
+        [3, 0, 4],
+        [2, 2, 2],
+      ],
+    }),
+    7,
+  );
+  assert.equal(topSeries({ series: [] }), 0);
 });

@@ -95,7 +95,7 @@ api/           웹훅 수신 함수 — 위 순수 로직을 불러 쓴다
 
 ### 매일 아침 지표
 
-매일 아침 앰플리튜드와 RevenueCat에 어제와 그제를 물어 증감과 함께 보낸다. 월요일엔 주간 지표가 이어진다.
+매일 아침 앰플리튜드와 RevenueCat에 어제와 그제를 물어 증감과 함께 보낸다. 최고 스트릭과 시나리오 누적 최다는 슈퍼베이스에서 읽는다. 월요일엔 주간 지표가 이어진다.
 
 깨우는 건 버셀 크론이다. 이 레포는 깃허브 예약 실행이 심하게 밀려서(15분 크론이 실제로는 평균 195분 간격) 시각은 버셀이 정하고 실행만 깃허브에 맡긴다. 같은 기간을 두 번 보내지 않게 마지막으로 보낸 기간만 기록해 둔다.
 
@@ -136,17 +136,18 @@ DISCORD_WEBHOOK_METRICS_DAILY=... node src/metrics/run.mjs daily
 
 ### GitHub Actions
 
-| 이름                                                | 쓰는 곳                  | 문서                              |
-| --------------------------------------------------- | ------------------------ | --------------------------------- |
-| `DISCORD_WEBHOOK_REVIEW` / `DISCORD_WEBHOOK_UPDATE` | 스토어 알림              | [key-setup.md](docs/key-setup.md) |
-| `ASC_ISSUER_ID` / `ASC_KEY_ID` / `ASC_PRIVATE_KEY`  | App Store Connect API 키 | [key-setup.md](docs/key-setup.md) |
-| `PLAY_SERVICE_ACCOUNT_JSON`                         | Play 서비스 계정 키      | [key-setup.md](docs/key-setup.md) |
-| `DISCORD_WEBHOOK_DEPS`                              | 서드파티 상태 알림       | [status.md](docs/status.md)       |
-| `AMPLITUDE_API_KEY` / `AMPLITUDE_SECRET_KEY`        | 지표 조회                | [metrics.md](docs/metrics.md)     |
-| `REVENUECAT_API_KEY` / `REVENUECAT_PROJECT_ID`      | 구독 조회                | [metrics.md](docs/metrics.md)     |
-| `DISCORD_WEBHOOK_METRICS_DAILY` / `..._WEEKLY`      | 지표 채널 웹훅           | [metrics.md](docs/metrics.md)     |
+| 이름                                                | 쓰는 곳                   | 문서                              |
+| --------------------------------------------------- | ------------------------- | --------------------------------- |
+| `DISCORD_WEBHOOK_REVIEW` / `DISCORD_WEBHOOK_UPDATE` | 스토어 알림               | [key-setup.md](docs/key-setup.md) |
+| `ASC_ISSUER_ID` / `ASC_KEY_ID` / `ASC_PRIVATE_KEY`  | App Store Connect API 키  | [key-setup.md](docs/key-setup.md) |
+| `PLAY_SERVICE_ACCOUNT_JSON`                         | Play 서비스 계정 키       | [key-setup.md](docs/key-setup.md) |
+| `DISCORD_WEBHOOK_DEPS`                              | 서드파티 상태 알림        | [status.md](docs/status.md)       |
+| `AMPLITUDE_API_KEY` / `AMPLITUDE_SECRET_KEY`        | 지표 조회                 | [metrics.md](docs/metrics.md)     |
+| `REVENUECAT_API_KEY` / `REVENUECAT_PROJECT_ID`      | 구독 조회                 | [metrics.md](docs/metrics.md)     |
+| `DISCORD_WEBHOOK_METRICS_DAILY` / `..._WEEKLY`      | 지표 채널 웹훅            | [metrics.md](docs/metrics.md)     |
+| `SUPABASE_URL` / `SUPABASE_SECRET_KEY`              | 지표의 최고 스트릭 (선택) | [metrics.md](docs/metrics.md)     |
 
-크론 알림은 자기 Secrets가 하나라도 없으면 실행이 시작하지 않는다.
+크론 알림은 자기 Secrets가 하나라도 없으면 실행이 시작하지 않는다. (선택)이라 적힌 것만 예외로, 없으면 그 줄만 빠진다.
 
 ### Vercel 환경변수 (웹훅 수신)
 
