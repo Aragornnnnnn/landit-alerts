@@ -129,14 +129,20 @@ const subscriptionLines = (subs, prevSubs, challenge, prevChallenge) => {
   ];
 };
 
-// 스트릭 줄 — 슈퍼베이스에서 온다. 못 읽으면 그 줄만 비운다
-const streakLine = (streak) => {
-  if (!streak) return bold('🔥 스트릭 정보를 못 가져왔어요');
-  if (!streak.top) return bold('🔥 최고 스트릭 0일 · 이어가는 사람이 없어요');
+// 기록 줄 — 최고 스트릭과 시나리오 누적 최다. 슈퍼베이스에서 오고, 못 읽으면 이 자리만 비운다
+const recordLines = (records) => {
+  if (!records) return [bold('🏆 스트릭·누적 기록을 못 가져왔어요')];
+  const { streak, scenarios } = records;
   // 누가 이어가는지 어드민에서 찾아볼 수 있게 id를 같이 적는다
-  return bold(
-    `🔥 최고 스트릭 ${streak.top}일 · ${streak.users.length}명이 이어가는 중 (id ${streak.users.join(', ')})`,
-  );
+  const streakLine = streak.top
+    ? `🔥 최고 스트릭 ${streak.top}일 · ${streak.users.length}명이 이어가는 중 (id ${streak.users.join(', ')})`
+    : '🔥 최고 스트릭 0일 · 이어가는 사람이 없어요';
+  return [
+    bold(streakLine),
+    bold(
+      `🏆 시나리오 누적 최다 ${scenarios.top}개 (id ${scenarios.users.join(', ')})`,
+    ),
+  ];
 };
 
 // 알림 캠페인 이름 → 사람이 읽는 이름 (어휘는 landit-fe docs/analytics-utm.md). 모르는 캠페인은 이름 그대로
@@ -232,7 +238,7 @@ export const buildDailyMessage = (m, prev, insight) => {
         `🔁 D1 리텐션 ${percent(m.retention.returned, m.retention.cohort)} · 그제 가입한 ${m.retention.cohort}명 중 어제도 온 사람 ${m.retention.returned}명`,
       ),
       '',
-      streakLine(m.streak),
+      ...recordLines(m.records),
       '',
       ...subscriptionLines(
         m.subscriptions,
@@ -294,7 +300,7 @@ export const buildWeeklyMessage = (m, prev) => {
       `🔁 주간 리텐션 ${percent(m.retention.returned, m.retention.cohort)} · ${shortDate(m.retention.start)}~${shortDate(m.retention.end)} 가입한 ${m.retention.cohort}명 중 지난주에 다시 온 사람 ${m.retention.returned}명`,
     ),
     '',
-    streakLine(m.streak),
+    ...recordLines(m.records),
     '',
     ...subscriptionLines(
       m.subscriptions,

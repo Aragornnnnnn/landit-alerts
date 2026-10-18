@@ -23,7 +23,10 @@ export const daily = {
     smalltalk: { users: 7, count: 11, turnsAverage: 6.1 },
   },
   retention: { cohort: 9, returned: 5, start: '2026-09-18', end: '2026-09-18' },
-  streak: { top: 21, users: [1300, 2303] },
+  records: {
+    streak: { top: 21, users: [1300, 2303] },
+    scenarios: { top: 120, users: [473] },
+  },
   subscriptions: {
     monthly: 30,
     yearlyTrial: 5,
@@ -97,7 +100,10 @@ export const weekly = {
     start: '2026-08-31',
     end: '2026-09-06',
   },
-  streak: { top: 21, users: [1300, 2303] },
+  records: {
+    streak: { top: 21, users: [1300, 2303] },
+    scenarios: { top: 120, users: [473] },
+  },
   subscriptions: {
     monthly: 30,
     yearlyTrial: 5,

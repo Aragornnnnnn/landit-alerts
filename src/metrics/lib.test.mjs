@@ -75,6 +75,7 @@ test('일일 메시지를 ANSI 코드 블록 하나로 스펙 그대로 조립�
       B('🔁 D1 리텐션 56% · 그제 가입한 9명 중 어제도 온 사람 5명'),
       '',
       B('🔥 최고 스트릭 21일 · 2명이 이어가는 중 (id 1300, 2303)'),
+      B('🏆 시나리오 누적 최다 120개 (id 473)'),
       '',
       `${B('💳 구독·챌린지 58명')} ${G('+4')}`,
       `   연간 19명 ${G('+2')}`,
@@ -127,6 +128,7 @@ test('주간 메시지를 ANSI 코드 블록 하나로 스펙 그대로 조립�
       ),
       '',
       B('🔥 최고 스트릭 21일 · 2명이 이어가는 중 (id 1300, 2303)'),
+      B('🏆 시나리오 누적 최다 120개 (id 473)'),
       '',
       `${B('💳 구독·챌린지 58명')} ${G('+9')}`,
       `   연간 19명 ${G('+6')}`,
@@ -159,18 +161,19 @@ test('구독을 못 가져오면 그 자리만 비우고 나머지는 보낸다'
   assert.ok(message.includes(`   챌린지 6명 ${G('+1')}`));
 });
 
-test('스트릭을 못 가져오면 그 줄만 비우고, 아무도 없으면 0일로 쓴다', () => {
-  assert.ok(
-    buildDailyMessage({ ...daily, streak: null }, null).includes(
-      B('🔥 스트릭 정보를 못 가져왔어요'),
-    ),
+test('기록을 못 가져오면 그 자리만 비우고, 스트릭이 아무도 없으면 0일로 쓴다', () => {
+  const missing = buildDailyMessage({ ...daily, records: null }, null);
+  assert.ok(missing.includes(B('🏆 스트릭·누적 기록을 못 가져왔어요')));
+  assert.doesNotMatch(missing, /최고 스트릭/);
+  const nobody = buildDailyMessage(
+    {
+      ...daily,
+      records: { ...daily.records, streak: { top: 0, users: [] } },
+    },
+    null,
   );
-  assert.ok(
-    buildDailyMessage(
-      { ...daily, streak: { top: 0, users: 0 } },
-      null,
-    ).includes(B('🔥 최고 스트릭 0일 · 이어가는 사람이 없어요')),
-  );
+  assert.ok(nobody.includes(B('🔥 최고 스트릭 0일 · 이어가는 사람이 없어요')));
+  assert.ok(nobody.includes(B('🏆 시나리오 누적 최다 120개 (id 473)')));
 });
 
 test('분석 문구가 있으면 코드 블록 뒤에 일반 텍스트로 붙는다', () => {

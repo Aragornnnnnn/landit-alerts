@@ -71,13 +71,13 @@ const subscriptionsOrNull = async (revenuecat, date) => {
   }
 };
 
-// 스트릭도 출처가 따로다 — 슈퍼베이스가 없거나 실패하면 그 줄만 비운다
-const streakOrNull = async (supabase, date) => {
+// 스트릭·누적 기록도 출처가 따로다 — 슈퍼베이스가 없거나 실패하면 그 줄만 비운다
+const recordsOrNull = async (supabase, date) => {
   if (!supabase) return null;
   try {
-    return await supabase.streak(date);
+    return await supabase.records(date);
   } catch (error) {
-    console.error(`스트릭 조회 실패 (${date}): ${error.message}`);
+    console.error(`기록 조회 실패 (${date}): ${error.message}`);
     return null;
   }
 };
@@ -120,7 +120,7 @@ export const collectDaily = async (
     smallTalkCount,
     smallTalkTurns,
     retention,
-    streak,
+    records,
     subscriptions,
     challenge,
   ] = await Promise.all([
@@ -152,7 +152,7 @@ export const collectDaily = async (
       premium,
     ),
     retentionOf(amplitude, { cohortStart, cohortEnd: cohortStart, days: 1 }),
-    streakOrNull(supabase, date),
+    recordsOrNull(supabase, date),
     subscriptionsOrNull(revenuecat, date),
     challengeAt(amplitude, date),
   ]);
@@ -191,7 +191,7 @@ export const collectDaily = async (
       },
     },
     retention,
-    streak,
+    records,
     subscriptions,
     challenge,
   };
@@ -228,7 +228,7 @@ export const collectWeekly = async (
     speakingMin,
     speakingMax,
     retention,
-    streak,
+    records,
     subscriptions,
     challenge,
   ] = await Promise.all([
@@ -284,7 +284,7 @@ export const collectWeekly = async (
       cohortEnd: cohort.end,
       days: 7,
     }),
-    streakOrNull(supabase, week.end),
+    recordsOrNull(supabase, week.end),
     subscriptionsOrNull(revenuecat, week.end),
     challengeAt(amplitude, week.end),
   ]);
@@ -330,7 +330,7 @@ export const collectWeekly = async (
       },
     },
     retention,
-    streak,
+    records,
     subscriptions,
     challenge,
   };
