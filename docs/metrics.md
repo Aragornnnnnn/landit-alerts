@@ -29,7 +29,7 @@
 
 ## 지표 정의
 
-앰플리튜드 값은 전부 **팀 계정 24개 제외 · 모바일(ios/android)만**이다. 조건은 `src/metrics/amplitude.mjs`의 `STANDARD_SEGMENT`에 있고, landit-fe `.claude/skills/amplitude/SKILL.md`의 표준 조건과 같다. 프로젝트 타임존이 Asia/Seoul이라 날짜는 KST 그대로 넣는다.
+앰플리튜드 값은 전부 **팀 계정 28개 제외 · 모바일(ios/android)만**이다. 조건은 `src/metrics/amplitude.mjs`의 `STANDARD_SEGMENT`에 있고, landit-fe `.claude/skills/amplitude/SKILL.md`의 표준 조건(24개)에 2026-10-19 슈퍼베이스에서 찾은 팀원 계정 4개를 더한 것이다. 프로젝트 타임존이 Asia/Seoul이라 날짜는 KST 그대로 넣는다.
 
 | 줄                          | 정의                                                                                                                                                                              |
 | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -119,7 +119,7 @@ RevenueCat 차트는 유료·체험만 세고 우리가 부여한 프로모션�
 1. **디스코드 웹훅** — `#일일-지표`, `#주간-지표` 각 채널 편집 > 연동 > 웹후크. 이름 "랜딧 지표", 아바타는 토스페이스 📊.
 2. **앰플리튜드** — 설정 > Projects > production의 API Key·Secret Key. 새로 만들지 않고 프로젝트에 붙은 한 쌍을 쓴다.
 3. **RevenueCat** — 프로젝트 > API keys > v2 시크릿 키. 권한은 Charts metrics Read, Customer information Read 둘만. 프로젝트 id는 대시보드 주소의 `/projects/<id>/`.
-4. **GitHub Secrets** — `AMPLITUDE_API_KEY` `AMPLITUDE_SECRET_KEY` `REVENUECAT_API_KEY` `REVENUECAT_PROJECT_ID` `DISCORD_WEBHOOK_METRICS_DAILY` `DISCORD_WEBHOOK_METRICS_WEEKLY`. 스트릭엔 `SUPABASE_URL` `SUPABASE_SECRET_KEY`(슈퍼베이스 프로젝트 > Settings > API), 분석 문구엔 `ANTHROPIC_API_KEY`(console.anthropic.com). 뒤의 셋은 없어도 지표는 나간다.
+4. **GitHub Secrets** — `AMPLITUDE_API_KEY` `AMPLITUDE_SECRET_KEY` `REVENUECAT_API_KEY` `REVENUECAT_PROJECT_ID` `DISCORD_WEBHOOK_METRICS_DAILY` `DISCORD_WEBHOOK_METRICS_WEEKLY`. 스트릭엔 `SUPABASE_URL` `SUPABASE_SECRET_KEY`(슈퍼베이스 프로젝트 > Settings > API). 운영 DB는 Landit 조직의 "[Landit] prod (Seoul)"(`gwhzjdsukzpktkikcovs`)이고, "[Landit] prod"(`pbfpcmetmvshagljralr`)는 멈춰 있는 옛 프로젝트라 주소가 안 잡힌다. 분석 문구엔 `ANTHROPIC_API_KEY`(console.anthropic.com). 뒤의 셋은 없어도 지표는 나간다.
 5. **깃허브 토큰** — 이 레포의 Actions 실행 권한만 가진 fine-grained 토큰(Actions: Read and write)을 만들어 버셀 환경변수 `GH_WORKFLOW_TOKEN`에 넣는다.
 6. **버셀 크론 비밀값** — 버셀 환경변수 `CRON_SECRET`에 아무 긴 문자열을 넣는다. 버셀이 크론 요청에 이 값을 실어 보내고, 함수는 그게 맞을 때만 움직인다. 없으면 아무나 주소를 눌러 알림을 쏠 수 있다.
 7. **배포** — `npx vercel deploy --prod`. `vercel.json`의 크론은 프로덕션 배포에만 붙는다.

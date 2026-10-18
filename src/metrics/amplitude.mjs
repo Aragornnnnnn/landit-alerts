@@ -139,8 +139,9 @@ export const ALARM_CAMPAIGN = 'scenario_alarm';
 
 // 랜딧 팀이 테스트로 남긴 계정 — landit-fe .claude/skills/amplitude/SKILL.md 표준 조건과 같다.
 // user_id는 백엔드 user_profile_id라 슈퍼베이스 조회도 같은 목록으로 뺀다
+// 1035·1411·2798·2827은 2026-10-19 슈퍼베이스에서 찾은 팀원 계정(박상민·김준서·김준서·손예원) — landit-fe 목록엔 아직 없다
 export const TEAM_USER_IDS =
-  '1 2 3 4 5 7 11 12 34 35 36 37 38 39 172 297 327 465 467 470 476 477 480 509'.split(
+  '1 2 3 4 5 7 11 12 34 35 36 37 38 39 172 297 327 465 467 470 476 477 480 509 1035 1411 2798 2827'.split(
     ' ',
   );
 
