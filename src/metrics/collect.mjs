@@ -71,6 +71,16 @@ const subscriptionsOrNull = async (revenuecat, date) => {
   }
 };
 
+// 매출도 구독 줄과 따로 살린다 — 차트 하나만 실패해도 나머지 구독 줄은 나가게
+const revenueOrNull = async (revenuecat, date) => {
+  try {
+    return await revenuecat.revenue(date);
+  } catch (error) {
+    console.error(`매출 조회 실패 (${date}): ${error.message}`);
+    return null;
+  }
+};
+
 // 스트릭·누적 기록도 출처가 따로다 — 슈퍼베이스가 없거나 실패하면 그 줄만 비운다
 const recordsOrNull = async (supabase, date) => {
   if (!supabase) return null;
@@ -123,6 +133,7 @@ export const collectDaily = async (
     records,
     subscriptions,
     challenge,
+    revenue,
   ] = await Promise.all([
     amplitude.uniques(EVENT.active, range),
     amplitude.uniques(EVENT.active, premium),
@@ -155,6 +166,7 @@ export const collectDaily = async (
     recordsOrNull(supabase, date),
     subscriptionsOrNull(revenuecat, date),
     challengeAt(amplitude, date),
+    revenueOrNull(revenuecat, date),
   ]);
 
   return {
@@ -194,6 +206,7 @@ export const collectDaily = async (
     records,
     subscriptions,
     challenge,
+    revenue,
   };
 };
 
@@ -231,6 +244,7 @@ export const collectWeekly = async (
     records,
     subscriptions,
     challenge,
+    revenue,
   ] = await Promise.all([
     amplitude.uniques(EVENT.active, range),
     amplitude.uniques(EVENT.active, premium),
@@ -287,6 +301,7 @@ export const collectWeekly = async (
     recordsOrNull(supabase, week.end),
     subscriptionsOrNull(revenuecat, week.end),
     challengeAt(amplitude, week.end),
+    revenueOrNull(revenuecat, week.end),
   ]);
 
   return {
@@ -333,27 +348,37 @@ export const collectWeekly = async (
     records,
     subscriptions,
     challenge,
+    revenue,
   };
 };
 
 // 증감에 쓰는 줄만 — 전일·전주는 이것만 부른다 (전체를 다시 부르면 조회 비용이 배가 된다)
 export const collectDailyBaseline = async ({ amplitude, revenuecat }, date) => {
   const range = { start: compact(date), end: compact(date), days: 1 };
-  const [total, premium, signups, completed, subscriptions, challenge] =
-    await Promise.all([
-      amplitude.uniques(EVENT.active, range),
-      amplitude.uniques(EVENT.active, { ...range, premium: true }),
-      amplitude.uniques(EVENT.onboardingCompleted, range),
-      amplitude.uniques(EVENT.scenarioCompleted, range),
-      subscriptionsOrNull(revenuecat, date),
-      challengeAt(amplitude, date),
-    ]);
+  const [
+    total,
+    premium,
+    signups,
+    completed,
+    subscriptions,
+    challenge,
+    revenue,
+  ] = await Promise.all([
+    amplitude.uniques(EVENT.active, range),
+    amplitude.uniques(EVENT.active, { ...range, premium: true }),
+    amplitude.uniques(EVENT.onboardingCompleted, range),
+    amplitude.uniques(EVENT.scenarioCompleted, range),
+    subscriptionsOrNull(revenuecat, date),
+    challengeAt(amplitude, date),
+    revenueOrNull(revenuecat, date),
+  ]);
   return {
     active: { total, premium },
     signups,
     scenario: { completed },
     subscriptions,
     challenge,
+    revenue,
   };
 };
 
@@ -362,14 +387,20 @@ export const collectWeeklyBaseline = async (
   week,
 ) => {
   const range = { start: compact(week.start), end: compact(week.end), days: 7 };
-  const [total, premium, signups, subscriptions, challenge] = await Promise.all(
-    [
+  const [total, premium, signups, subscriptions, challenge, revenue] =
+    await Promise.all([
       amplitude.uniques(EVENT.active, range),
       amplitude.uniques(EVENT.active, { ...range, premium: true }),
       amplitude.uniques(EVENT.onboardingCompleted, range),
       subscriptionsOrNull(revenuecat, week.end),
       challengeAt(amplitude, week.end),
-    ],
-  );
-  return { active: { total, premium }, signups, subscriptions, challenge };
+      revenueOrNull(revenuecat, week.end),
+    ]);
+  return {
+    active: { total, premium },
+    signups,
+    subscriptions,
+    challenge,
+    revenue,
+  };
 };

@@ -85,6 +85,8 @@ test('일일 메시지를 ANSI 코드 블록 하나로 스펙 그대로 조립�
       `   월간 30명 ${G('+1')}`,
       `   챌린지 6명 ${G('+1')}`,
       '   프로모션 3명',
+      '',
+      `${B('💰 누적 매출 853,349원')} ${G('+50,006원')}`,
       '```',
     ].join('\n'),
   );
@@ -138,6 +140,8 @@ test('주간 메시지를 ANSI 코드 블록 하나로 스펙 그대로 조립�
       `   월간 30명 ${G('+3')}`,
       `   챌린지 6명 ${G('+2')}`,
       `   프로모션 3명 ${R('−2')}`,
+      '',
+      `${B('💰 누적 매출 853,349원')} ${G('+142,586원')}`,
       '```',
     ].join('\n'),
   );
@@ -161,10 +165,11 @@ test('구독을 못 가져오면 그 자리만 비우고 나머지는 보낸다'
   assert.ok(message.includes(`   챌린지 6명 ${G('+1')}`));
 });
 
-test('기록을 못 가져오면 그 자리만 비우고, 스트릭이 아무도 없으면 0일로 쓴다', () => {
+test('기록을 못 가져오면 줄째 숨기고, 스트릭이 아무도 없으면 0일로 쓴다', () => {
   const missing = buildDailyMessage({ ...daily, records: null }, null);
-  assert.ok(missing.includes(B('🏆 스트릭·누적 기록을 못 가져왔어요')));
-  assert.doesNotMatch(missing, /최고 스트릭/);
+  assert.doesNotMatch(missing, /스트릭|누적 최다|못 가져왔어요/);
+  // 숨겨도 빈 줄이 겹치지 않는다
+  assert.doesNotMatch(missing, /\n\n\n/);
   const nobody = buildDailyMessage(
     {
       ...daily,
@@ -218,6 +223,21 @@ test('말한 시간은 분·초로, 1분 미만은 초만 쓴다', () => {
   assert.equal(formatDuration(190000), '3분 10초');
   assert.equal(formatDuration(40000), '40초');
   assert.equal(formatDuration(60000), '1분 0초');
+});
+
+test('매출을 못 가져오면 그 줄만 비우고, 환불이 더 많은 날은 빨강 −로 쓴다', async () => {
+  const { formatWon } = await import('./lib.mjs');
+  assert.equal(formatWon(853349), '853,349원');
+  assert.ok(
+    buildDailyMessage({ ...daily, revenue: null }, previousDaily).includes(
+      B('💰 매출 정보를 못 가져왔어요'),
+    ),
+  );
+  assert.ok(
+    buildDailyMessage(daily, { ...previousDaily, revenue: 900000 }).includes(
+      `${B('💰 누적 매출 853,349원')} ${R('−46,651원')}`,
+    ),
+  );
 });
 
 test('주차는 그 주 목요일이 속한 달로 센다', () => {

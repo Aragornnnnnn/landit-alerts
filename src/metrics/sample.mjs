@@ -35,6 +35,7 @@ export const daily = {
     canceling: 2,
   },
   challenge: 6,
+  revenue: 853349,
 };
 
 // 전일·전주 비교값은 증감에 쓰는 줄만 담는다 (collectDailyBaseline이 돌려주는 모양)
@@ -50,6 +51,7 @@ export const previousDaily = {
     canceling: 1,
   },
   challenge: 5,
+  revenue: 803343,
 };
 
 export const weekly = {
@@ -112,6 +114,7 @@ export const weekly = {
     canceling: 2,
   },
   challenge: 6,
+  revenue: 853349,
 };
 
 export const previousWeekly = {
@@ -125,4 +128,5 @@ export const previousWeekly = {
     canceling: 4,
   },
   challenge: 4,
+  revenue: 710763,
 };

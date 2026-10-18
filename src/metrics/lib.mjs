@@ -19,6 +19,25 @@ export const formatDelta = (current, previous) => {
   return diff > 0 ? ` ${green(`+${diff}`)}` : ` ${red(`−${-diff}`)}`;
 };
 
+// 853349 → "853,349원"
+export const formatWon = (won) => `${won.toLocaleString('ko-KR')}원`;
+
+// 매출 증감 — 그날(그 주) 번 돈. 환불이 더 많으면 빨강 −
+const wonDelta = (current, previous) => {
+  if (previous === undefined || previous === null) return '';
+  const diff = current - previous;
+  if (diff === 0) return '';
+  return diff > 0
+    ? ` ${green(`+${formatWon(diff)}`)}`
+    : ` ${red(`−${formatWon(-diff)}`)}`;
+};
+
+// 누적 매출 줄 — 레비뉴캣에서 원화로 온다. 못 읽으면 그 줄만 비운다
+const revenueLine = (revenue, previous) =>
+  revenue === null || revenue === undefined
+    ? bold('💰 매출 정보를 못 가져왔어요')
+    : `${bold(`💰 누적 매출 ${formatWon(revenue)}`)}${wonDelta(revenue, previous)}`;
+
 const isSpike = (current, previous) =>
   previous > 0 &&
   Math.abs(current - previous) >= SPIKE_MIN_DIFF &&
@@ -127,9 +146,10 @@ const subscriptionLines = (subs, prevSubs, challenge, prevChallenge) => {
   ];
 };
 
-// 기록 줄 — 최고 스트릭과 시나리오 누적 최다. 슈퍼베이스에서 오고, 못 읽으면 이 자리만 비운다
+// 기록 줄 — 최고 스트릭과 시나리오 누적 최다. 슈퍼베이스에서 온다.
+// 못 읽으면(비밀값이 아직 없는 동안 포함) 아직 없는 기능처럼 줄째 숨긴다. 뒤 빈 줄도 여기서 붙인다
 const recordLines = (records) => {
-  if (!records) return [bold('🏆 스트릭·누적 기록을 못 가져왔어요')];
+  if (!records) return [];
   const { streak, scenarios } = records;
   // 누가 이어가는지 어드민에서 찾아볼 수 있게 id를 같이 적는다
   const streakLine = streak.top
@@ -140,6 +160,7 @@ const recordLines = (records) => {
     bold(
       `🏆 시나리오 누적 최다 ${scenarios.top}개 (id ${scenarios.users.join(', ')})`,
     ),
+    '',
   ];
 };
 
@@ -235,13 +256,14 @@ export const buildDailyMessage = (m, prev) => {
     ),
     '',
     ...recordLines(m.records),
-    '',
     ...subscriptionLines(
       m.subscriptions,
       p.subscriptions,
       m.challenge,
       p.challenge,
     ),
+    '',
+    revenueLine(m.revenue, p.revenue),
   ]);
 };
 
@@ -295,13 +317,14 @@ export const buildWeeklyMessage = (m, prev) => {
     ),
     '',
     ...recordLines(m.records),
-    '',
     ...subscriptionLines(
       m.subscriptions,
       p.subscriptions,
       m.challenge,
       p.challenge,
     ),
+    '',
+    revenueLine(m.revenue, p.revenue),
   ]);
 };
 
