@@ -81,3 +81,26 @@ test('frequency 버킷을 앰플리튜드 구간 그대로 한글 라벨로 옮�
     ['11~20개', 1],
   ]);
 });
+
+test('seriesCollapsed에서 기간 전체 uniques를, group_by user_id 첫 줄에서 최다 횟수를 꺼낸다', async () => {
+  const { collapsedValue, topSeries } = await import('./amplitude.mjs');
+  assert.equal(
+    collapsedValue({
+      series: [[0, 0, 0, 6]],
+      seriesCollapsed: [[{ setId: '', value: 6 }]],
+    }),
+    6,
+  );
+  assert.equal(collapsedValue({}), 0);
+  // 값 내림차순이라 첫 줄이 가장 많이 한 사람. 일주일이면 날짜 칸을 더한다
+  assert.equal(
+    topSeries({
+      series: [
+        [3, 0, 4],
+        [2, 2, 2],
+      ],
+    }),
+    7,
+  );
+  assert.equal(topSeries({ series: [] }), 0);
+});

@@ -13,7 +13,7 @@ export const daily = {
     },
     widget: 18,
   },
-  scenario: { completed: 66, completedPremium: 12, abandoned: 9 },
+  scenario: { completed: 66, completedPremium: 12, abandoned: 9, max: 4 },
   premiumUsage: {
     expression: {
       scenario: { users: 9, byCount: [2, 1, 1, 5] },
@@ -22,6 +22,7 @@ export const daily = {
     smalltalk: { users: 7, count: 11, turnsAverage: 6.1 },
   },
   retention: { cohort: 9, returned: 5, start: '2026-09-18', end: '2026-09-18' },
+  streak: { top: 21, users: 2 },
   subscriptions: {
     monthly: 30,
     yearlyTrial: 5,
@@ -29,6 +30,7 @@ export const daily = {
     promo: 3,
     canceling: 2,
   },
+  challenge: 6,
 };
 
 // 전일·전주 비교값은 증감에 쓰는 줄만 담는다 (collectDailyBaseline이 돌려주는 모양)
@@ -43,6 +45,7 @@ export const previousDaily = {
     promo: 3,
     canceling: 1,
   },
+  challenge: 5,
 };
 
 export const weekly = {
@@ -64,6 +67,7 @@ export const weekly = {
   scenario: {
     users: 210,
     count: 681,
+    max: 12,
     buckets: [
       ['1개', 61],
       ['2개', 38],
@@ -91,6 +95,7 @@ export const weekly = {
     start: '2026-08-31',
     end: '2026-09-06',
   },
+  streak: { top: 21, users: 2 },
   subscriptions: {
     monthly: 30,
     yearlyTrial: 5,
@@ -98,6 +103,7 @@ export const weekly = {
     promo: 3,
     canceling: 2,
   },
+  challenge: 6,
 };
 
 export const previousWeekly = {
@@ -110,4 +116,5 @@ export const previousWeekly = {
     promo: 5,
     canceling: 4,
   },
+  challenge: 4,
 };

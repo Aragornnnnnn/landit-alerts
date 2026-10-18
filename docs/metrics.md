@@ -9,14 +9,16 @@
 2. 창고엔 질문 창구(Dashboard REST API)가 있다. "9월 20일에 「시나리오 완료」 쪽지 남긴 사람 몇 명?"이라고 물으면 숫자 하나가 돌아온다. 물을 때마다 팀 계정과 웹 브라우저 쪽지는 빼 달라는 조건을 붙인다.
 3. 질문은 여섯 가지뿐이다. 몇 명(uniques), 몇 번(totals), 사람마다 몇 번(frequency 분포), 속성의 평균·최소·최대(PROPAVG·PROPMIN·PROPMAX), 돌아왔나(리텐션), 순서대로 했나(퍼널). 메시지의 줄마다 이 중 하나를 고른 질문지가 `src/metrics/collect.mjs`의 `EVENT` 표다.
 4. 같은 질문을 어제와 그제로 두 번 하고 빼면 증감(+9)이 된다. 창고가 과거를 그대로 기억하므로 어제 값을 저장하지 않는다.
-5. 구독은 RevenueCat이라는 다른 창고다. 월간·연간·체험은 차트에 묻고, 프로모션만 고객 명단을 한 명씩 열어 센다.
-6. GitHub Actions가 매일 9시에 질문을 전부 던지고 답을 한 장으로 적어 디스코드 웹훅으로 보낸다. 월요일엔 주간 편지도 한 장 더. 질문 하나라도 답을 못 받으면 보내지 않는다.
+5. 구독은 RevenueCat이라는 다른 창고다. 월간·연간·체험은 차트에 묻고, 프로모션만 고객 명단을 한 명씩 열어 센다. 챌린지(100일 이용권)는 구독이 아니라 차트에 안 잡혀서 앰플리튜드의 결제 쪽지를 센다.
+6. 스트릭은 백엔드가 계산해 둔 값이라 메인 DB(슈퍼베이스)에서 바로 읽는다.
+7. GitHub Actions가 매일 9시에 질문을 전부 던지고 답을 한 장으로 적어 디스코드 웹훅으로 보낸다. 월요일엔 주간 편지도 한 장 더. 질문 하나라도 답을 못 받으면 보내지 않는다.
+8. 일일 편지 끝에는 Claude가 그날 숫자를 보고 쓴 한두 줄 분석과 응원 한 줄이 붙는다. 못 쓰면 그 줄만 빠진다.
 
 이벤트 이름이 바뀌면 3번의 질문지 표만 고친다.
 
 ## 형식
 
-메시지 하나가 ANSI 코드 블록 하나다. 디스코드에서 증감을 초록(+)·빨강(−)으로 칠할 수 있는 유일한 문법이라서다. 휴대폰에선 색만 빠지고 부호는 남는다.
+메시지 하나가 ANSI 코드 블록 하나다. 디스코드에서 증감을 초록(+)·빨강(−)으로 칠할 수 있는 유일한 문법이라서다. 휴대폰에선 색만 빠지고 부호는 남는다. 일일은 코드 블록 뒤에 분석·응원 문구가 일반 텍스트로 붙는다(최대 400자).
 
 - 블록 제목만 굵게, 이모지도 제목에만. 불릿은 세 칸 들여쓰기, 부모를 쪼개는 줄은 여섯 칸.
 - 괄호 없는 `+9`·`−2`는 전일(전주) 대비 절대 증감. 변화가 0이거나 비교할 이전 값이 없으면 안 붙는다.
@@ -29,27 +31,43 @@
 
 앰플리튜드 값은 전부 **팀 계정 24개 제외 · 모바일(ios/android)만**이다. 조건은 `src/metrics/amplitude.mjs`의 `STANDARD_SEGMENT`에 있고, landit-fe `.claude/skills/amplitude/SKILL.md`의 표준 조건과 같다. 프로젝트 타임존이 Asia/Seoul이라 날짜는 KST 그대로 넣는다.
 
-| 줄                          | 정의                                                                                                                                                                            |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 활성                        | 이벤트를 하나라도 남긴 유저(`_active`). 유료는 유저 속성 `is_premium=true`, 무료는 활성 − 유료                                                                                  |
-| 가입                        | Onboarding Completed 유저                                                                                                                                                       |
-| 어디서 들어왔나             | 첫 화면 Page Viewed의 `entry_campaign`. `streak_widget`은 위젯, 나머지는 알림. 직접 = 활성 − 알림 − 위젯                                                                        |
-| 시나리오 완료·하다가 그만둠 | Scenario Talk Completed / Abandoned 유저                                                                                                                                        |
-| 시나리오 표현               | Expression Completed 중 `scenario_id`가 있는 것. 분포는 유저별 횟수, 0개 = 유료로 시나리오는 끝냈지만 표현을 안 한 사람(두 이벤트가 자정을 걸쳐 갈리면 어긋날 수 있어 추정치다) |
-| 스몰톡                      | Small Talk Completed. 턴은 `turn_count` 평균, 말한 시간은 `speaking_duration_ms` 평균·최소·최대                                                                                 |
-| 스몰톡 표현                 | Expression Completed 중 `session_id`가 있는 것. 판마다 표현 수가 달라 마지막 칸은 "3개 이상"                                                                                    |
-| D1 리텐션                   | 그제 가입(Onboarding Completed)한 사람 중 어제 활성. 리텐션 API 응답의 셋째 칸                                                                                                  |
-| 주간 리텐션                 | 지지난주 가입자 중 지난주에 활성. 지난주 가입자는 아직 한 주가 안 지나 못 쓴다                                                                                                  |
-| 온보딩 완료·첫 시나리오까지 | 퍼널 API. Onboarding Started → Completed, Onboarding Completed → Scenario Talk Completed (전환 창 7일)                                                                          |
-| 구독 중                     | RevenueCat. 월간·연간 결제는 `actives` 차트, 무료체험은 `trials` 차트(상품별). 프로모션과 해지예정은 아래 참고                                                                  |
+| 줄                          | 정의                                                                                                                                                                              |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 활성                        | 이벤트를 하나라도 남긴 유저(`_active`). 유료는 유저 속성 `is_premium=true`, 무료는 활성 − 유료                                                                                    |
+| 가입                        | Onboarding Completed 유저                                                                                                                                                         |
+| 어디서 들어왔나             | 첫 화면 Page Viewed의 `entry_campaign`. `streak_widget`은 위젯, 나머지는 알림. 직접 = 활성 − 알림 − 위젯                                                                          |
+| 시나리오 완료·하다가 그만둠 | Scenario Talk Completed / Abandoned 유저                                                                                                                                          |
+| 가장 많이 한 사람           | Scenario Talk Completed를 `user_id`로 묶어 가장 많은 사람의 횟수. 응답이 값 내림차순이라 첫 줄이다                                                                                |
+| 시나리오 표현               | Expression Completed 중 `scenario_id`가 있는 것. 분포는 유저별 횟수, 0개 = 유료로 시나리오는 끝냈지만 표현을 안 한 사람(두 이벤트가 자정을 걸쳐 갈리면 어긋날 수 있어 추정치다)   |
+| 스몰톡                      | Small Talk Completed. 턴은 `turn_count` 평균, 말한 시간은 `speaking_duration_ms` 평균·최소·최대                                                                                   |
+| 스몰톡 표현                 | Expression Completed 중 `session_id`가 있는 것. 판마다 표현 수가 달라 마지막 칸은 "3개 이상"                                                                                      |
+| D1 리텐션                   | 그제 가입(Onboarding Completed)한 사람 중 어제 활성. 리텐션 API 응답의 셋째 칸                                                                                                    |
+| 주간 리텐션                 | 지지난주 가입자 중 지난주에 활성. 지난주 가입자는 아직 한 주가 안 지나 못 쓴다                                                                                                    |
+| 온보딩 완료·첫 시나리오까지 | 퍼널 API. Onboarding Started → Completed, Onboarding Completed → Scenario Talk Completed (전환 창 7일)                                                                            |
+| 최고 스트릭                 | 슈퍼베이스 `user_learning_activity_summary.current_streak_days` 최댓값과 그 값에 있는 사람 수. 백엔드 `StreakService`처럼 마지막 학습일이 기준일 이후인 행만 이어가는 중으로 본다 |
+| 구독·챌린지                 | RevenueCat. 월간·연간 결제는 `actives` 차트, 무료체험은 `trials` 차트(상품별). 프로모션과 해지예정은 아래 참고. 챌린지는 아래 참고                                                |
 
 유료 블록의 괄호 비율은 유료 활성 대비 참여 비율이고, "평균"은 참여한 사람만으로 나눈 값이다.
 
 주간 시나리오 완료 분포는 앰플리튜드 frequency 버킷(1, 2, 3, 4, 5, 6~~10, 11~~20…)을 그대로 쓴다. 지난 날 카드도 할 수 있어 개수가 일수보다 크다.
 
+### 챌린지는 왜 앰플리튜드에서 세나
+
+챌린지는 환급 챌린지용 100일 이용권(`com.saynow.app.pass.*`, LAN-660)이다. 구독이 아닌 단건 상품이고 RevenueCat 프리미엄 권한에 묶여 있지 않아 `actives`·`trials` 차트에 안 잡힌다. 대신 앱이 결제 직후 남기는 `Purchase Completed`에 `plan=pass`가 찍히므로, 기준일까지 100일 안에 그 이벤트를 남긴 사람 수를 "챌린지 중"으로 센다. 환불은 못 뺀다.
+
+앰플리튜드 세그멘테이션의 `i`는 1·7·30만 받지만 응답의 `seriesCollapsed`가 기간 전체 uniques를 주므로 100일 창도 한 번에 센다.
+
+### 최고 스트릭은 왜 DB에서 읽나
+
+앰플리튜드에는 스트릭 화면을 열 때 남는 `Streak Opened`의 `streak_days`뿐이라 화면을 안 연 사람은 안 잡힌다(하루 7명 정도). 백엔드가 `user_learning_activity_summary`에 계산해 두므로 메인 DB인 슈퍼베이스 REST로 그 표만 읽는다. 팀 계정은 앰플리튜드와 같은 id 목록으로 뺀다. 키는 `scripts/*-backfill.mjs`가 쓰는 것과 같다 — 이 키는 RLS를 우회하는 서비스 키라 지표용 읽기 전용 역할을 따로 두는 게 낫다.
+
+### 분석·응원 문구
+
+일일 메시지를 조립한 뒤 Claude API(`claude-opus-5-5`)에 본문과 원본 숫자(JSON), 전일 비교값을 주고 💡 한두 줄(눈에 띄는 변화)과 💪 한 줄(응원)을 받아 코드 블록 뒤에 붙인다. 지표 뜻과 출력 규칙은 `src/metrics/insight.mjs`의 시스템 프롬프트에 있다. 안전 분류기가 거절하면 서버가 다른 모델로 다시 돌리게 `fallbacks: "default"`를 켜 둔다. 이 레포는 외부 API를 전부 `fetch`로 부르므로 SDK 없이 REST를 쓴다.
+
 ### 해지예정
 
-연간 아래 첫 줄이다. 아직 쓸 수 있지만 다음 결제를 꺼 둔 구독 수로, 체험 중 해지도 여기 들어간다. 바로 위 연간 숫자에 이미 포함된 사람이라 더하는 줄이 아니다. 프로모션은 원래 갱신이 없어 세지 않는다.
+연간 아래 셋째 줄이다. 아직 쓸 수 있지만 다음 결제를 꺼 둔 구독 수로, 체험 중 해지도 여기 들어간다. 바로 위 연간 숫자에 이미 포함된 사람이라 더하는 줄이 아니다. 프로모션은 원래 갱신이 없어 세지 않는다.
 
 구독 기록의 상품이 레비뉴캣 내부 번호(`prod…`)로만 들어 있어 월간·연간을 가를 수 없다. 그래서 이 값은 스토어 구독 전체를 센 것이고, 월간 구독자가 0명인 동안은 연간 해지예정과 같다. 상품이 늘면(월간, 할인가·정가) 키에 `project_configuration:products:read`를 더해 번호를 상품 이름으로 바꿔야 갈린다. 같은 이유로 지금은 할인가와 정가도 구분하지 못한다.
 
@@ -63,7 +81,9 @@ RevenueCat 차트는 유료·체험만 세고 우리가 부여한 프로모션�
 - `src/metrics/lib.mjs` — 메시지 조립(순수). `buildDailyMessage`·`buildWeeklyMessage`
 - `src/metrics/amplitude.mjs` — 앰플리튜드 Dashboard REST. 동시 4개 제한과 재시도가 여기 있다. 응답을 숫자로 옮기는 순수 함수도 같이 둔다(응답 모양이 바뀌면 같이 바뀌므로)
 - `src/metrics/revenuecat.mjs` — RevenueCat 차트와 고객 전수 조회
-- `src/metrics/collect.mjs` — 두 수집기를 불러 입력 모양을 만든다. 이벤트 이름·필터는 여기 `EVENT` 표 한 곳
+- `src/metrics/supabase.mjs` — 슈퍼베이스 REST. 최고 스트릭
+- `src/metrics/insight.mjs` — Claude API. 분석·응원 문구 요청 조립과 응답 해석
+- `src/metrics/collect.mjs` — 수집기를 불러 입력 모양을 만든다. 이벤트 이름·필터는 여기 `EVENT` 표 한 곳
 - `src/metrics/run.mjs` — 실행부. `daily|weekly [기준일]`
 - `src/metrics/sample.mjs` — 예시 숫자. 입력 데이터 모양의 정본이고 테스트와 preview가 같이 쓴다
 - `src/metrics/preview.mjs` — 예시 숫자로 모양만 확인할 때
@@ -89,7 +109,9 @@ RevenueCat 차트는 유료·체험만 세고 우리가 부여한 프로모션�
 ## 조회가 실패하면
 
 - **앰플리튜드가 실패하면** 지표를 못 만든다. 그 자리에 `⚠️ 일일 지표를 못 가져왔어요`와 이유를 대신 보낸다. 침묵하면 지표가 0인 건지 봇이 죽은 건지 구분이 안 되기 때문이다.
-- **RevenueCat만 실패하면** 앰플리튜드 줄은 그대로 보내고 구독 블록 자리에 `💳 구독 정보를 못 가져왔어요` 한 줄만 들어간다. 출처가 갈려 있어 서로 계산에 안 엮인다.
+- **RevenueCat만 실패하면** 앰플리튜드 줄은 그대로 보내고 구독 블록 자리에 `💳 구독 정보를 못 가져왔어요` 한 줄만 들어간다. 출처가 갈려 있어 서로 계산에 안 엮인다. 챌린지는 앰플리튜드라 그 아래 그대로 남는다.
+- **슈퍼베이스만 실패하면** `🔥 스트릭 정보를 못 가져왔어요` 한 줄로 바뀐다. 비밀값이 아예 없어도 같다.
+- **Claude만 실패하면** 분석·응원 문구 없이 코드 블록만 나간다. 비밀값이 없어도 같다. 문구 때문에 지표가 안 오면 안 된다.
 - 한도 초과(429)와 일시 장애(5xx)·네트워크 끊김은 쉬었다 다시 부른다. 앰플리튜드는 5분 비용 창을 넘길 만큼(최대 3분) 기다리고, RevenueCat은 응답이 알려 준 대기 시간을 따른다.
 
 ## 세팅 과정
@@ -97,7 +119,7 @@ RevenueCat 차트는 유료·체험만 세고 우리가 부여한 프로모션�
 1. **디스코드 웹훅** — `#일일-지표`, `#주간-지표` 각 채널 편집 > 연동 > 웹후크. 이름 "랜딧 지표", 아바타는 토스페이스 📊.
 2. **앰플리튜드** — 설정 > Projects > production의 API Key·Secret Key. 새로 만들지 않고 프로젝트에 붙은 한 쌍을 쓴다.
 3. **RevenueCat** — 프로젝트 > API keys > v2 시크릿 키. 권한은 Charts metrics Read, Customer information Read 둘만. 프로젝트 id는 대시보드 주소의 `/projects/<id>/`.
-4. **GitHub Secrets** — `AMPLITUDE_API_KEY` `AMPLITUDE_SECRET_KEY` `REVENUECAT_API_KEY` `REVENUECAT_PROJECT_ID` `DISCORD_WEBHOOK_METRICS_DAILY` `DISCORD_WEBHOOK_METRICS_WEEKLY`.
+4. **GitHub Secrets** — `AMPLITUDE_API_KEY` `AMPLITUDE_SECRET_KEY` `REVENUECAT_API_KEY` `REVENUECAT_PROJECT_ID` `DISCORD_WEBHOOK_METRICS_DAILY` `DISCORD_WEBHOOK_METRICS_WEEKLY`. 스트릭엔 `SUPABASE_URL` `SUPABASE_SECRET_KEY`(슈퍼베이스 프로젝트 > Settings > API), 분석 문구엔 `ANTHROPIC_API_KEY`(console.anthropic.com). 뒤의 셋은 없어도 지표는 나간다.
 5. **깃허브 토큰** — 이 레포의 Actions 실행 권한만 가진 fine-grained 토큰(Actions: Read and write)을 만들어 버셀 환경변수 `GH_WORKFLOW_TOKEN`에 넣는다.
 6. **버셀 크론 비밀값** — 버셀 환경변수 `CRON_SECRET`에 아무 긴 문자열을 넣는다. 버셀이 크론 요청에 이 값을 실어 보내고, 함수는 그게 맞을 때만 움직인다. 없으면 아무나 주소를 눌러 알림을 쏠 수 있다.
 7. **배포** — `npx vercel deploy --prod`. `vercel.json`의 크론은 프로덕션 배포에만 붙는다.
@@ -110,7 +132,7 @@ RevenueCat 차트는 유료·체험만 세고 우리가 부여한 프로모션�
 - **깃허브 예약은 못 믿는다.** 이 레포의 15분·30분 크론이 실제로는 평균 195분 간격으로 돈다. 정각을 피하는 것만으로는 부족해서 버셀이 깨우게 바꿨다. 그래도 아침에 안 오면 Actions에서 Run workflow로 손으로 돌린다(mode=daily 또는 weekly).
 
 - **아침에 아무것도 안 오면 조회가 아니라 발송이 막힌 것이다.** 조회 실패는 실패대로 알리게 돼 있으므로, 채널이 완전히 조용하면 웹훅과 워크플로를 본다.
-- 앰플리튜드는 키당 동시 5개, 시간당 360건, 5분당 비용 한도가 있다. 일일 약 21건, 주간 약 24건이라 여유가 있지만 다른 스크립트와 같은 키를 동시에 쓰면 429가 난다. group_by가 붙는 조회(유입·말한 시간)가 비용이 크다.
+- 앰플리튜드는 키당 동시 5개, 시간당 360건, 5분당 비용 한도가 있다. 일일 약 24건, 주간 약 27건이라 여유가 있지만 다른 스크립트와 같은 키를 동시에 쓰면 429가 난다. group_by가 붙는 조회(유입·말한 시간)가 비용이 크다.
 - RevenueCat 고객 전수 조회는 고객 수만큼 호출한다. 수천 명이 되면 분당 한도에 걸려 느려지므로, 그때는 웹훅으로 프로모션 부여·만료를 쌓는 쪽으로 바꾼다.
 - `is_premium`은 9/11 이후 로그인한 유저에게만 있어 무료를 `is_premium=false`로 뽑으면 빠진다. 활성 − 유료로 계산하는 이유다.
 - REST에선 커스텀 유저 속성이 `gp:is_premium`처럼 `gp:` 접두사다. MCP와 다르다.
