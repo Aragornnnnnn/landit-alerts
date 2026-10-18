@@ -14,7 +14,6 @@ import {
   lastWeekOf,
   yesterdayOf,
 } from './collect.mjs';
-import { createInsightClient, stripAnsi } from './insight.mjs';
 import {
   buildDailyMessage,
   buildFailureMessage,
@@ -63,7 +62,7 @@ if (missing.length) {
   process.exit(1);
 }
 
-// 스트릭(슈퍼베이스)과 분석 문구(Claude)는 없어도 지표는 나간다 — 비밀값을 아직 안 넣었다고 아침이 조용해지면 안 된다
+// 스트릭(슈퍼베이스)은 없어도 지표는 나간다 — 비밀값을 아직 안 넣었다고 아침이 조용해지면 안 된다
 const optionalClient = (keys, create, label) => {
   if (keys.every((key) => process.env[key])) return create();
   console.error(`${label} 건너뜀 — ${keys.join('·')} 없음.`);
@@ -90,23 +89,6 @@ const clients = {
   ),
 };
 
-const claude = optionalClient(
-  ['ANTHROPIC_API_KEY'],
-  () => createInsightClient({ apiKey: process.env.ANTHROPIC_API_KEY }),
-  '분석 문구',
-);
-
-// 분석 문구는 덤이다 — 실패해도 지표는 그대로 보낸다
-const insightOrNull = async (args) => {
-  if (!claude) return undefined;
-  try {
-    return await claude.insight(args);
-  } catch (error) {
-    console.error(`분석 문구 실패: ${error.message}`);
-    return undefined;
-  }
-};
-
 // 기간 이름 — 상태 파일에 이걸로 적어 두고 같은 기간을 두 번 보내지 않는다
 const periodOf = {
   daily: (today) => yesterdayOf(today),
@@ -119,13 +101,7 @@ const dailyMessage = async (today) => {
     collectDaily(clients, date),
     collectDailyBaseline(clients, yesterdayOf(date)),
   ]);
-  const message = buildDailyMessage(current, previous);
-  const insight = await insightOrNull({
-    messageText: stripAnsi(message),
-    current,
-    previous,
-  });
-  return buildDailyMessage(current, previous, insight);
+  return buildDailyMessage(current, previous);
 };
 
 const weeklyMessage = async (today) => {

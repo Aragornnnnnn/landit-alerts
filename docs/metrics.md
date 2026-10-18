@@ -12,13 +12,12 @@
 5. 구독은 RevenueCat이라는 다른 창고다. 월간·연간·체험은 차트에 묻고, 프로모션만 고객 명단을 한 명씩 열어 센다. 챌린지(100일 이용권)는 구독이 아니라 차트에 안 잡혀서 앰플리튜드의 결제 쪽지를 센다.
 6. 스트릭은 백엔드가 계산해 둔 값이라 메인 DB(슈퍼베이스)에서 바로 읽는다.
 7. GitHub Actions가 매일 9시에 질문을 전부 던지고 답을 한 장으로 적어 디스코드 웹훅으로 보낸다. 월요일엔 주간 편지도 한 장 더. 질문 하나라도 답을 못 받으면 보내지 않는다.
-8. 일일 편지 끝에는 Claude가 그날 숫자를 보고 쓴 한두 줄 분석과 응원 한 줄이 붙는다. 못 쓰면 그 줄만 빠진다.
 
 이벤트 이름이 바뀌면 3번의 질문지 표만 고친다.
 
 ## 형식
 
-메시지 하나가 ANSI 코드 블록 하나다. 디스코드에서 증감을 초록(+)·빨강(−)으로 칠할 수 있는 유일한 문법이라서다. 휴대폰에선 색만 빠지고 부호는 남는다. 일일은 코드 블록 뒤에 분석·응원 문구가 일반 텍스트로 붙는다(최대 400자).
+메시지 하나가 ANSI 코드 블록 하나다. 디스코드에서 증감을 초록(+)·빨강(−)으로 칠할 수 있는 유일한 문법이라서다. 휴대폰에선 색만 빠지고 부호는 남는다.
 
 - 블록 제목만 굵게, 이모지도 제목에만. 불릿은 세 칸 들여쓰기, 부모를 쪼개는 줄은 여섯 칸.
 - 괄호 없는 `+9`·`−2`는 전일(전주) 대비 절대 증감. 변화가 0이거나 비교할 이전 값이 없으면 안 붙는다.
@@ -74,10 +73,6 @@ grant landit_metrics_reader to authenticator;
 
 그다음 `role` 클레임이 `landit_metrics_reader`인 JWT를 프로젝트 JWT 서명 키로 발급해 `SUPABASE_SECRET_KEY`에 넣는다. PostgREST가 토큰의 역할로 전환하므로 이 토큰은 그 표 SELECT 말고는 아무것도 못 한다. LAN-462의 `landit_push_reader`와 같은 방식이다.
 
-### 분석·응원 문구
-
-일일 메시지를 조립한 뒤 Claude API(`claude-opus-5-5`)에 본문과 원본 숫자(JSON), 전일 비교값을 주고 💡 한두 줄(눈에 띄는 변화)과 💪 한 줄(응원)을 받아 코드 블록 뒤에 붙인다. 지표 뜻과 출력 규칙은 `src/metrics/insight.mjs`의 시스템 프롬프트에 있다. 안전 분류기가 거절하면 서버가 다른 모델로 다시 돌리게 `fallbacks: "default"`를 켜 둔다. 이 레포는 외부 API를 전부 `fetch`로 부르므로 SDK 없이 REST를 쓴다.
-
 ### 해지예정
 
 연간 아래 셋째 줄이다. 아직 쓸 수 있지만 다음 결제를 꺼 둔 구독 수로, 체험 중 해지도 여기 들어간다. 바로 위 연간 숫자에 이미 포함된 사람이라 더하는 줄이 아니다. 프로모션은 원래 갱신이 없어 세지 않는다.
@@ -95,7 +90,6 @@ RevenueCat 차트는 유료·체험만 세고 우리가 부여한 프로모션�
 - `src/metrics/amplitude.mjs` — 앰플리튜드 Dashboard REST. 동시 4개 제한과 재시도가 여기 있다. 응답을 숫자로 옮기는 순수 함수도 같이 둔다(응답 모양이 바뀌면 같이 바뀌므로)
 - `src/metrics/revenuecat.mjs` — RevenueCat 차트와 고객 전수 조회
 - `src/metrics/supabase.mjs` — 슈퍼베이스 REST. 최고 스트릭·시나리오 누적 최다
-- `src/metrics/insight.mjs` — Claude API. 분석·응원 문구 요청 조립과 응답 해석
 - `src/metrics/collect.mjs` — 수집기를 불러 입력 모양을 만든다. 이벤트 이름·필터는 여기 `EVENT` 표 한 곳
 - `src/metrics/run.mjs` — 실행부. `daily|weekly [기준일]`
 - `src/metrics/sample.mjs` — 예시 숫자. 입력 데이터 모양의 정본이고 테스트와 preview가 같이 쓴다
@@ -124,7 +118,6 @@ RevenueCat 차트는 유료·체험만 세고 우리가 부여한 프로모션�
 - **앰플리튜드가 실패하면** 지표를 못 만든다. 그 자리에 `⚠️ 일일 지표를 못 가져왔어요`와 이유를 대신 보낸다. 침묵하면 지표가 0인 건지 봇이 죽은 건지 구분이 안 되기 때문이다.
 - **RevenueCat만 실패하면** 앰플리튜드 줄은 그대로 보내고 구독 블록 자리에 `💳 구독 정보를 못 가져왔어요` 한 줄만 들어간다. 출처가 갈려 있어 서로 계산에 안 엮인다. 챌린지는 앰플리튜드라 그 아래 그대로 남는다.
 - **슈퍼베이스만 실패하면** 스트릭·누적 두 줄이 `🏆 스트릭·누적 기록을 못 가져왔어요` 한 줄로 바뀐다. 비밀값이 아예 없어도 같다.
-- **Claude만 실패하면** 분석·응원 문구 없이 코드 블록만 나간다. 비밀값이 없어도 같다. 문구 때문에 지표가 안 오면 안 된다.
 - 한도 초과(429)와 일시 장애(5xx)·네트워크 끊김은 쉬었다 다시 부른다. 앰플리튜드는 5분 비용 창을 넘길 만큼(최대 3분) 기다리고, RevenueCat은 응답이 알려 준 대기 시간을 따른다.
 
 ## 세팅 과정
@@ -132,7 +125,7 @@ RevenueCat 차트는 유료·체험만 세고 우리가 부여한 프로모션�
 1. **디스코드 웹훅** — `#일일-지표`, `#주간-지표` 각 채널 편집 > 연동 > 웹후크. 이름 "랜딧 지표", 아바타는 토스페이스 📊.
 2. **앰플리튜드** — 설정 > Projects > production의 API Key·Secret Key. 새로 만들지 않고 프로젝트에 붙은 한 쌍을 쓴다.
 3. **RevenueCat** — 프로젝트 > API keys > v2 시크릿 키. 권한은 Charts metrics Read, Customer information Read 둘만. 프로젝트 id는 대시보드 주소의 `/projects/<id>/`.
-4. **GitHub Secrets** — `AMPLITUDE_API_KEY` `AMPLITUDE_SECRET_KEY` `REVENUECAT_API_KEY` `REVENUECAT_PROJECT_ID` `DISCORD_WEBHOOK_METRICS_DAILY` `DISCORD_WEBHOOK_METRICS_WEEKLY`. 스트릭엔 `SUPABASE_URL` `SUPABASE_SECRET_KEY`(슈퍼베이스 프로젝트 > Settings > API). 운영 DB는 Landit 조직의 "[Landit] prod (Seoul)"(`gwhzjdsukzpktkikcovs`)이고, "[Landit] prod"(`pbfpcmetmvshagljralr`)는 멈춰 있는 옛 프로젝트라 주소가 안 잡힌다. 분석 문구엔 `ANTHROPIC_API_KEY`(console.anthropic.com). 뒤의 셋은 없어도 지표는 나간다.
+4. **GitHub Secrets** — `AMPLITUDE_API_KEY` `AMPLITUDE_SECRET_KEY` `REVENUECAT_API_KEY` `REVENUECAT_PROJECT_ID` `DISCORD_WEBHOOK_METRICS_DAILY` `DISCORD_WEBHOOK_METRICS_WEEKLY`. 스트릭엔 `SUPABASE_URL` `SUPABASE_SECRET_KEY`(슈퍼베이스 프로젝트 > Settings > API). 운영 DB는 Landit 조직의 "[Landit] prod (Seoul)"(`gwhzjdsukzpktkikcovs`)이고, "[Landit] prod"(`pbfpcmetmvshagljralr`)는 멈춰 있는 옛 프로젝트라 주소가 안 잡힌다. 뒤의 둘은 없어도 지표는 나간다.
 5. **깃허브 토큰** — 이 레포의 Actions 실행 권한만 가진 fine-grained 토큰(Actions: Read and write)을 만들어 버셀 환경변수 `GH_WORKFLOW_TOKEN`에 넣는다.
 6. **버셀 크론 비밀값** — 버셀 환경변수 `CRON_SECRET`에 아무 긴 문자열을 넣는다. 버셀이 크론 요청에 이 값을 실어 보내고, 함수는 그게 맞을 때만 움직인다. 없으면 아무나 주소를 눌러 알림을 쏠 수 있다.
 7. **배포** — `npx vercel deploy --prod`. `vercel.json`의 크론은 프로덕션 배포에만 붙는다.

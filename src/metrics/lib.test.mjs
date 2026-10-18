@@ -176,13 +176,6 @@ test('기록을 못 가져오면 그 자리만 비우고, 스트릭이 아무도
   assert.ok(nobody.includes(B('🏆 시나리오 누적 최다 120개 (id 473)')));
 });
 
-test('분석 문구가 있으면 코드 블록 뒤에 일반 텍스트로 붙는다', () => {
-  const insight = '💡 유료가 하루 만에 1명 늘었어요.\n💪 오늘도 화이팅이에요.';
-  const message = buildDailyMessage(daily, previousDaily, insight);
-  assert.ok(message.endsWith('```\n' + insight));
-  assert.ok(buildDailyMessage(daily, previousDaily).endsWith('```'));
-});
-
 test('표현을 한 사람이 완료한 사람보다 많아도 0개 칸이 음수가 되지 않는다', () => {
   const message = buildDailyMessage(
     {
@@ -236,10 +229,7 @@ test('주차는 그 주 목요일이 속한 달로 센다', () => {
 });
 
 test('디스코드 한 메시지 한도(2000자) 안에 든다', () => {
-  // 분석 문구는 최대 400자까지 붙는다
-  assert.ok(
-    buildDailyMessage(daily, previousDaily, 'x'.repeat(400)).length < 2000,
-  );
+  assert.ok(buildDailyMessage(daily, previousDaily).length < 2000);
   assert.ok(buildWeeklyMessage(weekly, previousWeekly).length < 2000);
 });
 

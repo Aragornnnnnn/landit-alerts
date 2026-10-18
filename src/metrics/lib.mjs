@@ -79,9 +79,7 @@ const distribution = (zero, byCount) =>
     )
     .join(' / ');
 
-// 메시지 하나가 코드 블록 하나. 그 뒤에 코드 블록 밖 일반 텍스트(분석·응원)가 붙을 수 있다
-const wrapAnsi = (lines, trailing) =>
-  '```ansi\n' + lines.join('\n') + '\n```' + (trailing ? `\n${trailing}` : '');
+const wrapAnsi = (lines) => '```ansi\n' + lines.join('\n') + '\n```';
 
 // 구독·챌린지를 합친 유료 인원. 챌린지(100일 이용권)는 앰플리튜드에서 따로 와서 구독이 없어도 더한다
 const total = (subs, challenge) =>
@@ -180,8 +178,7 @@ const entryLines = (entries, direct) => [
 const directOf = (m) =>
   m.active.total - m.entries.notification - m.entries.widget - m.entries.alarm;
 
-// insight는 Claude가 쓴 분석·응원 문구(일반 텍스트). 없으면 코드 블록만 나간다
-export const buildDailyMessage = (m, prev, insight) => {
+export const buildDailyMessage = (m, prev) => {
   const p = prev ?? {};
   const free = m.active.total - m.active.premium;
   const prevFree = p.active && p.active.total - p.active.premium;
@@ -199,56 +196,53 @@ export const buildDailyMessage = (m, prev, insight) => {
     smalltalk.users - expression.smalltalk.users,
   );
 
-  return wrapAnsi(
-    [
-      bold(`📊 랜딧 일일 지표 · ${formatDate(m.date)}`),
-      '',
-      headline(`👥 활성 ${m.active.total}명`, m.active.total, p.active?.total),
-      bullet(`유료 ${m.active.premium}명`, m.active.premium, p.active?.premium),
-      bullet(`무료 ${free}명`, free, prevFree),
-      '',
-      headline(`🌱 가입 ${m.signups}명`, m.signups, p.signups),
-      '',
-      ...entryLines(m.entries, direct),
-      '',
-      headline(
-        `🗣️ 시나리오 완료 ${m.scenario.completed}명`,
-        m.scenario.completed,
-        p.scenario?.completed,
-      ) +
-        ` · 활성의 ${percent(m.scenario.completed, m.active.total)} · 하다가 그만둠 ${m.scenario.abandoned}명`,
-      bullet(`유료 ${m.scenario.completedPremium}명`),
-      bullet(`무료 ${completedFree}명`),
-      bullet(`가장 많이 한 사람 ${m.scenario.max}개`),
-      '',
-      bold(`💎 유료 ${m.active.premium}명이 쓴 것`),
-      bullet(
-        `시나리오 표현 ${expression.scenario.users}명 (${percent(expression.scenario.users, m.active.premium)})`,
-      ),
-      subBullet(distribution(scenarioZero, expression.scenario.byCount)),
-      bullet(
-        `스몰톡 ${smalltalk.users}명 (${percent(smalltalk.users, m.active.premium)}) · ${smalltalk.count}판 · 한 판 평균 ${smalltalk.turnsAverage.toFixed(1)}턴`,
-      ),
-      bullet(
-        `스몰톡 표현 ${expression.smalltalk.users}명 (${percent(expression.smalltalk.users, m.active.premium)})`,
-      ),
-      subBullet(distribution(smalltalkZero, expression.smalltalk.byCount)),
-      '',
-      bold(
-        `🔁 D1 리텐션 ${percent(m.retention.returned, m.retention.cohort)} · 그제 가입한 ${m.retention.cohort}명 중 어제도 온 사람 ${m.retention.returned}명`,
-      ),
-      '',
-      ...recordLines(m.records),
-      '',
-      ...subscriptionLines(
-        m.subscriptions,
-        p.subscriptions,
-        m.challenge,
-        p.challenge,
-      ),
-    ],
-    insight,
-  );
+  return wrapAnsi([
+    bold(`📊 랜딧 일일 지표 · ${formatDate(m.date)}`),
+    '',
+    headline(`👥 활성 ${m.active.total}명`, m.active.total, p.active?.total),
+    bullet(`유료 ${m.active.premium}명`, m.active.premium, p.active?.premium),
+    bullet(`무료 ${free}명`, free, prevFree),
+    '',
+    headline(`🌱 가입 ${m.signups}명`, m.signups, p.signups),
+    '',
+    ...entryLines(m.entries, direct),
+    '',
+    headline(
+      `🗣️ 시나리오 완료 ${m.scenario.completed}명`,
+      m.scenario.completed,
+      p.scenario?.completed,
+    ) +
+      ` · 활성의 ${percent(m.scenario.completed, m.active.total)} · 하다가 그만둠 ${m.scenario.abandoned}명`,
+    bullet(`유료 ${m.scenario.completedPremium}명`),
+    bullet(`무료 ${completedFree}명`),
+    bullet(`가장 많이 한 사람 ${m.scenario.max}개`),
+    '',
+    bold(`💎 유료 ${m.active.premium}명이 쓴 것`),
+    bullet(
+      `시나리오 표현 ${expression.scenario.users}명 (${percent(expression.scenario.users, m.active.premium)})`,
+    ),
+    subBullet(distribution(scenarioZero, expression.scenario.byCount)),
+    bullet(
+      `스몰톡 ${smalltalk.users}명 (${percent(smalltalk.users, m.active.premium)}) · ${smalltalk.count}판 · 한 판 평균 ${smalltalk.turnsAverage.toFixed(1)}턴`,
+    ),
+    bullet(
+      `스몰톡 표현 ${expression.smalltalk.users}명 (${percent(expression.smalltalk.users, m.active.premium)})`,
+    ),
+    subBullet(distribution(smalltalkZero, expression.smalltalk.byCount)),
+    '',
+    bold(
+      `🔁 D1 리텐션 ${percent(m.retention.returned, m.retention.cohort)} · 그제 가입한 ${m.retention.cohort}명 중 어제도 온 사람 ${m.retention.returned}명`,
+    ),
+    '',
+    ...recordLines(m.records),
+    '',
+    ...subscriptionLines(
+      m.subscriptions,
+      p.subscriptions,
+      m.challenge,
+      p.challenge,
+    ),
+  ]);
 };
 
 export const buildWeeklyMessage = (m, prev) => {

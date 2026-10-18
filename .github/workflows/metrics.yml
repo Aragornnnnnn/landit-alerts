@@ -34,10 +34,9 @@ jobs:
       REVENUECAT_PROJECT_ID: ${{ secrets.REVENUECAT_PROJECT_ID }}
       DISCORD_WEBHOOK_METRICS_DAILY: ${{ secrets.DISCORD_WEBHOOK_METRICS_DAILY }}
       DISCORD_WEBHOOK_METRICS_WEEKLY: ${{ secrets.DISCORD_WEBHOOK_METRICS_WEEKLY }}
-      # 아래 셋은 없어도 지표는 나간다 — 스트릭 줄과 분석 문구만 빠진다
+      # 아래 둘은 없어도 지표는 나간다 — 스트릭·누적 줄만 빠진다
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     steps:
       - uses: actions/checkout@v4
 
