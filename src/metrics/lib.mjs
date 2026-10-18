@@ -133,8 +133,9 @@ const subscriptionLines = (subs, prevSubs, challenge, prevChallenge) => {
 const streakLine = (streak) => {
   if (!streak) return bold('🔥 스트릭 정보를 못 가져왔어요');
   if (!streak.top) return bold('🔥 최고 스트릭 0일 · 이어가는 사람이 없어요');
+  // 누가 이어가는지 어드민에서 찾아볼 수 있게 id를 같이 적는다
   return bold(
-    `🔥 최고 스트릭 ${streak.top}일 · ${streak.users}명이 이어가는 중`,
+    `🔥 최고 스트릭 ${streak.top}일 · ${streak.users.length}명이 이어가는 중 (id ${streak.users.join(', ')})`,
   );
 };
 

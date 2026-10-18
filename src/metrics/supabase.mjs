@@ -7,12 +7,16 @@ const TABLE = 'user_learning_activity_summary';
 // 최고값과 같은 사람이 이보다 많을 일은 없다 — 전체를 긁지 않는다
 const LIMIT = 100;
 
-// 내림차순 행에서 최고 스트릭과 그 값에 있는 사람 수 — 아무도 없으면 0일 0명
+// 내림차순 행에서 최고 스트릭과 그 값에 있는 사람들의 id — 아무도 없으면 0일에 빈 목록
 export const topStreak = (rows) => {
   const top = rows[0]?.current_streak_days ?? 0;
   return {
     top,
-    users: top ? rows.filter((r) => r.current_streak_days === top).length : 0,
+    users: top
+      ? rows
+          .filter((r) => r.current_streak_days === top)
+          .map((r) => r.user_profile_id)
+      : [],
   };
 };
 
@@ -23,7 +27,7 @@ export const createSupabaseClient = ({ url, secretKey }) => {
   // 아침에 전날 지표를 보내므로 기준일(어제) 이후 학습한 사람만 "지금 이어가는 중"이다
   const streak = async (date) => {
     const params = new URLSearchParams({
-      select: 'current_streak_days',
+      select: 'user_profile_id,current_streak_days',
       last_activity_date: `gte.${date}`,
       user_profile_id: `not.in.(${TEAM_USER_IDS.join(',')})`,
       order: 'current_streak_days.desc',
