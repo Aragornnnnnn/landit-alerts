@@ -9,7 +9,7 @@
 2. 창고엔 질문 창구(Dashboard REST API)가 있다. "9월 20일에 「시나리오 완료」 쪽지 남긴 사람 몇 명?"이라고 물으면 숫자 하나가 돌아온다. 물을 때마다 팀 계정과 웹 브라우저 쪽지는 빼 달라는 조건을 붙인다.
 3. 질문은 여섯 가지뿐이다. 몇 명(uniques), 몇 번(totals), 사람마다 몇 번(frequency 분포), 속성의 평균·최소·최대(PROPAVG·PROPMIN·PROPMAX), 돌아왔나(리텐션), 순서대로 했나(퍼널). 메시지의 줄마다 이 중 하나를 고른 질문지가 `src/metrics/collect.mjs`의 `EVENT` 표다.
 4. 같은 질문을 어제와 그제로 두 번 하고 빼면 증감(+9)이 된다. 창고가 과거를 그대로 기억하므로 어제 값을 저장하지 않는다.
-5. 구독은 RevenueCat이라는 다른 창고다. 월간·연간·체험은 차트에 묻고, 프로모션만 고객 명단을 한 명씩 열어 센다. 챌린지(100일 이용권)는 구독이 아니라 차트에 안 잡혀서 앰플리튜드의 결제 쪽지를 센다.
+5. 구독과 매출은 RevenueCat이라는 다른 창고다. 월간·연간·체험은 차트에 묻고, 프로모션만 고객 명단을 한 명씩 열어 센다. 챌린지(100일 이용권)는 구독이 아니라 차트에 안 잡혀서 앰플리튜드의 결제 쪽지를 센다.
 6. 스트릭은 백엔드가 계산해 둔 값이라 메인 DB(슈퍼베이스)에서 바로 읽는다.
 7. GitHub Actions가 매일 9시에 질문을 전부 던지고 답을 한 장으로 적어 디스코드 웹훅으로 보낸다. 월요일엔 주간 편지도 한 장 더. 질문 하나라도 답을 못 받으면 보내지 않는다.
 
@@ -73,6 +73,12 @@ grant landit_metrics_reader to authenticator;
 
 그다음 `role` 클레임이 `landit_metrics_reader`인 JWT를 프로젝트 JWT 서명 키로 발급해 `SUPABASE_SECRET_KEY`에 넣는다. PostgREST가 토큰의 역할로 전환하므로 이 토큰은 그 표 SELECT 말고는 아무것도 못 한다. LAN-462의 `landit_push_reader`와 같은 방식이다.
 
+### 누적 매출
+
+구독 블록 아래 `💰 누적 매출 N원` 한 줄이다. RevenueCat 매출(`revenue`) 차트를 `currency=KRW`로 불러 서비스 시작부터 기준일까지 합계를 원 단위로 반올림한다. 레비뉴캣이 결제 시점 환율로 원화 환산해 준다. 스토어 수수료를 떼기 전 금액이고, 환불은 뺀 값이다. 100일 이용권 같은 단건 결제도 들어간다.
+
+증감은 전일(전주) 누적과의 차이, 즉 그날(그 주) 번 돈이다. 환불이 결제보다 많은 날은 빨강 −로 나간다. 응답 통화가 원화가 아니면 숫자를 믿지 않고 그 줄만 `💰 매출 정보를 못 가져왔어요`로 비운다. 키 권한은 기존 Charts metrics Read로 충분하다.
+
 ### 해지예정
 
 연간 아래 셋째 줄이다. 아직 쓸 수 있지만 다음 결제를 꺼 둔 구독 수로, 체험 중 해지도 여기 들어간다. 바로 위 연간 숫자에 이미 포함된 사람이라 더하는 줄이 아니다. 프로모션은 원래 갱신이 없어 세지 않는다.
@@ -88,7 +94,7 @@ RevenueCat 차트는 유료·체험만 세고 우리가 부여한 프로모션�
 
 - `src/metrics/lib.mjs` — 메시지 조립(순수). `buildDailyMessage`·`buildWeeklyMessage`
 - `src/metrics/amplitude.mjs` — 앰플리튜드 Dashboard REST. 동시 4개 제한과 재시도가 여기 있다. 응답을 숫자로 옮기는 순수 함수도 같이 둔다(응답 모양이 바뀌면 같이 바뀌므로)
-- `src/metrics/revenuecat.mjs` — RevenueCat 차트와 고객 전수 조회
+- `src/metrics/revenuecat.mjs` — RevenueCat 차트(구독·누적 매출)와 고객 전수 조회
 - `src/metrics/supabase.mjs` — 슈퍼베이스 REST. 최고 스트릭·시나리오 누적 최다
 - `src/metrics/collect.mjs` — 수집기를 불러 입력 모양을 만든다. 이벤트 이름·필터는 여기 `EVENT` 표 한 곳
 - `src/metrics/run.mjs` — 실행부. `daily|weekly [기준일]`

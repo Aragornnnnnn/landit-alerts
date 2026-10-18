@@ -85,6 +85,8 @@ test('일일 메시지를 ANSI 코드 블록 하나로 스펙 그대로 조립�
       `   월간 30명 ${G('+1')}`,
       `   챌린지 6명 ${G('+1')}`,
       '   프로모션 3명',
+      '',
+      `${B('💰 누적 매출 853,349원')} ${G('+50,006원')}`,
       '```',
     ].join('\n'),
   );
@@ -138,6 +140,8 @@ test('주간 메시지를 ANSI 코드 블록 하나로 스펙 그대로 조립�
       `   월간 30명 ${G('+3')}`,
       `   챌린지 6명 ${G('+2')}`,
       `   프로모션 3명 ${R('−2')}`,
+      '',
+      `${B('💰 누적 매출 853,349원')} ${G('+142,586원')}`,
       '```',
     ].join('\n'),
   );
@@ -218,6 +222,21 @@ test('말한 시간은 분·초로, 1분 미만은 초만 쓴다', () => {
   assert.equal(formatDuration(190000), '3분 10초');
   assert.equal(formatDuration(40000), '40초');
   assert.equal(formatDuration(60000), '1분 0초');
+});
+
+test('매출을 못 가져오면 그 줄만 비우고, 환불이 더 많은 날은 빨강 −로 쓴다', async () => {
+  const { formatWon } = await import('./lib.mjs');
+  assert.equal(formatWon(853349), '853,349원');
+  assert.ok(
+    buildDailyMessage({ ...daily, revenue: null }, previousDaily).includes(
+      B('💰 매출 정보를 못 가져왔어요'),
+    ),
+  );
+  assert.ok(
+    buildDailyMessage(daily, { ...previousDaily, revenue: 900000 }).includes(
+      `${B('💰 누적 매출 853,349원')} ${R('−46,651원')}`,
+    ),
+  );
 });
 
 test('주차는 그 주 목요일이 속한 달로 센다', () => {

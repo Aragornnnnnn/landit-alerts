@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { planOf, promoAt, valuesAt } from './revenuecat.mjs';
+import { planOf, promoAt, totalRevenue, valuesAt } from './revenuecat.mjs';
 
 test('상품 이름에서 월간·연간을 가른다', () => {
   assert.equal(
@@ -163,4 +163,22 @@ test('해지예정은 다음 결제를 끈 채 아직 쓸 수 있는 구독만 �
     },
   ];
   assert.equal(cancelingAt(subs, '2026-09-20'), 1);
+});
+
+test('매출 차트의 기간 합계를 원 단위로 반올림하고, 원화가 아니면 던진다', () => {
+  assert.equal(
+    totalRevenue({
+      yaxis_currency: 'KRW',
+      summary: { total: { Revenue: 853349.13, Transactions: 24 } },
+    }),
+    853349,
+  );
+  assert.throws(
+    () =>
+      totalRevenue({
+        yaxis_currency: 'USD',
+        summary: { total: { Revenue: 630.98 } },
+      }),
+    /원화가 아님\(USD\)/,
+  );
 });

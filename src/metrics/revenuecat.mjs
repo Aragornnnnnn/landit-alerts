@@ -17,6 +17,18 @@ export const planOf = (label) => {
   return null;
 };
 
+// 누적 매출을 셀 시작일 — 첫 결제(2026-07)보다 앞이면 된다
+const REVENUE_SINCE = '2026-01-01';
+
+// 매출 차트 응답의 기간 합계(원 단위 반올림). 원화가 아니면 숫자를 믿을 수 없어 던진다
+export const totalRevenue = (chart) => {
+  if (chart.yaxis_currency !== 'KRW')
+    throw new Error(
+      `RevenueCat 매출 통화가 원화가 아님(${chart.yaxis_currency})`,
+    );
+  return Math.round(chart.summary?.total?.Revenue ?? 0);
+};
+
 const kstDayEndMs = (isoDate) =>
   new Date(`${isoDate}T23:59:59.999+09:00`).getTime();
 
@@ -170,5 +182,16 @@ export const createRevenueCatClient = ({ apiKey, projectId }) => {
     };
   };
 
-  return { subscriptions };
+  // 서비스 시작부터 그날까지 매출 합계(원). 레비뉴캣이 원화로 환산해 준다.
+  // 스토어 수수료를 떼기 전, 환불은 뺀 값이다. 이용권 같은 단건 결제도 들어간다
+  const revenue = async (date) => {
+    const url = new URL(`${base}/charts/revenue`);
+    url.searchParams.set('start_date', REVENUE_SINCE);
+    url.searchParams.set('end_date', date);
+    url.searchParams.set('resolution', '3'); // 분기 — 합계만 쓰므로 칸 수를 줄인다
+    url.searchParams.set('currency', 'KRW');
+    return totalRevenue(await getJson(url, 'RevenueCat 차트(revenue)'));
+  };
+
+  return { subscriptions, revenue };
 };

@@ -19,6 +19,25 @@ export const formatDelta = (current, previous) => {
   return diff > 0 ? ` ${green(`+${diff}`)}` : ` ${red(`−${-diff}`)}`;
 };
 
+// 853349 → "853,349원"
+export const formatWon = (won) => `${won.toLocaleString('ko-KR')}원`;
+
+// 매출 증감 — 그날(그 주) 번 돈. 환불이 더 많으면 빨강 −
+const wonDelta = (current, previous) => {
+  if (previous === undefined || previous === null) return '';
+  const diff = current - previous;
+  if (diff === 0) return '';
+  return diff > 0
+    ? ` ${green(`+${formatWon(diff)}`)}`
+    : ` ${red(`−${formatWon(-diff)}`)}`;
+};
+
+// 누적 매출 줄 — 레비뉴캣에서 원화로 온다. 못 읽으면 그 줄만 비운다
+const revenueLine = (revenue, previous) =>
+  revenue === null || revenue === undefined
+    ? bold('💰 매출 정보를 못 가져왔어요')
+    : `${bold(`💰 누적 매출 ${formatWon(revenue)}`)}${wonDelta(revenue, previous)}`;
+
 const isSpike = (current, previous) =>
   previous > 0 &&
   Math.abs(current - previous) >= SPIKE_MIN_DIFF &&
@@ -242,6 +261,8 @@ export const buildDailyMessage = (m, prev) => {
       m.challenge,
       p.challenge,
     ),
+    '',
+    revenueLine(m.revenue, p.revenue),
   ]);
 };
 
@@ -302,6 +323,8 @@ export const buildWeeklyMessage = (m, prev) => {
       m.challenge,
       p.challenge,
     ),
+    '',
+    revenueLine(m.revenue, p.revenue),
   ]);
 };
 
