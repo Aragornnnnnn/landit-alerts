@@ -15,6 +15,7 @@
 | 일일·주간 지표             | `#일일-지표` `#주간-지표`      | 매일 9시, 월요일 주간 |
 | 편지함 피드백              | `#앱-피드백`                   | 슈퍼베이스 웹훅       |
 | 설문 응답                  | `#유료화-전-설문`              | 슈퍼베이스 웹훅       |
+| 친구 초대 등록             | 레퍼럴 수신 채널               | 슈퍼베이스 웹훅       |
 | Sentry 새 이슈             | `#sentry-web` `#sentry-mobile` | Sentry 내부 연동 웹훅 |
 
 여기서 보내지 않는 것도 있다. `#웹-상태`는 UptimeRobot이, `#revenuecat`은 RevenueCat 내장 연동이 직접 보낸다.
@@ -22,7 +23,7 @@
 디스코드 카테고리가 뮤트 단위다. 🚨 장애 · 💰 결제·구독 · 📣 유저 목소리 · 📊 지표 · 🚀 배포·스토어.
 
 세팅 과정은 알림마다 문서가 따로 있다.
-[리뷰 답글](docs/reply.md) · [편지함 피드백](docs/feedback.md) · [설문](docs/survey.md) · [Sentry](docs/sentry.md) · [서드파티 상태](docs/status.md) · [지표](docs/metrics.md) · [웹 접속 감시](docs/uptime.md)
+[리뷰 답글](docs/reply.md) · [편지함 피드백](docs/feedback.md) · [설문](docs/survey.md) · [친구 초대](docs/referral.md) · [Sentry](docs/sentry.md) · [서드파티 상태](docs/status.md) · [지표](docs/metrics.md) · [웹 접속 감시](docs/uptime.md)
 
 ## 알림 예시
 
@@ -65,6 +66,7 @@ src/store/     lib.mjs(순수) · asc.mjs · play.mjs(수집) · run.mjs(크론)
 src/status/    lib.mjs(순수) · source.mjs(수집) · run.mjs(크론)
 src/metrics/   lib.mjs(순수) · amplitude.mjs · revenuecat.mjs(수집) · collect.mjs(조립) · run.mjs(크론) · trigger.mjs(깨우기)
 src/feedback/  lib.mjs        src/survey/ lib.mjs        src/sentry/ lib.mjs
+src/referral/  lib.mjs        supabase/referral-webhook.sql — 친구 초대 카드와 DB 트리거
 api/           웹훅 수신 함수 — 위 순수 로직을 불러 쓴다
 ```
 
@@ -112,6 +114,7 @@ api/           웹훅 수신 함수 — 위 순수 로직을 불러 쓴다
 | `api/interactions.mjs` | 디스코드 버튼·모달 (리뷰 답글)   | Ed25519 서명 + 5분 타임스탬프 |
 | `api/feedback.mjs`     | 슈퍼베이스 Database Webhook      | `x-feedback-secret` 헤더      |
 | `api/survey.mjs`       | 슈퍼베이스 Database Webhook      | `x-survey-secret` 헤더        |
+| `api/referral.mjs`     | 슈퍼베이스 레퍼럴 INSERT         | `x-referral-secret` 헤더      |
 | `api/sentry.mjs`       | Sentry 알림 규칙 액션            | HMAC 서명 (Client Secret)     |
 | `api/metrics-cron.mjs` | 버셀 크론 (지표 워크플로 깨우기) | `CRON_SECRET` Bearer          |
 
@@ -158,6 +161,7 @@ DISCORD_WEBHOOK_METRICS_DAILY=... node src/metrics/run.mjs daily
 | `PLAY_SERVICE_ACCOUNT_JSON`                            | 리뷰 답글 게시 (GitHub Secrets와 동일)   | [reply.md](docs/reply.md)       |
 | `FEEDBACK_WEBHOOK_SECRET` / `DISCORD_WEBHOOK_FEEDBACK` | 피드백 웹훅 검증·앱-피드백 채널 웹훅     | [feedback.md](docs/feedback.md) |
 | `SURVEY_WEBHOOK_SECRET` / `DISCORD_WEBHOOK_SURVEY`     | 설문 웹훅 검증·유료화-전-설문 채널 웹훅  | [survey.md](docs/survey.md)     |
+| `REFERRAL_WEBHOOK_SECRET` / `DISCORD_WEBHOOK_REFERRAL` | 레퍼럴 웹훅 검증·초대 등록 채널 웹훅     | [referral.md](docs/referral.md) |
 | `SENTRY_CLIENT_SECRET` / `SENTRY_CHANNELS`             | Sentry 서명 검증·프로젝트별 채널 웹훅    | [sentry.md](docs/sentry.md)     |
 | `TRIAGE_DISPATCH_TOKEN`                                | (선택) landit-triage 분석 요청           | [sentry.md](docs/sentry.md)     |
 | `CRON_SECRET` / `GH_WORKFLOW_TOKEN`                    | 버셀 크론 검증·깃허브 워크플로 실행 요청 | [metrics.md](docs/metrics.md)   |

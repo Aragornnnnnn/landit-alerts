@@ -17,3 +17,30 @@ jobs:
 
       - name: 단위 테스트
         run: node --test 'src/**/*.test.mjs'
+
+  referral-trigger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: local-test-only
+          POSTGRES_DB: referral_trigger_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: 빈 DB에서 레퍼럴 트리거 검증
+        run: psql -v ON_ERROR_STOP=1 -f scripts/test-referral-trigger.sql
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: local-test-only
+          PGDATABASE: referral_trigger_test
