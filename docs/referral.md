@@ -16,7 +16,20 @@ Supabase Postgres public.referral INSERT
 
 - `supabase/referral-webhook.sql`: Vault에서 인증 비밀값을 읽고 최소 필드만 발행하는 DB 트리거와 PostgreSQL 함수.
 - `api/referral.mjs`: 수신 인증·검증·전송. `src/referral/lib.mjs`: 이벤트 해석·카드 생성.
-- 카드는 초대인 ID, 신규 회원 ID, 레퍼럴 ID, 등록 시각만 표시한다. 이메일·닉네임·초대 코드·원문 데이터는 보내지 않는다. 등록 시각은 BE의 `TIMESTAMP WITH TIME ZONE`을 유지한다.
+- 카드는 초대인·신규 회원의 닉네임과 ID, 레퍼럴 ID, 등록 시각을 표시한다. 트리거가 `public.user_profile(id, nickname)`에서 등록 시점 닉네임을 읽는다. 이후 변경된 닉네임은 기존 카드에 반영하지 않으며, 닉네임이 중복돼도 ID로 구분한다. 이메일·초대 코드·원문 데이터는 보내지 않는다. 등록 시각은 BE의 `TIMESTAMP WITH TIME ZONE`을 유지한다.
+- 닉네임 조회 실패·프로필 누락·구버전 payload는 `닉네임 미확인 · user 100`처럼 ID를 유지한다. 닉네임은 100자까지 표시하고 제어 문자·멘션·마크다운을 무력화한다. 닉네임은 운영 식별 보조 정보이며 동일 인물 여부를 증명하지 않는다.
+
+카드 예시(가상 사용자):
+
+> 🎉 친구 초대 등록
+>
+> 신규 회원이 온보딩에서 초대 코드를 등록했습니다.
+>
+> 초대인: 민수 · user 100
+>
+> 신규 회원: 지은 · user 200
+>
+> referral 12 · 보상 지급 여부와 별개인 등록 알림
 
 계약은 [BE PR #310](https://github.com/Aragornnnnnn/landit-be/pull/310)의 `ReferralRegistrationService`와 `V158__add_referral_rewards.sql`을 확인했다. 현재 확인한 PR head는 `accde2eb1364225d85994e596503bbaf21a4583e`다. 운영 배포 여부는 별도로 확인해야 한다.
 
@@ -38,6 +51,8 @@ Supabase Postgres public.referral INSERT
 6. SQL Editor에서 `postgres` 관리자로 [`supabase/referral-webhook.sql`](../supabase/referral-webhook.sql)을 실행한다. 이 SQL은 동일 이름 트리거를 교체하므로 재실행해도 하나만 유지한다. **Dashboard에서 같은 테이블에 별도 Database Webhook을 추가하지 않는다.** 중복 알림이 된다.
 
 이 트리거는 Supabase Database Webhook과 같은 `pg_net`을 사용한다. 비밀값을 트리거 인자에 저장하지 않고 Vault에서 읽기 위해 함수를 소스로 관리한다. HTTP 요청은 트랜잭션 커밋 이후 시작한다. [Supabase Webhook 문서](https://supabase.com/docs/guides/database/webhooks), [pg_net 문서](https://supabase.com/docs/guides/database/extensions/pg_net).
+
+기존 ID 전용 알림에서 업데이트할 때는 Vercel 수신 함수를 먼저 배포한 다음 `supabase/referral-webhook.sql`을 재적용한다. 새 수신 함수는 기존 payload도 처리하고, 기존 수신 함수는 추가 닉네임 필드를 무시하므로 혼합 버전에서도 ID 알림을 유지한다. 프로필 조회는 기본키 두 건의 읽기뿐이며 기존 업무 테이블·보상·Flyway를 변경하지 않는다. 닉네임이 HTTP 큐와 Discord 카드에 남으므로 채널은 운영 담당자에게만 공개한다.
 
 ## 검증과 실패 대응
 
