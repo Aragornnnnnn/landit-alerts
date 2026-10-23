@@ -44,3 +44,14 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: local-test-only
           PGDATABASE: referral_trigger_test
+
+      - name: 빈 별도 DB에서 레퍼럴 이상 징후 검증
+        run: |
+          createdb referral_risk_test
+          PGDATABASE=referral_risk_test psql -v ON_ERROR_STOP=1 -f scripts/test-referral-risk.sql
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: local-test-only
+          PGDATABASE: referral_trigger_test

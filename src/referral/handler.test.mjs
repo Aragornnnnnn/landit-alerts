@@ -135,3 +135,25 @@ test('429와 네트워크 오류는 502이며 비밀 URL·응답 원문을 노�
   assert.equal(logs.length, 2);
   assert.ok(logs.every((line) => line === 'referral 12: discord delivery failed'));
 });
+
+test('인증된 이상 징후는 같은 채널로 검토 카드 한 장만 보낸다', async () => {
+  const req = request();
+  req.body = {
+    type: 'REFERRAL_RISK', schema: 'landit_alerts', table: 'referral_risk_event',
+    record: { id: '1', rule_code: 'INVITE_BURST', inviter_id: '100',
+      inviter_nickname: '민수', detected_at: '2026-10-23T14:00:00+09:00',
+      window_minutes: 10, observed_count: 3, matched_count: 3, min_count: 3,
+      threshold_percent: null, evidence_referral_ids: ['10','11','12'] },
+  };
+  const res = response();
+  await handler(req, res);
+  assert.deepEqual(res.body, { sent: true });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].body.embeds[0].title, '⚠️ 친구 초대 이상 징후');
+  const invalid = response();
+  req.body.record = {};
+  await handler(req, invalid);
+  assert.equal(invalid.code, 400);
+  assert.deepEqual(invalid.body, { error: 'invalid_referral_risk' });
+  assert.equal(calls.length, 1);
+});

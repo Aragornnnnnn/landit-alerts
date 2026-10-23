@@ -8,6 +8,8 @@ import {
   parseReferralWebhook,
 } from '../src/referral/lib.mjs';
 
+import { buildReferralRiskEmbed, isReferralRisk, parseReferralRisk } from '../src/referral/risk.mjs';
+
 const isAuthorized = (header) => {
   const secret = process.env.REFERRAL_WEBHOOK_SECRET;
   if (!secret || typeof header !== 'string') return false;
@@ -24,11 +26,12 @@ export default async (req, res) => {
   if (!isAuthorized(req.headers['x-referral-secret'])) {
     return res.status(401).json({ error: 'unauthorized' });
   }
-  if (!isReferralInsert(req.body)) {
+  const risk = isReferralRisk(req.body);
+  if (!risk && !isReferralInsert(req.body)) {
     return res.status(200).json({ skipped: true });
   }
-  const record = parseReferralWebhook(req.body);
-  if (!record) return res.status(400).json({ error: 'invalid_referral' });
+  const record = risk ? parseReferralRisk(req.body) : parseReferralWebhook(req.body);
+  if (!record) return res.status(400).json({ error: risk ? 'invalid_referral_risk' : 'invalid_referral' });
 
   const webhookUrl = process.env.DISCORD_WEBHOOK_REFERRAL;
   if (!webhookUrl) {
@@ -36,11 +39,11 @@ export default async (req, res) => {
   }
   try {
     // wait=true로 디스코드가 메시지를 저장한 응답까지 확인한다.
-    await sendEmbedWithReceipt(webhookUrl, buildReferralEmbed(record));
+    await sendEmbedWithReceipt(webhookUrl, risk ? buildReferralRiskEmbed(record) : buildReferralEmbed(record));
     return res.status(200).json({ sent: true });
   } catch {
     // fetch 예외에는 Webhook URL이 포함될 수 있어 원문을 기록하거나 돌려주지 않는다.
-    console.error(`referral ${record.id}: discord delivery failed`);
+    console.error(`referral ${risk ? 'risk ' : ''}${record.id}: discord delivery failed`);
     return res.status(502).json({ error: 'delivery_failed' });
   }
 };
