@@ -73,3 +73,53 @@ DROP FUNCTION IF EXISTS public.notify_landit_referral();
 ```
 
 인증 비밀값을 교체할 때는 먼저 트리거를 제거하고 Vercel 환경변수 갱신·재배포와 Vault 값 갱신을 마친 다음 설치 SQL을 다시 실행한다. 중지 기간의 관계는 자동 소급되지 않는다. Discord 채널 URL만 바꿀 때는 Vercel 환경변수 변경 후 재배포한다.
+
+
+## 이상 징후 알림
+
+`supabase/referral-risk.sql`은 별도 `landit_alerts` 스키마에 설정·이력과 검사 함수를 만든다. `supabase/referral-risk-cron.sql`은 Supabase pg_cron으로 매분 검사한다. 기존 `/api/referral` 인증과 Discord 채널을 사용하며 등록 카드와 별개의 경고 카드를 보낸다. 자동 차단·보상 보류·지급 변경은 하지 않는다.
+
+| 규칙 | 기본 기준 | 같은 초대인·같은 규칙 재알림 간격 |
+| --- | --- | --- |
+| `INVITE_BURST` | 최근 10분 등록 3명 이상. | 60분. |
+| `INVITE_DAILY` | 최근 24시간 등록 10명 이상. | 24시간. |
+| `REFUND_RATIO` | 최근 7일 확정 첫 결제 5건 이상 중 현재 환불 50% 이상. | 24시간. |
+
+시간 창은 `(검사 시각 - 기간, 검사 시각]`이다. 환불 규칙의 분모는 `referral_purchase_claim`의 확정된 운영 첫 결제이고 `billing_id`의 `purchased_at`을 기준으로 한다. 분자는 해당 관계의 PURCHASE 보상에 현재 `REVERSED`가 있는 첫 결제다. 양쪽 보상·반복 웹훅·가입 보상 환수는 중복 계산하지 않고, 환불 취소로 복구된 건은 제외한다. 일반 구독 전체의 환불률이나 아직 정산되지 않은 환불을 측정하지 않는다.
+
+카드는 탐지 규칙, 초대인 닉네임·ID, 집계 기간, 관측 건수·기준, 최근 관련 레퍼럴 ID 최대 10건을 보여 준다. 닉네임은 검사 시점 값이다. 두 급증 기준을 동시에 만족하면 서로 다른 규칙으로 각각 알릴 수 있다. 기기·IP 탐지는 구현하지 않았다.
+
+### 배포와 운영 설정
+
+1. 새 수신 함수를 Vercel Production에 배포한다. 구버전 수신 함수는 위험 이벤트를 skipped로 응답하므로 먼저 배포해야 한다.
+2. `postgres`로 `supabase/referral-risk.sql`을 적용한다. `landit_alerts`는 외부 API에 노출하지 않고 운영 DB 관리자만 접근한다. 업무 테이블은 읽기만 한다.
+3. `SELECT * FROM landit_alerts.evaluate_referral_risk();`로 발송 없이 후보를 확인한다.
+4. `supabase/referral-risk-cron.sql`을 적용한다. 같은 이름 작업은 갱신되므로 중복 등록하지 않는다. 검사 제한 시간은 20초다.
+
+설정 변경은 Supabase SQL Editor의 `postgres` 권한으로 아래 테이블만 수정한다. 별도 어드민 UI는 없다. 설치 SQL을 재실행해도 변경한 기준은 유지한다.
+
+```sql
+SELECT * FROM landit_alerts.referral_risk_rule ORDER BY code;
+-- 예: 10분 내 5명으로 기준을 바꾸고, 재알림은 2시간 간격으로 변경한다.
+UPDATE landit_alerts.referral_risk_rule
+SET min_count=5, window_minutes=10, cooldown_minutes=120
+WHERE code='INVITE_BURST';
+-- 개별 규칙 중지/재개는 enabled=false/true로 변경한다.
+```
+
+탐지 결과를 모두 `pending` 이력으로 저장하고 advisory lock으로 겹친 검사를 직렬화한다. 대기 이력은 오래된 순서로 최대 3건씩 HTTP 큐에 넣는다. 다음 검사 전에 시간 창을 벗어나도 이미 탐지한 건은 보존하며, 비활성화한 규칙의 대기 이력은 재개할 때까지 발송하지 않는다. 지속적으로 기준을 넘으면 재알림 간격 뒤 다시 보낸다. 이 간격은 탐지 시점 기준으로 실패·응답 불명 상태에도 적용한다. HTTP 자동 재시도는 없으며 운영자가 이력을 확인해야 한다. 수동 재전송은 중복 수신 가능성을 확인한 뒤 별도로 처리한다.
+
+```sql
+SELECT id,rule_code,inviter_id,detected_at,delivery_status,http_status
+FROM landit_alerts.referral_risk_event ORDER BY id DESC LIMIT 50;
+SELECT jobid,schedule,active FROM cron.job WHERE jobname='landit-referral-risk';
+SELECT status,start_time,end_time,return_message FROM cron.job_run_details
+WHERE jobid=(SELECT jobid FROM cron.job WHERE jobname='landit-referral-risk')
+ORDER BY start_time DESC LIMIT 10;
+```
+
+`pending`은 발송 대기, `queued`는 HTTP 큐 등록 상태다. 다음 검사에서 HTTP 200과 `sent=true`를 확인해야 `delivered`로 기록한다. 이것은 Discord의 메시지 저장 응답이며 사람이 읽었다는 뜻은 아니다. 실패 응답은 `failed`, HTTP 큐 등록 후 15분 내 응답을 확인하지 못하면 `unknown`으로 남긴다. 비밀값 누락·집계·큐 오류는 cron 실패로 기록하며 업무 등록에는 관여하지 않는다. pg_net 응답의 원문과 인증값은 알림 이력에 복사하지 않는다.
+
+전체 검사 중지 시 `SELECT cron.unschedule('landit-referral-risk');`를 실행한다. 기존 등록 알림과 업무·보상 데이터는 유지한다. 다시 시작하려면 cron 설치 SQL만 재실행한다. 설정·이력은 보존하며 자동 삭제하지 않는다.
+
+검증은 빈 임시 DB에서 `psql -v ON_ERROR_STOP=1 -f scripts/test-referral-risk.sql`을 실행한다. 운영 DB에서는 테스트 스크립트를 실행하지 않는다. 기준 경계·복원된 환불·중복 계산·재적용·규칙 비활성화·재알림·HTTP 실패·큐 실패·비밀값 누락을 대역으로 검증한다.

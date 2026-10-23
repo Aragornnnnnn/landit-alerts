@@ -1,13 +1,13 @@
 // 레퍼럴 등록 웹훅을 검증하고 초대인·신규 회원을 표시하는 디스코드 카드를 만든다.
 
-const isId = (value) =>
+export const isId = (value) =>
   (Number.isSafeInteger(value) && value > 0) ||
   (typeof value === 'string' &&
     /^[1-9]\d{0,18}$/.test(value) &&
     BigInt(value) <= 9223372036854775807n);
 
 // registered_at은 BE의 TIMESTAMP WITH TIME ZONE이다. 시간대 없는 값은 추측하지 않는다.
-const isTimestamp = (value) =>
+export const isTimestamp = (value) =>
   typeof value === 'string' &&
   /T.*(?:Z|[+-]\d{2}:\d{2})$/.test(value) &&
   Number.isFinite(Date.parse(value));
@@ -39,7 +39,7 @@ export const parseReferralWebhook = (payload) => {
   };
 };
 
-const nicknameText = (value) => {
+export const nicknameText = (value) => {
   if (typeof value !== 'string') return null;
   // 줄바꿈·제어 문자로 다른 필드를 흉내 내거나 멘션·마크다운을 삽입하지 못하게 한다.
   const plain = value
