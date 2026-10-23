@@ -20,6 +20,8 @@ const request = (overrides = {}) => ({
       id: '12',
       inviter_id: '100',
       invitee_id: '200',
+      inviter_nickname: '민수',
+      invitee_nickname: '지은',
       registered_at: '2026-10-23T09:30:00+09:00',
     },
   },
@@ -112,7 +114,8 @@ test('인증된 등록은 wait=true로 카드 한 장을 보내고 성공 응답
   assert.deepEqual(res.body, { sent: true });
   assert.equal(calls.length, 1);
   assert.equal(new URL(calls[0].url).searchParams.get('wait'), 'true');
-  assert.equal(calls[0].body.embeds[0].fields[1].value, 'user 200');
+  assert.equal(calls[0].body.embeds[0].fields[0].value, '민수 · user 100');
+  assert.equal(calls[0].body.embeds[0].fields[1].value, '지은 · user 200');
 });
 
 test('429와 네트워크 오류는 502이며 비밀 URL·응답 원문을 노출하지 않는다', async () => {

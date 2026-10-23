@@ -26,6 +26,8 @@ SET search_path = ''
 AS $$
 DECLARE
   webhook_secret text;
+  inviter_nickname text;
+  invitee_nickname text;
 BEGIN
   SELECT decrypted_secret INTO webhook_secret
   FROM vault.decrypted_secrets
@@ -36,6 +38,18 @@ BEGIN
     RETURN NEW;
   END IF;
 
+  -- 등록 시점 닉네임만 읽는다. 조회 실패가 ID 알림이나 업무 등록을 막지 않게 한다.
+  BEGIN
+    SELECT nickname INTO inviter_nickname
+    FROM public.user_profile WHERE id = NEW.inviter_id;
+    SELECT nickname INTO invitee_nickname
+    FROM public.user_profile WHERE id = NEW.invitee_id;
+  EXCEPTION WHEN OTHERS THEN
+    inviter_nickname := NULL;
+    invitee_nickname := NULL;
+    RAISE WARNING 'referral nickname lookup failed (SQLSTATE=%)', SQLSTATE;
+  END;
+
   PERFORM net.http_post(
     url := 'https://landit-alerts.vercel.app/api/referral',
     headers := jsonb_build_object(
@@ -45,7 +59,8 @@ BEGIN
       'type', 'INSERT', 'schema', 'public', 'table', 'referral', 'old_record', NULL,
       'record', jsonb_build_object(
         'id', NEW.id::text, 'inviter_id', NEW.inviter_id::text,
-        'invitee_id', NEW.invitee_id::text, 'registered_at', NEW.registered_at
+        'invitee_id', NEW.invitee_id::text, 'registered_at', NEW.registered_at,
+        'inviter_nickname', inviter_nickname, 'invitee_nickname', invitee_nickname
       )
     ),
     timeout_milliseconds := 10000

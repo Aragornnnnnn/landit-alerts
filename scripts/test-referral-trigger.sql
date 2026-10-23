@@ -21,6 +21,9 @@ CREATE TABLE public.referral (
   id bigint PRIMARY KEY, inviter_id bigint NOT NULL, invitee_id bigint UNIQUE NOT NULL,
   registered_at timestamptz NOT NULL
 );
+CREATE TABLE public.user_profile (id bigint PRIMARY KEY, nickname varchar(100), email text);
+INSERT INTO public.user_profile VALUES
+  (100, '민수', 'private@example.com'), (200, '지은', 'private2@example.com');
 
 \ir ../supabase/referral-webhook.sql
 -- 재적용해도 같은 이름의 트리거가 늘어나지 않는지 확인한다.
@@ -30,6 +33,8 @@ INSERT INTO public.referral VALUES (1, 100, 200, '2026-10-23T09:30:00+09:00');
 INSERT INTO public.referral VALUES (1, 100, 200, '2026-10-23T09:30:00+09:00')
 ON CONFLICT DO NOTHING;
 UPDATE public.referral SET inviter_id = 101 WHERE id = 1;
+-- 알림은 등록 시점 스냅샷이므로 이후 닉네임 수정으로 큐 내용이 바뀌지 않는다.
+UPDATE public.user_profile SET nickname = '변경된 닉네임' WHERE id = 100;
 DO $$
 DECLARE r record;
 BEGIN
@@ -45,6 +50,9 @@ BEGIN
      OR r.body->>'table' <> 'referral'
      OR r.body->'record'->>'inviter_id' <> '100'
      OR r.body->'record'->>'invitee_id' <> '200'
+     OR r.body->'record'->>'inviter_nickname' IS DISTINCT FROM '민수'
+     OR r.body->'record'->>'invitee_nickname' IS DISTINCT FROM '지은'
+     OR (SELECT count(*) FROM jsonb_object_keys(r.body->'record')) <> 6
      OR jsonb_typeof(r.body->'record'->'id') <> 'string'
      OR (r.body->'record'->>'registered_at')::timestamptz
         <> '2026-10-23T00:30:00Z'::timestamptz THEN
@@ -55,6 +63,17 @@ $$;
 
 BEGIN;
 INSERT INTO public.referral VALUES (2, 100, 201, now());
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM net.test_requests WHERE body->'record'->>'id' = '2'
+      AND body->'record'->>'inviter_nickname' = '변경된 닉네임'
+      AND body->'record'->'invitee_nickname' = 'null'::jsonb
+  ) THEN
+    RAISE EXCEPTION 'missing profile must preserve ID notification';
+  END IF;
+END;
+$$;
 ROLLBACK;
 DO $$
 BEGIN
@@ -63,6 +82,22 @@ BEGIN
   END IF;
 END;
 $$;
+
+BEGIN;
+ALTER TABLE public.user_profile RENAME COLUMN nickname TO unavailable_nickname;
+INSERT INTO public.referral VALUES (5, 100, 204, now());
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM net.test_requests WHERE body->'record'->>'id' = '5'
+      AND body->'record'->'inviter_nickname' = 'null'::jsonb
+      AND body->'record'->'invitee_nickname' = 'null'::jsonb
+  ) THEN
+    RAISE EXCEPTION 'nickname query failure must preserve ID notification';
+  END IF;
+END;
+$$;
+ROLLBACK;
 
 SET landit_test.enqueue_fail = 'on';
 INSERT INTO public.referral VALUES (3, 100, 202, now());

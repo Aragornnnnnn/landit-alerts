@@ -28,22 +28,50 @@ export const parseReferralWebhook = (payload) => {
   )
     return null;
 
-  // 알림에 필요한 값만 전달한다. 이메일·닉네임·초대 코드·보상액은 조회하지 않는다.
+  // 구버전 트리거의 ID 전용 payload도 계속 받는다. 이메일·초대 코드·보상액은 제외한다.
   return {
     id: String(row.id),
     inviter_id: String(row.inviter_id),
     invitee_id: String(row.invitee_id),
+    inviter_nickname: nicknameText(row.inviter_nickname),
+    invitee_nickname: nicknameText(row.invitee_nickname),
     registered_at: new Date(row.registered_at).toISOString(),
   };
 };
+
+const nicknameText = (value) => {
+  if (typeof value !== 'string') return null;
+  // 줄바꿈·제어 문자로 다른 필드를 흉내 내거나 멘션·마크다운을 삽입하지 못하게 한다.
+  const plain = value
+    .replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2060-\u206f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!plain) return null;
+  return Array.from(plain)
+    .slice(0, 100)
+    .join('')
+    .replace(/@/g, '＠')
+    .replace(/[\\`*_~|<>\[\]()]/g, '\\$&');
+};
+
+const participant = (id, nickname) =>
+  nickname ? `${nickname} · user ${id}` : `닉네임 미확인 · user ${id}`;
 
 export const buildReferralEmbed = (record) => ({
   title: '🎉 친구 초대 등록',
   description: '신규 회원이 온보딩에서 초대 코드를 등록했습니다.',
   color: 0x2ecc71,
   fields: [
-    { name: '초대인', value: `user ${record.inviter_id}`, inline: true },
-    { name: '신규 회원', value: `user ${record.invitee_id}`, inline: true },
+    {
+      name: '초대인',
+      value: participant(record.inviter_id, record.inviter_nickname),
+      inline: true,
+    },
+    {
+      name: '신규 회원',
+      value: participant(record.invitee_id, record.invitee_nickname),
+      inline: true,
+    },
   ],
   footer: { text: `referral ${record.id} · 보상 지급 여부와 별개인 등록 알림` },
   timestamp: record.registered_at,
