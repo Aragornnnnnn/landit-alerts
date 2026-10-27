@@ -19,108 +19,43 @@
 | Sentry 새 이슈             | `#sentry-web` `#sentry-mobile` | Sentry 내부 연동 웹훅 |
 
 여기서 보내지 않는 것도 있다. `#웹-상태`는 UptimeRobot이, `#revenuecat`은 RevenueCat 내장 연동이 직접 보낸다.
-
 디스코드 카테고리가 뮤트 단위다. 🚨 장애 · 💰 결제·구독 · 📣 유저 목소리 · 📊 지표 · 🚀 배포·스토어.
 
-세팅 과정은 알림마다 문서가 따로 있다.
+카드가 어떻게 보이는지는 [docs/cards.md](docs/cards.md). 세팅 과정은 알림마다 문서가 따로 있다.
 [리뷰 답글](docs/reply.md) · [편지함 피드백](docs/feedback.md) · [설문](docs/survey.md) · [친구 초대](docs/referral.md) · [Sentry](docs/sentry.md) · [서드파티 상태](docs/status.md) · [지표](docs/metrics.md) · [웹 접속 감시](docs/uptime.md)
 
-## 알림 예시
+## 어떻게 동작하나
 
-새 리뷰. 별점이 먼저 오고 제목이 아래다. 왼쪽 색 막대는 별점을 따라간다 (4-5 초록, 3 노랑, 1-2 빨강).
-저평점이어도 멘션은 하지 않는다. 버튼을 누르면 그 자리에서 답글을 쓸 수 있다.
+- **주기 확인 (스토어·서드파티 상태)** — 지금 상태를 물어 지난 실행의 상태(Actions 캐시)와 비교하고, 달라진 것만 보낸다. 첫 실행은 기준점만 저장한다. 판정 조건과 반복 알림 방어는 [docs/alert-flow.md](docs/alert-flow.md).
+- **지표** — 버셀 크론이 깃허브 워크플로를 깨우고, 앰플리튜드·RevenueCat·슈퍼베이스에 어제와 그제를 물어 증감과 함께 보낸다. 조회가 실패하면 침묵하지 않고 실패를 알린다. [docs/metrics.md](docs/metrics.md).
+- **웹훅 수신** — `api/` 아래 함수가 Vercel(`https://landit-alerts.vercel.app`)에서 돈다. 외부가 우리 주소로 보내면 검증하고 디스코드 형식으로 바꿔 보낸다. 무엇을 받고 어떻게 검증하는지는 각 기능 문서에 있다.
 
-```text
-🍎 App Store
-⭐⭐⭐⭐⭐
-영어 회화 연습에 딱이에요
-출퇴근길에 부담 없이 한 판씩 하기 좋아요.
-닉네임                             ← Android는 v1.4.2 · 기기 이름 · OS 추가
-```
-
-매일 아침 9시 지표. 증감은 초록·빨강으로 칠한다.
-
-```text
-📊 랜딧 일일 지표 · 2026년 9월 20일 (일)
-
-👥 활성 142명 +5
-   유료 30명 −4
-   무료 112명 +9
-
-🌱 가입 38명 −4
-...
-💳 구독 중 89명 +3
-```
-
-새 버전과 심사 결과는 해당 스토어 링크를 함께 보낸다. 🍎/🤖 자리에는 실제 스토어 로고가 들어간다.
-
-별점만 남긴 평가, 평균 평점, Play 심사 완료는 알리지 않는다. 앞의 둘은 공식 API로 값을 믿을 수 없고, 마지막은 구글이 API를 주지 않는다.
+데이터는 전부 공식 인증 API에서 가져온다. 공개 엔드포인트(RSS·lookup·페이지 파싱)는 캐시 흔들림 문제로 폐기했다.
 
 ## 코드가 어디 있나
 
 기능 하나가 폴더 하나다. 폴더 안에서는 이름이 역할을 가리킨다.
 
 ```text
-src/shared/    discord.mjs · http.mjs      — 모든 기능이 쓰는 것
+src/shared/    discord.mjs · http.mjs — 모든 기능이 쓰는 것
 src/store/     lib.mjs(순수) · asc.mjs · play.mjs(수집) · run.mjs(크론) · reply.mjs(답글 버튼)
 src/status/    lib.mjs(순수) · source.mjs(수집) · run.mjs(크론)
-src/metrics/   lib.mjs(순수) · amplitude.mjs · revenuecat.mjs(수집) · collect.mjs(조립) · run.mjs(크론) · trigger.mjs(깨우기)
-src/feedback/  lib.mjs        src/survey/ lib.mjs        src/sentry/ lib.mjs
-src/referral/  lib.mjs        supabase/referral-webhook.sql — 친구 초대 카드와 DB 트리거
+src/metrics/   lib.mjs(순수) · amplitude.mjs · revenuecat.mjs · supabase.mjs(수집) · collect.mjs(조립)
+               run.mjs(크론) · trigger.mjs(깨우기) · preview.mjs · sample.mjs(예시 숫자로 모양 확인)
+src/feedback/  lib.mjs(순수) · replay.mjs(앰플리튜드 리플레이 찾기)
+src/referral/  lib.mjs(순수) · risk.mjs(이상 징후 카드)
+src/sentry/    lib.mjs(순수) · triage.mjs(landit-triage 분석 요청)
+src/survey/    lib.mjs(순수)
 api/           웹훅 수신 함수 — 위 순수 로직을 불러 쓴다
+supabase/ sql/ 레퍼럴 웹훅·이상 징후 트리거, 지표용 읽기 전용 함수
+scripts/       밀린 설문·피드백 일괄 전송, 앱 이모지 업로드
 ```
 
 - `lib.mjs`는 네트워크를 타지 않는다. 테스트가 붙는 곳이 여기다.
 - `run.mjs`는 크론 실행부다. 상태 파일을 읽고 비교하고 보내고 저장한다.
-- 수집기(`asc.mjs`·`play.mjs`·`source.mjs`·`amplitude.mjs`·`revenuecat.mjs`)만 바깥과 통신한다.
-- 지표는 응답을 숫자로 옮기는 순수 함수를 수집기 안에 둔다. API 응답 모양이 바뀌면 같이 바뀌기 때문이다.
+- 수집기(`asc.mjs`·`play.mjs`·`source.mjs`·`amplitude.mjs`·`revenuecat.mjs`·`supabase.mjs`)만 바깥과 통신한다.
 
-## 어떻게 동작하나
-
-### 주기적으로 확인하는 알림
-
-스토어(30분)와 서드파티 상태(15분)는 지금 상태를 물어보고 지난 실행의 상태(Actions 캐시)와 비교해, 달라진 것만 보낸다.
-
-- 첫 실행은 기준점만 저장하고 아무것도 보내지 않는다.
-- 리뷰는 ID로 비교하므로 같은 리뷰가 두 번 알림되지 않는다.
-- 버전은 높아졌을 때만 알린다. 스토어 CDN이 배포 직후 옛 버전을 섞어 응답해도 반복 알림이 없다.
-- 수집원 하나가 실패해도 나머지 알림은 정상 동작한다.
-
-판정 조건과 반복 알림 방어의 배경은 [docs/alert-flow.md](docs/alert-flow.md)에 있다.
-
-데이터는 전부 공식 인증 API에서 가져온다. 공개 엔드포인트(RSS·lookup·페이지 파싱)는 캐시 흔들림 문제로 폐기했다.
-
-| 데이터                   | 출처                      |
-| ------------------------ | ------------------------- |
-| App Store 리뷰·버전·심사 | App Store Connect API     |
-| Play 리뷰·버전(트랙)     | Google Play Developer API |
-
-### 매일 아침 지표
-
-매일 아침 앰플리튜드와 RevenueCat에 어제와 그제를 물어 증감과 함께 보낸다. 최고 스트릭과 시나리오 누적 최다는 슈퍼베이스에서 읽는다. 월요일엔 주간 지표가 이어진다.
-
-깨우는 건 버셀 크론이다. 이 레포는 깃허브 예약 실행이 심하게 밀려서(15분 크론이 실제로는 평균 195분 간격) 시각은 버셀이 정하고 실행만 깃허브에 맡긴다. 같은 기간을 두 번 보내지 않게 마지막으로 보낸 기간만 기록해 둔다.
-
-조회가 실패하면 침묵하지 않고 실패를 알린다. 구독(RevenueCat)만 실패하면 그 자리만 비우고 나머지 지표는 보낸다.
-지표 정의와 세팅은 [docs/metrics.md](docs/metrics.md)에 있다.
-
-### 웹훅으로 받는 알림
-
-`api/` 아래 함수가 팀 Vercel의 landit-alerts 프로젝트(`https://landit-alerts.vercel.app`)에서 돈다.
-외부가 우리 주소로 보내면 검증하고 디스코드 형식으로 바꿔 보낸다.
-
-| 함수                   | 받는 것                          | 검증                          |
-| ---------------------- | -------------------------------- | ----------------------------- |
-| `api/interactions.mjs` | 디스코드 버튼·모달 (리뷰 답글)   | Ed25519 서명 + 5분 타임스탬프 |
-| `api/feedback.mjs`     | 슈퍼베이스 Database Webhook      | `x-feedback-secret` 헤더      |
-| `api/survey.mjs`       | 슈퍼베이스 Database Webhook      | `x-survey-secret` 헤더        |
-| `api/referral.mjs`     | 슈퍼베이스 레퍼럴 INSERT         | `x-referral-secret` 헤더      |
-| `api/sentry.mjs`       | Sentry 알림 규칙 액션            | HMAC 서명 (Client Secret)     |
-| `api/metrics-cron.mjs` | 버셀 크론 (지표 워크플로 깨우기) | `CRON_SECRET` Bearer          |
-
-`api/`나 `src/`를 고치면 GitHub 푸시와 별개로 `npx vercel deploy --prod`를 돌려야 반영된다. 절차는 [docs/reply.md](docs/reply.md).
-
-## 로컬 실행
+## 로컬에서
 
 ```bash
 node --test 'src/**/*.test.mjs'   # 단위 테스트
@@ -131,52 +66,16 @@ DISCORD_WEBHOOK_METRICS_DAILY=... node src/metrics/run.mjs daily
 ```
 
 **디스코드 채널에 테스트 발송을 하지 않는다.** 팀원이 본다. 웹훅은 테스트용 채널 주소로 덮어쓴다.
-
 상태 파일은 `.state/` 아래에 저장되고 `STATE_FILE`로 위치를 바꿀 수 있다.
-웹훅 연결 전에 쌓인 설문·피드백은 `scripts/survey-backfill.mjs`, `scripts/feedback-backfill.mjs`로 한 번에 보낸다.
 
-## Secrets
+`api/`나 `src/`를 고치면 머지와 별개로 `npx vercel deploy --prod`를 돌려야 반영된다. Vercel 프로젝트가 깃허브와 연결돼 있지 않아서다. 절차는 [docs/reply.md](docs/reply.md).
 
-### GitHub Actions
+## 시크릿
 
-| 이름                                                | 쓰는 곳                   | 문서                              |
-| --------------------------------------------------- | ------------------------- | --------------------------------- |
-| `DISCORD_WEBHOOK_REVIEW` / `DISCORD_WEBHOOK_UPDATE` | 스토어 알림               | [key-setup.md](docs/key-setup.md) |
-| `ASC_ISSUER_ID` / `ASC_KEY_ID` / `ASC_PRIVATE_KEY`  | App Store Connect API 키  | [key-setup.md](docs/key-setup.md) |
-| `PLAY_SERVICE_ACCOUNT_JSON`                         | Play 서비스 계정 키       | [key-setup.md](docs/key-setup.md) |
-| `DISCORD_WEBHOOK_DEPS`                              | 서드파티 상태 알림        | [status.md](docs/status.md)       |
-| `AMPLITUDE_API_KEY` / `AMPLITUDE_SECRET_KEY`        | 지표 조회                 | [metrics.md](docs/metrics.md)     |
-| `REVENUECAT_API_KEY` / `REVENUECAT_PROJECT_ID`      | 구독 조회                 | [metrics.md](docs/metrics.md)     |
-| `DISCORD_WEBHOOK_METRICS_DAILY` / `..._WEEKLY`      | 지표 채널 웹훅            | [metrics.md](docs/metrics.md)     |
-| `SUPABASE_URL` / `SUPABASE_SECRET_KEY`              | 지표의 최고 스트릭 (선택) | [metrics.md](docs/metrics.md)     |
-
-크론 알림은 자기 Secrets가 하나라도 없으면 실행이 시작하지 않는다. (선택)이라 적힌 것만 예외로, 없으면 그 줄만 빠진다.
-
-### Vercel 환경변수 (웹훅 수신)
-
-| 이름                                                   | 용도                                     | 문서                            |
-| ------------------------------------------------------ | ---------------------------------------- | ------------------------------- |
-| `DISCORD_PUBLIC_KEY`                                   | 디스코드 버튼 요청 서명 검증             | [reply.md](docs/reply.md)       |
-| `ASC_ISSUER_ID` / `ASC_KEY_ID` / `ASC_PRIVATE_KEY`     | 리뷰 답글 게시 (GitHub Secrets와 동일)   | [reply.md](docs/reply.md)       |
-| `PLAY_SERVICE_ACCOUNT_JSON`                            | 리뷰 답글 게시 (GitHub Secrets와 동일)   | [reply.md](docs/reply.md)       |
-| `FEEDBACK_WEBHOOK_SECRET` / `DISCORD_WEBHOOK_FEEDBACK` | 피드백 웹훅 검증·앱-피드백 채널 웹훅     | [feedback.md](docs/feedback.md) |
-| `SURVEY_WEBHOOK_SECRET` / `DISCORD_WEBHOOK_SURVEY`     | 설문 웹훅 검증·유료화-전-설문 채널 웹훅  | [survey.md](docs/survey.md)     |
-| `REFERRAL_WEBHOOK_SECRET` / `DISCORD_WEBHOOK_REFERRAL` | 레퍼럴 웹훅 검증·초대 등록 채널 웹훅     | [referral.md](docs/referral.md) |
-| `SENTRY_CLIENT_SECRET` / `SENTRY_CHANNELS`             | Sentry 서명 검증·프로젝트별 채널 웹훅    | [sentry.md](docs/sentry.md)     |
-| `TRIAGE_DISPATCH_TOKEN`                                | (선택) landit-triage 분석 요청           | [sentry.md](docs/sentry.md)     |
-| `CRON_SECRET` / `GH_WORKFLOW_TOKEN`                    | 버셀 크론 검증·깃허브 워크플로 실행 요청 | [metrics.md](docs/metrics.md)   |
-
-ASC 키는 GitHub Secrets와 Vercel 양쪽에 있다. 키를 바꾸면 둘 다 교체하고 Vercel은 재배포한다.
-
-## 운영 주의
-
-- **ASC 키는 애플 개발자 팀에 묶인다.** 앱을 다른 팀으로 이전하면 옛 키로는 403·404가 나는데, 워크플로는 "수집 실패"만 로그에 남긴 채 success로 끝난다. 2026-09 계정 이전 때 열흘간 애플 알림이 조용히 빠졌다. 이전 뒤에는 새 팀에서 키를 다시 발급해 GitHub Secrets·Vercel 둘 다 교체한다.
-- **애플 알림이 한동안 없으면 Actions 로그를 본다.** 실행 마지막 줄의 `수집 실패: ...`가 그 신호다. 성공 배지만 믿지 않는다.
-- **지표가 아침에 아예 안 오면** 조회가 아니라 발송이 막힌 것이다. 조회 실패는 실패대로 알리게 돼 있다.
+GitHub Secrets와 Vercel 환경변수가 어디에 쓰이고 어느 문서를 보면 되는지는 [docs/secrets.md](docs/secrets.md)에 모아 뒀다. 운영 중 겪은 주의점도 거기 있다. 스토어 키 발급 과정은 [docs/key-setup.md](docs/key-setup.md).
 
 ## 왜 별도 레포인가
 
-- 운영 도구는 앱 코드와 수명이 다르다. landit-fe는 PR과 리뷰를 거치지만, 여기는 main에 바로 커밋한다.
-- 서로 영향이 없다. 여기가 깨져도 앱 빌드·배포는 무관하고, 반대도 마찬가지다.
+- 운영 도구는 앱 코드와 수명이 다르다. 여기가 깨져도 앱 빌드·배포는 무관하고, 반대도 마찬가지다.
 - 퍼블릭 레포는 GitHub Actions가 무료 무제한이다. 크론이 팀 CI 한도를 건드리지 않는다.
 - 백엔드·설문·Sentry처럼 앱 밖에서 오는 알림도 여기로 모인다.
