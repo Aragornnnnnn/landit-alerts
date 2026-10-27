@@ -58,20 +58,15 @@
 
 ### 최고 스트릭·누적 최다는 왜 DB에서 읽나
 
-앰플리튜드에는 스트릭 화면을 열 때 남는 `Streak Opened`의 `streak_days`뿐이라 화면을 안 연 사람은 안 잡힌다(하루 7명 정도). 시나리오 누적도 이벤트를 전 기간 세야 나온다. 백엔드가 둘 다 `user_learning_activity_summary`에 계산해 두므로 메인 DB인 슈퍼베이스 REST로 그 표만 읽는다. 팀 계정은 앰플리튜드와 같은 id 목록으로 뺀다. 코드는 이 표에 GET만 보내고 쓰기는 없다.
+앰플리튜드에는 스트릭 화면을 열 때 남는 `Streak Opened`의 `streak_days`뿐이라 화면을 안 연 사람은 안 잡힌다(하루 7명 정도). 시나리오 누적도 이벤트를 전 기간 세야 나온다. 백엔드가 둘 다 `user_learning_activity_summary`에 계산해 두므로 메인 DB인 슈퍼베이스에서, 그 표를 읽는 읽기 전용 함수를 통해 가져온다. 팀 계정은 앰플리튜드와 같은 id 목록으로 뺀다. 쓰기는 없다.
 
 #### 어떤 키를 넣나
 
-`scripts/*-backfill.mjs`가 쓰는 시크릿 키(service role, 새 체계의 `sb_secret_…`도 같다)로도 되지만, 그 키는 RLS를 우회하는 전권 키라 한 표를 읽는 봇에 주기엔 과하다. 레포가 퍼블릭이기도 하다. 다음처럼 읽기 전용 역할과 그 역할만 가진 토큰을 두는 게 낫다. 슈퍼베이스 SQL 편집기에서 한 번만 하면 되고, 코드는 그대로다.
+표를 직접 읽지 않고 읽기 전용 함수 `public.metrics_records` 하나만 부른다. 함수는 최고 스트릭·시나리오 누적 최다와 그 id만 돌려주고, 실행 권한은 `anon`에게만 열려 있다. 그래서 `SUPABASE_SECRET_KEY`에는 전권 시크릿 키가 아니라 공개 키(`sb_publishable_…`)를 넣는다. 이 키가 새도 그 함수 말고는 아무것도 못 한다.
 
-```sql
-create role landit_metrics_reader nologin;
-grant usage on schema public to landit_metrics_reader;
-grant select on public.user_learning_activity_summary to landit_metrics_reader;
-grant landit_metrics_reader to authenticator;
-```
+처음 한 번, 슈퍼베이스 "[Landit] prod (Seoul)"의 SQL 편집기에서 [sql/metrics_records.sql](../sql/metrics_records.sql)을 실행한다. 표·데이터는 바꾸지 않고 함수 하나와 그 실행 권한만 더한다. 마지막 줄이 숫자 두 개와 id를 돌려주면 된다. 되돌리려면 `drop function public.metrics_records(date, bigint[]);`.
 
-그다음 `role` 클레임이 `landit_metrics_reader`인 JWT를 프로젝트 JWT 서명 키로 발급해 `SUPABASE_SECRET_KEY`에 넣는다. PostgREST가 토큰의 역할로 전환하므로 이 토큰은 그 표 SELECT 말고는 아무것도 못 한다. LAN-462의 `landit_push_reader`와 같은 방식이다.
+팀 계정 목록은 코드(`TEAM_USER_IDS`)에서 함수 인자로 넘긴다. 목록이 한 곳에만 있게 하려고서다.
 
 ### 누적 매출
 
@@ -95,7 +90,7 @@ RevenueCat 차트는 유료·체험만 세고 우리가 부여한 프로모션�
 - `src/metrics/lib.mjs` — 메시지 조립(순수). `buildDailyMessage`·`buildWeeklyMessage`
 - `src/metrics/amplitude.mjs` — 앰플리튜드 Dashboard REST. 동시 4개 제한과 재시도가 여기 있다. 응답을 숫자로 옮기는 순수 함수도 같이 둔다(응답 모양이 바뀌면 같이 바뀌므로)
 - `src/metrics/revenuecat.mjs` — RevenueCat 차트(구독·누적 매출)와 고객 전수 조회
-- `src/metrics/supabase.mjs` — 슈퍼베이스 REST. 최고 스트릭·시나리오 누적 최다
+- `src/metrics/supabase.mjs` — 슈퍼베이스 읽기 전용 함수(`sql/metrics_records.sql`) 호출. 최고 스트릭·시나리오 누적 최다
 - `src/metrics/collect.mjs` — 수집기를 불러 입력 모양을 만든다. 이벤트 이름·필터는 여기 `EVENT` 표 한 곳
 - `src/metrics/run.mjs` — 실행부. `daily|weekly [기준일]`
 - `src/metrics/sample.mjs` — 예시 숫자. 입력 데이터 모양의 정본이고 테스트와 preview가 같이 쓴다
@@ -131,7 +126,7 @@ RevenueCat 차트는 유료·체험만 세고 우리가 부여한 프로모션�
 1. **디스코드 웹훅** — `#일일-지표`, `#주간-지표` 각 채널 편집 > 연동 > 웹후크. 이름 "랜딧 지표", 아바타는 토스페이스 📊.
 2. **앰플리튜드** — 설정 > Projects > production의 API Key·Secret Key. 새로 만들지 않고 프로젝트에 붙은 한 쌍을 쓴다.
 3. **RevenueCat** — 프로젝트 > API keys > v2 시크릿 키. 권한은 Charts metrics Read, Customer information Read 둘만. 프로젝트 id는 대시보드 주소의 `/projects/<id>/`.
-4. **GitHub Secrets** — `AMPLITUDE_API_KEY` `AMPLITUDE_SECRET_KEY` `REVENUECAT_API_KEY` `REVENUECAT_PROJECT_ID` `DISCORD_WEBHOOK_METRICS_DAILY` `DISCORD_WEBHOOK_METRICS_WEEKLY`. 스트릭엔 `SUPABASE_URL` `SUPABASE_SECRET_KEY`(슈퍼베이스 프로젝트 > Settings > API). 운영 DB는 Landit 조직의 "[Landit] prod (Seoul)"(`gwhzjdsukzpktkikcovs`)이고, "[Landit] prod"(`pbfpcmetmvshagljralr`)는 멈춰 있는 옛 프로젝트라 주소가 안 잡힌다. 뒤의 둘은 없어도 지표는 나간다.
+4. **GitHub Secrets** — `AMPLITUDE_API_KEY` `AMPLITUDE_SECRET_KEY` `REVENUECAT_API_KEY` `REVENUECAT_PROJECT_ID` `DISCORD_WEBHOOK_METRICS_DAILY` `DISCORD_WEBHOOK_METRICS_WEEKLY`. 스트릭·누적엔 `SUPABASE_URL`(`https://gwhzjdsukzpktkikcovs.supabase.co`)과 `SUPABASE_SECRET_KEY`(슈퍼베이스 프로젝트 > Settings > API Keys의 공개 키 `sb_publishable_…`). 먼저 `sql/metrics_records.sql`을 실행해 둬야 한다. 운영 DB는 Landit 조직의 "[Landit] prod (Seoul)"(`gwhzjdsukzpktkikcovs`)이고, "[Landit] prod"(`pbfpcmetmvshagljralr`)는 멈춰 있는 옛 프로젝트라 주소가 안 잡힌다. 뒤의 둘은 없어도 지표는 나간다.
 5. **깃허브 토큰** — 이 레포의 Actions 실행 권한만 가진 fine-grained 토큰(Actions: Read and write)을 만들어 버셀 환경변수 `GH_WORKFLOW_TOKEN`에 넣는다.
 6. **버셀 크론 비밀값** — 버셀 환경변수 `CRON_SECRET`에 아무 긴 문자열을 넣는다. 버셀이 크론 요청에 이 값을 실어 보내고, 함수는 그게 맞을 때만 움직인다. 없으면 아무나 주소를 눌러 알림을 쏠 수 있다.
 7. **배포** — `npx vercel deploy --prod`. `vercel.json`의 크론은 프로덕션 배포에만 붙는다.
