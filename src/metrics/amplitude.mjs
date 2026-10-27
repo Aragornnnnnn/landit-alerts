@@ -84,7 +84,7 @@ export const singleValue = (data) => data.series?.[0]?.[0] ?? 0;
 export const sumSeries = (data) =>
   (data.series ?? []).flat().reduce((a, b) => a + b, 0);
 
-// 기간 전체를 한 칸으로 합친 값 — i는 1·7·30만 되지만 seriesCollapsed는 기간 길이와 무관하게 전체 uniques를 준다
+// 기간 전체를 한 칸으로 합친 값 — 칸이 여럿이어도 seriesCollapsed는 기간 전체의 uniques(겹치는 사람은 한 번)를 준다
 export const collapsedValue = (data) =>
   data.seriesCollapsed?.[0]?.[0]?.value ?? 0;
 
@@ -190,9 +190,11 @@ export const createAmplitudeClient = ({ apiKey, secretKey }) => {
   const totals = async (event, range) =>
     sumSeries(await query({ event, m: 'totals', ...range }));
 
-  // 기간이 30일을 넘어도 되는 uniques — 챌린지(100일 이용권)처럼 긴 창을 셀 때
+  // 기간이 30일을 넘어도 되는 uniques — 100일 이용권처럼 긴 창을 셀 때.
+  // 일 단위(i=1)로 물어야 끝 날짜가 지켜진다. 월 단위(i=30)는 끝 날짜를 무시하고 그달 전체를 세서,
+  // 10/18 기준과 10/25 기준이 똑같이 10월 전체로 나왔다
   const uniquesOver = async (event, { start, end }) =>
-    collapsedValue(await query({ event, m: 'uniques', start, end, days: 30 }));
+    collapsedValue(await query({ event, m: 'uniques', start, end, days: 1 }));
 
   // 한 사람이 가장 많이 한 횟수
   const topCount = async (event, range) =>
