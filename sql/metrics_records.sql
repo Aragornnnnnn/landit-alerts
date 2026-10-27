@@ -13,9 +13,10 @@ as $$
     where not (user_profile_id = any (coalesce(excluded_ids, '{}'::bigint[])))
   ),
   -- 시나리오 완료 수 — 요약 표의 completed_scenario_count는 백엔드가 갱신하지 않아 늘 0이다.
-  -- 어드민(ScenarioAccessService.countCompletedScenarios)처럼 학습 언어의 시나리오 권한 행을 센다
+  -- 어드민(ScenarioAccessService.countCompletedScenarios)처럼 학습 언어의 시나리오 권한 행을 센다.
+  -- 표에 (user_profile_id, scenario_id, target_locale) 유니크 제약이 있지만, 같은 시나리오가 두 번 세지지 않게 명시한다
   c as (
-    select a.user_profile_id, count(*) as completed
+    select a.user_profile_id, count(distinct a.scenario_id) as completed
     from public.user_scenario_access a
     join public.user_profile p on p.id = a.user_profile_id and p.target_locale = a.target_locale
     where not (a.user_profile_id = any (coalesce(excluded_ids, '{}'::bigint[])))
