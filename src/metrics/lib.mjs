@@ -100,46 +100,27 @@ const distribution = (zero, byCount) =>
 
 const wrapAnsi = (lines) => '```ansi\n' + lines.join('\n') + '\n```';
 
-// 구독·챌린지를 합친 유료 인원. 챌린지(100일 이용권)는 앰플리튜드에서 따로 와서 구독이 없어도 더한다
+// 구독·이용권 합계. 100일 이용권(챌린지)은 앰플리튜드에서 따로 와서 구독을 못 읽어도 더한다
 const total = (subs, challenge) =>
-  (subs ? subs.monthly + subs.yearlyTrial + subs.yearlyPaid + subs.promo : 0) +
-  challenge;
+  (subs ? subs.yearly + subs.monthly + subs.promo : 0) + challenge;
 
-const yearly = (subs) => subs.yearlyTrial + subs.yearlyPaid;
-
-// 구독 블록 — 연간(체험·결제·해지예정) / 월간 / 챌린지 / 프로모션.
-// RevenueCat만 못 읽은 경우엔 나머지 지표를 살리고 구독 줄만 비운다. 챌린지는 출처가 달라 그대로 남는다
+// 구독 블록 — 연간 / 월간 / 100일 / 프로모션. 연간은 결제한 사람만(무료체험 제외, 해지예정은 포함).
+// RevenueCat만 못 읽은 경우엔 나머지 지표를 살리고 구독 줄만 비운다. 100일은 출처가 달라 그대로 남는다
 const subscriptionLines = (subs, prevSubs, challenge, prevChallenge) => {
   const prev = prevSubs ?? {};
   const challengeLine = bullet(
-    `챌린지 ${challenge}명`,
+    `100일 ${challenge}명`,
     challenge,
     prevChallenge,
   );
   if (!subs) return [bold('💳 구독 정보를 못 가져왔어요'), challengeLine];
   return [
     headline(
-      `💳 구독·챌린지 ${total(subs, challenge)}명`,
+      `💳 구독·이용권 ${total(subs, challenge)}명`,
       total(subs, challenge),
       prevSubs && total(prevSubs, prevChallenge ?? 0),
     ),
-    bullet(
-      `연간 ${yearly(subs)}명`,
-      yearly(subs),
-      prevSubs && yearly(prevSubs),
-    ),
-    subBullet(
-      `무료체험 중 ${subs.yearlyTrial}명`,
-      subs.yearlyTrial,
-      prev.yearlyTrial,
-    ),
-    subBullet(`결제 중 ${subs.yearlyPaid}명`, subs.yearlyPaid, prev.yearlyPaid),
-    // 바로 위 숫자에 이미 들어 있는 사람들이다 — 더하는 줄이 아니라 그중 얼마인지를 말한다
-    subBullet(
-      `이 중 해지예정 ${subs.canceling}명`,
-      subs.canceling,
-      prev.canceling,
-    ),
+    bullet(`연간 ${subs.yearly}명`, subs.yearly, prev.yearly),
     bullet(`월간 ${subs.monthly}명`, subs.monthly, prev.monthly),
     challengeLine,
     bullet(`프로모션 ${subs.promo}명`, subs.promo, prev.promo),
@@ -172,6 +153,8 @@ const CAMPAIGN_LABELS = {
   continue_expression: '표현 이어가기',
   small_talk_reminder: '스몰톡',
   mailbox_reply: '편지 답장',
+  // 운영팀이 어드민에서 직접 보낸 편지 (백엔드 PushQueueMessageHandler)
+  mailbox_direct: '운영진 편지',
   expression_review: '복습 퀴즈',
   // 구 로컬 알림(LAN-406 제거 전 바이너리)이 아직 보내는 캠페인
   daily_reminder: '오늘의 시나리오 (구 알림)',

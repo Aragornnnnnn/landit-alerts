@@ -1,6 +1,7 @@
-// RevenueCat v2 수집기 — 구독 중 인원을 월간·연간(무료체험/결제)·프로모션으로 가른다.
-// 유료·체험은 상품별 차트에서, 프로모션은 차트에 안 잡혀 고객 전수 조회로 그날 끝 기준으로 센다
+// RevenueCat v2 수집기 — 구독 중 인원을 연간·월간(결제한 사람)·프로모션으로 가르고 누적 매출을 읽는다.
+// 결제는 상품별 차트에서, 프로모션은 차트에 안 잡혀 고객 전수 조회로 그날 끝 기준으로 센다
 import { assertOk } from '../shared/http.mjs';
+import { TEAM_USER_IDS } from './amplitude.mjs';
 
 const API = 'https://api.revenuecat.com/v2/projects';
 // 고객 정보 조회는 분당 한도가 있다 — 워커 다섯이 이 간격을 지키면 초당 8건을 넘지 않는다
@@ -53,23 +54,14 @@ const aliveAt = (sub, at) => {
   return sub.starts_at <= at && (end == null || end > at);
 };
 
-// 그날 끝(KST)에 살아 있던 프로모션 구독 수. 샌드박스는 뺀다
+// 그날 끝(KST)에 살아 있던 프로모션 구독 수. 샌드박스와 팀 계정은 뺀다.
+// 레비뉴캣 고객 id가 백엔드 user_profile_id라 앰플리튜드와 같은 팀 목록을 쓴다
 export const promoAt = (subscriptions, isoDate) => {
   const at = kstDayEndMs(isoDate);
   return subscriptions.filter(
-    (sub) => sub.store === 'promotional' && aliveAt(sub, at),
-  ).length;
-};
-
-// 그날 끝에 아직 쓸 수 있지만 다음 결제를 끄둔 구독 수 — 체험 중 해지도 여기 들어간다.
-// 프로모션은 원래 갱신이 없어 제외한다. 구독 기록의 상품 번호가 레비뉴캣 내부 id(prod…)라
-// 월간·연간을 가를 수 없다 — 지금은 스토어 구독이 연간뿐이라 연간 아래에 붙인다
-export const cancelingAt = (subscriptions, isoDate) => {
-  const at = kstDayEndMs(isoDate);
-  return subscriptions.filter(
     (sub) =>
-      sub.store !== 'promotional' &&
-      sub.auto_renewal_status === 'will_not_renew' &&
+      sub.store === 'promotional' &&
+      !TEAM_USER_IDS.includes(String(sub.customer_id)) &&
       aliveAt(sub, at),
   ).length;
 };
@@ -157,9 +149,8 @@ export const createRevenueCatClient = ({ apiKey, projectId }) => {
 
   // 그날 끝 기준 구독 중 인원
   const subscriptions = async (date) => {
-    const [actives, trials, all] = await Promise.all([
+    const [actives, all] = await Promise.all([
       chart('actives', { date, segment: 'product_id' }),
-      chart('trials', { date, segment: 'product_id' }),
       scanSubscriptions(),
     ]);
     const byPlan = (values) => {
@@ -170,15 +161,12 @@ export const createRevenueCatClient = ({ apiKey, projectId }) => {
       }
       return out;
     };
+    // actives는 결제 중인 구독만 센다 — 무료체험은 trials 차트에 따로 있어 여기 안 들어간다
     const paid = byPlan(actives);
-    const trial = byPlan(trials);
     return {
+      yearly: paid.yearly,
       monthly: paid.monthly,
-      // 지금 무료 체험은 연간 상품에만 붙는다. 월간 체험이 생기면 줄을 따로 내야 한다
-      yearlyTrial: trial.yearly + trial.monthly,
-      yearlyPaid: paid.yearly,
       promo: promoAt(all, date),
-      canceling: cancelingAt(all, date),
     };
   };
 
