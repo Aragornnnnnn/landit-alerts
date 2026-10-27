@@ -45,10 +45,3 @@ export const sendEmbedWithReceipt = async (webhookUrl, embed) => {
   });
   return res.json();
 };
-
-// 이미 보낸 카드를 바꾼다 — 나중에 알게 된 정보(리플레이 주소 등)를 덧붙일 때 쓴다
-export const editEmbed = async (webhookUrl, messageId, embed) => {
-  const url = new URL(webhookUrl);
-  url.pathname += `/messages/${messageId}`;
-  await send('PATCH', url.toString(), { embeds: [embed] });
-};
