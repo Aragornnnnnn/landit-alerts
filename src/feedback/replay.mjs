@@ -9,8 +9,8 @@ const REPLAY_SEARCH_URL =
 const FEEDBACK_EVENT = 'Feedback Submitted';
 // 백엔드 저장 시각과 앱 이벤트 시각의 차이 허용폭 — 이보다 멀면 같은 유저의 다른 피드백이다
 const MATCH_WINDOW_MS = 10 * 60 * 1000;
-// 피드백 직후라 최근 이벤트 몇십 개 안에 있다
-const ACTIVITY_LIMIT = 50;
+// 앱이 이벤트를 많이 쏴서(퀴즈 한 판에 수십 개) 피드백 뒤 4분이면 100개 가까이 쌓인다 — API 상한인 1000개를 다 받는다
+const ACTIVITY_LIMIT = 1000;
 
 // 앰플리튜드 event_time은 "2026-10-01 14:26:29.770000" 꼴의 UTC다
 const parseEventTime = (eventTime) =>
@@ -67,7 +67,20 @@ export const lookupFeedbackReplay = async ({
     auth,
     '앰플리튜드 유저 활동',
   );
-  return findFeedbackReplay(activity.events ?? [], submittedAtMs);
+  const events = activity.events ?? [];
+  const replay = findFeedbackReplay(events, submittedAtMs);
+  // 버셀 로그가 1시간만 남아서, 못 찾은 이유를 바로 알 수 있게 조회 범위를 같이 적는다
+  if (!replay) {
+    const newest =
+      events
+        .map((e) => e.event_time)
+        .sort()
+        .at(-1) ?? '없음';
+    console.log(
+      `리플레이 매칭 실패: 유저 ${userId}, 이벤트 ${events.length}건, 최신 ${newest}`,
+    );
+  }
+  return replay;
 };
 
 const sleepMs = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
