@@ -58,13 +58,13 @@
 
 ### 최고 스트릭·누적 최다는 왜 DB에서 읽나
 
-앰플리튜드에는 스트릭 화면을 열 때 남는 `Streak Opened`의 `streak_days`뿐이라 화면을 안 연 사람은 안 잡힌다(하루 7명 정도). 시나리오 누적도 이벤트를 전 기간 세야 나온다. 백엔드가 둘 다 `user_learning_activity_summary`에 계산해 두므로 메인 DB인 슈퍼베이스에서, 그 표를 읽는 읽기 전용 함수를 통해 가져온다. 팀 계정은 앰플리튜드와 같은 id 목록으로 뺀다. 쓰기는 없다.
+앰플리튜드에는 스트릭 화면을 열 때 남는 `Streak Opened`의 `streak_days`뿐이라 화면을 안 연 사람은 안 잡힌다(하루 7명 정도). 시나리오 누적도 이벤트를 전 기간 세야 나온다. 누적 개수는 요약 표의 `completed_scenario_count`가 아니라 `user_scenario_access` 행 수로 센다 — 그 열은 백엔드가 갱신하지 않아 늘 0이고, 어드민도 행 수를 쓴다. 백엔드가 둘 다 `user_learning_activity_summary`에 계산해 두므로 메인 DB인 슈퍼베이스에서, 그 표를 읽는 읽기 전용 함수를 통해 가져온다. 팀 계정은 앰플리튜드와 같은 id 목록으로 뺀다. 쓰기는 없다.
 
 #### 어떤 키를 넣나
 
 표를 직접 읽지 않고 읽기 전용 함수 `public.metrics_records` 하나만 부른다. 함수는 최고 스트릭·시나리오 누적 최다와 그 id만 돌려주고, 실행 권한은 `anon`에게만 열려 있다. 그래서 `SUPABASE_SECRET_KEY`에는 전권 시크릿 키가 아니라 공개 키(`sb_publishable_…`)를 넣는다. 이 키가 새도 그 함수 말고는 아무것도 못 한다.
 
-처음 한 번, 슈퍼베이스 "[Landit] prod (Seoul)"의 SQL 편집기에서 [sql/metrics_records.sql](../sql/metrics_records.sql)을 실행한다. 표·데이터는 바꾸지 않고 함수 하나와 그 실행 권한만 더한다. 마지막 줄이 숫자 두 개와 id를 돌려주면 된다. 되돌리려면 `drop function public.metrics_records(date, bigint[]);`.
+슈퍼베이스 "[Landit] prod (Seoul)"의 SQL 편집기에서 [sql/metrics_records.sql](../sql/metrics_records.sql)을 실행한다. 함수를 고치면 같은 파일을 다시 실행하면 된다. 표·데이터는 바꾸지 않고 함수 하나와 그 실행 권한만 더한다. 마지막 줄이 숫자 두 개와 id를 돌려주면 된다. 되돌리려면 `drop function public.metrics_records(date, bigint[]);`.
 
 팀 계정 목록은 코드(`TEAM_USER_IDS`)에서 함수 인자로 넘긴다. 목록이 한 곳에만 있게 하려고서다.
 

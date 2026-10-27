@@ -155,13 +155,15 @@ const recordLines = (records) => {
   const streakLine = streak.top
     ? `🔥 최고 스트릭 ${streak.top}일 · ${streak.users.length}명이 이어가는 중 (id ${streak.users.join(', ')})`
     : '🔥 최고 스트릭 0일 · 이어가는 사람이 없어요';
-  return [
-    bold(streakLine),
-    bold(
-      `🏆 시나리오 누적 최다 ${scenarios.top}개 (id ${scenarios.users.join(', ')})`,
-    ),
-    '',
-  ];
+  // 누적 최다가 0이면 셀 수 없는 상태다(서비스에 완료가 없을 리 없다) — 0개라고 쓰지 않고 줄을 숨긴다
+  const scenarioLines = scenarios.top
+    ? [
+        bold(
+          `🏆 시나리오 누적 최다 ${scenarios.top}개 (id ${scenarios.users.join(', ')})`,
+        ),
+      ]
+    : [];
+  return [bold(streakLine), ...scenarioLines, ''];
 };
 
 // 알림 캠페인 이름 → 사람이 읽는 이름 (어휘는 landit-fe docs/analytics-utm.md). 모르는 캠페인은 이름 그대로

@@ -179,6 +179,16 @@ test('기록을 못 가져오면 줄째 숨기고, 스트릭이 아무도 없으
   );
   assert.ok(nobody.includes(B('🔥 최고 스트릭 0일 · 이어가는 사람이 없어요')));
   assert.ok(nobody.includes(B('🏆 시나리오 누적 최다 120개 (id 473)')));
+  // 누적 최다가 0이면 그 줄만 숨긴다
+  const noScenarios = buildDailyMessage(
+    {
+      ...daily,
+      records: { ...daily.records, scenarios: { top: 0, users: [] } },
+    },
+    null,
+  );
+  assert.doesNotMatch(noScenarios, /누적 최다/);
+  assert.ok(noScenarios.includes('🔥 최고 스트릭 21일'));
 });
 
 test('표현을 한 사람이 완료한 사람보다 많아도 0개 칸이 음수가 되지 않는다', () => {
