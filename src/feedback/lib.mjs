@@ -41,7 +41,7 @@ export const toSeoulIso = (createdAt) =>
   new Date(`${createdAt}+09:00`).toISOString();
 
 // 본문이 카드의 전부다. 누가 보냈는지는 footer에 user id와 보낸 시각만 적고, 피드백 id는 링크에만 들어간다.
-// 리플레이는 앰플리튜드 수집이 늦어 카드를 보낸 뒤에 찾으므로, 찾으면 같은 카드를 주소와 함께 다시 만든다
+// 리플레이 주소는 앰플리튜드에서 찾았을 때만 들어온다. 못 찾으면 어드민 링크만 붙는다
 export const buildFeedbackEmbed = (
   { id, user_profile_id, feedback_type, content_text, created_at },
   replayUrl,

@@ -3,7 +3,7 @@ import { timingSafeEqual } from 'node:crypto';
 
 import { waitUntil } from '@vercel/functions';
 
-import { editEmbed, sendEmbedWithReceipt } from '../src/shared/discord.mjs';
+import { sendEmbed } from '../src/shared/discord.mjs';
 import {
   buildFeedbackEmbed,
   parseFeedbackWebhook,
@@ -26,10 +26,10 @@ const isAuthorized = (header) => {
   return timingSafeEqual(Buffer.from(header), Buffer.from(secret));
 };
 
-const attachReplay = async (webhookUrl, messageId, record) => {
+const findReplayUrl = async (record) => {
   const apiKey = process.env.AMPLITUDE_API_KEY;
   const secretKey = process.env.AMPLITUDE_SECRET_KEY;
-  if (!apiKey || !secretKey || !record.created_at) return;
+  if (!apiKey || !secretKey || !record.created_at) return undefined;
 
   const submittedAtMs = Date.parse(toSeoulIso(record.created_at));
   const replay = await pollFeedbackReplay(
@@ -44,13 +44,18 @@ const attachReplay = async (webhookUrl, messageId, record) => {
   );
   if (!replay) {
     console.log(`리플레이 못 찾음: 피드백 ${record.id}`);
-    return;
+    return undefined;
   }
-  await editEmbed(
-    webhookUrl,
-    messageId,
-    buildFeedbackEmbed(record, buildReplayUrl(replay)),
-  );
+  return buildReplayUrl(replay);
+};
+
+// 리플레이를 먼저 찾고 카드를 한 번만 보낸다. 찾기가 실패해도 카드는 반드시 나간다
+const sendCard = async (webhookUrl, record) => {
+  const replayUrl = await findReplayUrl(record).catch((error) => {
+    console.error(error);
+    return undefined;
+  });
+  await sendEmbed(webhookUrl, buildFeedbackEmbed(record, replayUrl));
 };
 
 export default async (req, res) => {
@@ -63,16 +68,11 @@ export default async (req, res) => {
   // 우리 관심사가 아닌 이벤트는 조용히 받아 준다 — 슈퍼베이스가 재시도하지 않게
   if (!record) return res.status(200).json({ skipped: true });
 
-  const webhookUrl = process.env.DISCORD_WEBHOOK_FEEDBACK;
-  const message = await sendEmbedWithReceipt(
-    webhookUrl,
-    buildFeedbackEmbed(record),
-  );
-  // 카드는 바로 보내고 응답한다. 리플레이는 함수가 살아 있는 동안 찾아서, 찾으면 같은 카드에 링크를 붙인다
+  // 슈퍼베이스에는 바로 답하고, 카드는 함수가 살아 있는 동안 리플레이까지 붙여서 보낸다
   waitUntil(
-    attachReplay(webhookUrl, message.id, record).catch((error) =>
+    sendCard(process.env.DISCORD_WEBHOOK_FEEDBACK, record).catch((error) =>
       console.error(error),
     ),
   );
-  return res.status(200).json({ sent: true });
+  return res.status(200).json({ accepted: true });
 };
