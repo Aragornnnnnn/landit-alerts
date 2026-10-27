@@ -1,6 +1,6 @@
--- 지표 봇이 최고 스트릭·시나리오 누적 최다만 읽게 하는 읽기 전용 함수. 슈퍼베이스 SQL 편집기에서 한 번 실행한다
+-- 지표 봇이 최고 스트릭·시나리오 누적 최다만 읽게 하는 읽기 전용 함수. 슈퍼베이스 SQL 편집기에서 실행한다(다시 실행해도 된다)
 -- 공개 키(anon)는 이 함수만 부를 수 있고, 표를 직접 읽거나 쓰지 못한다
-create function public.metrics_records(target_date date, excluded_ids bigint[])
+create or replace function public.metrics_records(target_date date, excluded_ids bigint[])
 returns json
 language sql
 stable
@@ -8,9 +8,19 @@ security definer
 set search_path = ''
 as $$
   with s as (
-    select user_profile_id, current_streak_days, completed_scenario_count, last_activity_date
+    select user_profile_id, current_streak_days, last_activity_date
     from public.user_learning_activity_summary
     where not (user_profile_id = any (coalesce(excluded_ids, '{}'::bigint[])))
+  ),
+  -- 시나리오 완료 수 — 요약 표의 completed_scenario_count는 백엔드가 갱신하지 않아 늘 0이다.
+  -- 어드민(ScenarioAccessService.countCompletedScenarios)처럼 학습 언어의 시나리오 권한 행을 센다.
+  -- 표에 (user_profile_id, scenario_id, target_locale) 유니크 제약이 있지만, 같은 시나리오가 두 번 세지지 않게 명시한다
+  c as (
+    select a.user_profile_id, count(distinct a.scenario_id) as completed
+    from public.user_scenario_access a
+    join public.user_profile p on p.id = a.user_profile_id and p.target_locale = a.target_locale
+    where not (a.user_profile_id = any (coalesce(excluded_ids, '{}'::bigint[])))
+    group by a.user_profile_id
   ),
   -- 백엔드 StreakService처럼 마지막 학습일이 기준일 이전이면 끊긴 스트릭이다
   st as (
@@ -19,8 +29,8 @@ as $$
     where last_activity_date >= target_date
   ),
   sc as (
-    select coalesce(max(completed_scenario_count), 0) as top
-    from s
+    select coalesce(max(completed), 0) as top
+    from c
   )
   select json_build_object(
     'streak', json_build_object(
@@ -35,8 +45,8 @@ as $$
       'top', sc.top,
       'users', coalesce((
         select json_agg(user_profile_id order by user_profile_id)
-        from s
-        where sc.top > 0 and completed_scenario_count = sc.top
+        from c
+        where sc.top > 0 and completed = sc.top
       ), '[]'::json)
     )
   )
