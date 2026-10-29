@@ -6,7 +6,7 @@
 
 - 잔액은 `https://platform.openai.com/settings/organization/billing/overview`의 **API credit balance**다. 조직 이름과 General의 조직 ID를 확인하고 새로고침한다. 월 한도·자동충전 금액·누적 비용과 구분한다.
 - 잔액은 15분 이내의 확인 시각, USD, 조직 ID, 출처를 검증한다. 잔액을 못 읽으면 `status: unavailable`로 명시한다. 과거 잔액을 현재 잔액으로 재사용하거나 사용액을 빼서 추정하지 않는다.
-- 비용은 전날 **00:00 이상, 다음 날 00:00 미만 KST**다. [공식 Costs API](https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/usage/methods/costs)에 시작·끝 Unix timestamp와 `group_by[]=api_key_id`를 전달한다. 반환된 버킷이 요청 구간 전체를 덮는지 확인한다. 다른 시간 범위로 반환되면 집계 실패로 보고한다. 실제 계정의 KST 구간 응답은 Admin key 등록 뒤 검증해야 한다.
+- 비용은 가장 최근에 완료된 **UTC 날짜 00:00 이상, 다음 날 00:00 미만**다. [공식 Costs API](https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/usage/methods/costs)에 시작·끝 Unix timestamp와 `group_by[]=api_key_id`를 전달한다. 반환된 버킷이 요청 구간 전체를 덮는지 확인한다. 다른 시간 범위로 반환되면 집계 실패로 보고한다. 실제 조회에서 API가 UTC 날짜로 버킷을 정렬함을 확인했다. 오전 10시 보고는 전날 09:00부터 당일 09:00 KST까지이며 보고서에 UTC와 KST 양쪽 구간을 표시한다. 한국 시간 자정 기준 전날 사용액으로 오인하지 않는다.
 - 비용은 API key **ID**별이다. 비밀 키 값은 출력하지 않는다. `null` 귀속은 미분류·공통 비용으로 별도 표시한다. 전체 항목은 CSV로 첨부하고, 본문에는 금액순으로 들어갈 만큼 표시한다. 조회 시점의 집계이며 지연 반영·조정될 수 있다.
 - Admin key가 없거나 API 조회가 실패해도 잔액 보고는 보낸다. 실패를 $0으로 표시하지 않는다. 잔액만 실패하면 키별 비용을 보낸다.
 - 같은 비용 날짜는 로컬 `.state/openai/YYYY-MM-DD.json`으로 중복을 막고, lock으로 동시 실행을 막는다. 수동 테스트도 같은 상태 경로를 쓰면 당일 중복을 막는다.
@@ -57,7 +57,7 @@ node --env-file=.env.openai src/openai/run.mjs .state/openai-balance.json
 node --env-file=.env.openai src/openai/run.mjs .state/openai-balance.json --send
 ```
 
-키 등록 뒤 최초 미리보기에서 실제 Costs API 인증·권한·KST 경계·키별 결과를 확인한다. 미리보기는 금융 정보이므로 공개 로그에 남기지 않는다. 스케줄은 이 채팅의 Codex 자동화에서 관리하며, 저장소를 clone하는 것만으로 자동화가 생기지 않는다.
+키 등록 뒤 최초 미리보기에서 실제 Costs API 인증·권한·UTC 경계·키별 결과를 확인한다. 미리보기는 금융 정보이므로 공개 로그에 남기지 않는다. 스케줄은 이 채팅의 Codex 자동화에서 관리하며, 저장소를 clone하는 것만으로 자동화가 생기지 않는다.
 
 ## 검증
 

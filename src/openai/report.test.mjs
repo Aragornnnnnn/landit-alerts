@@ -5,17 +5,17 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { BILLING_URL, collectReport, postReport, previousDate, validateBalance } from './report.mjs';
-import { kstDayRange } from './costs.mjs';
+import { utcDayRange } from './costs.mjs';
 import { runReport } from './run.mjs';
 const now = new Date('2026-10-29T01:00:00Z');
 const balance = { source: BILLING_URL, organizationId: 'org-test', observedAt: now.toISOString(), status: 'ok', currency: 'usd', usd: 20.25 };
 const options = { balance, organizationId: 'org-test', adminKey: 'test', now };
-const { start, end } = kstDayRange('2026-10-28');
+const { start, end } = utcDayRange('2026-10-28');
 const costReply = (results = []) => ({ ok: true, json: async () => ({ has_more: false, data: [{ start_time: start, end_time: end, results }] }) });
 const costs = [ { api_key_id: 'key-prod', amount: { currency: 'usd', value: 1.2 } }, { api_key_id: null, amount: { currency: 'usd', value: 0.3 } } ];
 
-test('한국 날짜 변경·연말·윤년에서 전날을 계산한다', () => {
-  assert.equal(previousDate(new Date('2026-12-31T15:00:00Z')), '2026-12-31');
+test('완료된 UTC 날짜를 선택하고 연말·윤년을 처리한다', () => {
+  assert.equal(previousDate(new Date('2026-12-31T15:00:00Z')), '2026-12-30');
   assert.equal(previousDate(new Date('2024-03-01T01:00:00Z')), '2024-02-29');
 });
 
@@ -30,6 +30,8 @@ test('잔액과 조직·확인 시각을 검증하며 자동충전 금액은 사
 test('정확한 비용·미분류 비용과 CSV 전부를 전달한다', async () => {
   const report = await collectReport({ ...options, fetchImpl: async () => costReply(costs) });
   assert.match(report.content, /\$20.25/);
+  assert.match(report.content, /2026-10-28 00:00–24:00 UTC/);
+  assert.match(report.content, /2026-10-28 09:00–2026-10-29 09:00 KST/);
   assert.match(report.content, /\$1.5000/);
   assert.match(report.content, /키 미분류·공통 비용/);
   assert.match(report.csv, /key-prod,1.2\nunattributed,0.3/);

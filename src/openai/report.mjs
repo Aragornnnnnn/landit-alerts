@@ -3,7 +3,8 @@ import { ReportError, fetchKeyCosts } from './costs.mjs';
 
 export const BILLING_URL = 'https://platform.openai.com/settings/organization/billing/overview';
 export const kstDate = (now) => new Date(now.getTime() + 9 * 3600000).toISOString().slice(0, 10);
-export const previousDate = (now) => kstDate(new Date(now.getTime() - 86400000));
+// 비용 API는 UTC 날짜 경계를 사용하므로 가장 최근에 끝난 UTC 날짜를 보고한다.
+export const previousDate = (now) => new Date(now.getTime() - 86400000).toISOString().slice(0, 10);
 const kstTimestamp = (date) => new Date(date.getTime() + 9 * 3600000).toISOString().slice(0, 19).replace('T', ' ') + ' KST';
 const money = (n, digits = 4) => `$${n.toFixed(digits)}`;
 
@@ -34,12 +35,13 @@ export const collectReport = async ({ balance, organizationId, adminKey, now = n
     '**OpenAI 일일 비용 보고**',
     `잔액: ${usd === null ? '확인 불가 — Safari 로그인·결제 화면 확인 필요' : `**${money(usd, 2)}**`}`,
     `잔액 확인: ${kstTimestamp(new Date(balance.observedAt))}`,
-    `비용 기간: ${date} 00:00–24:00 KST`,
+    `비용 기간: ${date} 00:00–24:00 UTC`,
+    `한국 시간: ${date} 09:00–${new Date(Date.parse(`${date}T00:00:00Z`) + 86400000).toISOString().slice(0, 10)} 09:00 KST`,
   ];
   let csv;
   if (costs) {
     costs.sort((a, b) => b.usd - a.usd || String(a.apiKeyId).localeCompare(String(b.apiKeyId)));
-    lines.push(`전날 사용액: **${money(costs.reduce((sum, row) => sum + row.usd, 0))}**`, '', '**API 키별 비용**');
+    lines.push(`전날 사용액(UTC): **${money(costs.reduce((sum, row) => sum + row.usd, 0))}**`, '', '**API 키별 비용**');
     csv = ['api_key_id,cost_usd', ...costs.map((row) => `${row.apiKeyId ?? 'unattributed'},${row.usd}`)].join('\n') + '\n';
     if (costs.length === 0) lines.push('해당 구간에 기록된 비용 없음.');
     let shown = 0;

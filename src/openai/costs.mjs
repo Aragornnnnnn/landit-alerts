@@ -1,12 +1,12 @@
-// OpenAI 조직의 한국 시간 기준 API 키별 비용을 조회하고 집계 범위를 검증한다.
+// OpenAI 조직의 UTC 날짜 기준 API 키별 비용을 조회하고 집계 범위를 검증한다.
 const API_URL = 'https://api.openai.com/v1/organization/costs';
 
 export class ReportError extends Error {}
 
-export const kstDayRange = (date) => {
+export const utcDayRange = (date) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new ReportError('날짜 형식 오류');
-  const start = Date.parse(`${date}T00:00:00+09:00`);
-  if (!Number.isFinite(start) || new Date(start + 9 * 3600000).toISOString().slice(0, 10) !== date)
+  const start = Date.parse(`${date}T00:00:00Z`);
+  if (!Number.isFinite(start) || new Date(start).toISOString().slice(0, 10) !== date)
     throw new ReportError('유효하지 않은 날짜');
   return { start: start / 1000, end: start / 1000 + 86400 };
 };
@@ -15,7 +15,7 @@ export const fetchKeyCosts = async ({ adminKey, organizationId, date, fetchImpl 
   if (!adminKey) throw new ReportError('OpenAI Admin API key 미설정');
   if (!/^org-[A-Za-z0-9]+$/.test(organizationId ?? ''))
     throw new ReportError('OpenAI 조직 ID 미설정 또는 형식 오류');
-  const { start, end } = kstDayRange(date);
+  const { start, end } = utcDayRange(date);
   const totals = new Map();
   const seen = new Set();
   const intervals = new Map();
@@ -42,7 +42,7 @@ export const fetchKeyCosts = async ({ adminKey, organizationId, date, fetchImpl 
     for (const bucket of result.data) {
       if (!Number.isInteger(bucket.start_time) || !Number.isInteger(bucket.end_time) ||
           bucket.start_time < start || bucket.end_time > end || bucket.end_time <= bucket.start_time)
-        throw new ReportError('비용 집계 구간이 요청한 한국 시간 범위와 다릅니다');
+        throw new ReportError('비용 집계 구간이 요청한 UTC 날짜 범위와 다릅니다');
       intervals.set(`${bucket.start_time}:${bucket.end_time}`, [bucket.start_time, bucket.end_time]);
       if (!Array.isArray(bucket.results)) throw new ReportError('OpenAI 비용 결과 형식 오류');
       for (const item of bucket.results) {

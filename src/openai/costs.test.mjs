@@ -1,16 +1,16 @@
 // 비용 응답의 날짜 경계·키별 집계·페이지·불완전한 결과를 검증한다.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fetchKeyCosts, kstDayRange } from './costs.mjs';
+import { fetchKeyCosts, utcDayRange } from './costs.mjs';
 const date = '2026-10-28';
-const { start, end } = kstDayRange(date);
+const { start, end } = utcDayRange(date);
 const row = (api_key_id = 'key-a', value = 1) => ({ api_key_id, amount: { currency: 'usd', value } });
 const bucket = (results = [], from = start, to = end) => ({ start_time: from, end_time: to, results });
 const reply = (data, extra = {}) => ({ ok: true, json: async () => ({ data, has_more: false, ...extra }) });
 const collect = (fetchImpl) => fetchKeyCosts({ adminKey: 'test', organizationId: 'org-test', date, fetchImpl });
 
-test('한국 시간 경계와 여러 페이지의 키별 비용을 보존한다', async () => {
-  assert.equal(new Date(start * 1000).toISOString(), '2026-10-27T15:00:00.000Z');
+test('UTC 날짜 경계와 여러 페이지의 키별 비용을 보존한다', async () => {
+  assert.equal(new Date(start * 1000).toISOString(), '2026-10-28T00:00:00.000Z');
   let calls = 0;
   const result = await collect(async (url, options) => {
     assert.equal(url.searchParams.get('start_time'), String(start));
@@ -40,7 +40,7 @@ test('명시적인 빈 결과는 0이며 빈 응답·누락·겹침·중복 행�
 });
 
 test('범위 밖 버킷·날짜·통화·커서·비밀 키 값은 거절한다', async () => {
-  assert.throws(() => kstDayRange('2026-02-30'));
+  assert.throws(() => utcDayRange('2026-02-30'));
   await assert.rejects(collect(async () => reply([bucket([], start - 1)])), /집계 구간/);
   await assert.rejects(collect(async () => reply([bucket([{ ...row(), amount: { currency: 'eur', value: 1 } }])])), /통화/);
   await assert.rejects(collect(async () => reply([bucket([row('sk-secret')])])), /ID 형식/);
