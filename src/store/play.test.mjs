@@ -2,7 +2,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { deviceLabel, parseDeviceNames } from './play.mjs';
+import {
+  deviceLabel,
+  parseDeviceNames,
+  parsePlayTimestamp,
+} from './play.mjs';
 
 const CSV = [
   'Retail Branding,Marketing Name,Device,Model',
@@ -40,4 +44,16 @@ test('기기 정보가 없으면 null을 유지한다', () => {
   const names = parseDeviceNames(CSV);
 
   assert.equal(deviceLabel(names, null), null);
+});
+
+test('플레이 lastModified(seconds 문자열)를 ISO 시각으로 바꾼다', () => {
+  assert.equal(
+    parsePlayTimestamp({ seconds: '1760951565', nanos: 0 }),
+    '2025-10-20T09:12:45.000Z',
+  );
+});
+
+test('lastModified가 없으면 null을 준다', () => {
+  assert.equal(parsePlayTimestamp(undefined), null);
+  assert.equal(parsePlayTimestamp({}), null);
 });

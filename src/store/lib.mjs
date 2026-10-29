@@ -59,6 +59,7 @@ export const parseAscReviews = (json) =>
     rating: r.attributes?.rating ?? 0,
     title: r.attributes?.title ?? '',
     body: r.attributes?.body ?? '',
+    createdAt: r.attributes?.createdDate ?? null,
   }));
 
 // 현지화 목록에서 한국어를 우선으로 릴리즈 노트를 고른다
@@ -132,7 +133,8 @@ export const buildReviewEmbed = (store, review) => {
     title: starLine(review.rating),
     description: `${title}${review.body}\n\n${reviewMeta(review)}`,
     color: ratingColor(review.rating),
-    timestamp: new Date().toISOString(),
+    // 늦게 수집해도(장애 복구 등) 카드에는 실제 작성 시각이 찍힌다
+    timestamp: review.createdAt ?? new Date().toISOString(),
   };
 };
 
