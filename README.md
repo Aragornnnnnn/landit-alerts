@@ -97,3 +97,7 @@ npx vercel deploy --prod
 ## 앱 레포와 따로 두는 이유
 
 운영 도구는 앱과 수명이 다르고, 여기가 깨져도 앱 배포에 영향이 없어야 해서다. 퍼블릭 레포라 Actions 크론이 팀 CI 한도를 쓰지 않는 것도 있다.
+
+## OpenAI 일일 잔액·비용
+
+매일 한국 시간 오전 10시의 Safari 잔액 확인과 공식 Costs API 키별 비용 보고는 [OpenAI 보고 설정](docs/openai-report.md)을 따른다. 실행 코드는 `src/openai/`, 비밀값 등록은 `scripts/setup-openai.py`이며 예약 실행은 Codex 자동화에서 관리한다.
