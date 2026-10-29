@@ -1,4 +1,17 @@
 {
-  "crons": [{ "path": "/api/metrics-cron", "schedule": "0 23 * * *" }],
-  "functions": { "api/feedback.mjs": { "maxDuration": 300 } }
+  "crons": [
+    {
+      "path": "/api/metrics-cron",
+      "schedule": "0 23 * * *"
+    },
+    {
+      "path": "/api/openai-cron",
+      "schedule": "0 0 * * *"
+    }
+  ],
+  "functions": {
+    "api/feedback.mjs": {
+      "maxDuration": 300
+    }
+  }
 }
