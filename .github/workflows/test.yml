@@ -18,6 +18,9 @@ jobs:
       - name: 단위 테스트
         run: node --test 'src/**/*.test.mjs'
 
+      - name: OpenAI 비밀값 등록 테스트
+        run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts -p 'test_setup_openai.py'
+
   referral-trigger:
     runs-on: ubuntu-latest
     timeout-minutes: 5
