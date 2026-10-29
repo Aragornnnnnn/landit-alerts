@@ -102,9 +102,9 @@ const wrapAnsi = (lines) => '```ansi\n' + lines.join('\n') + '\n```';
 
 // 구독·이용권 합계. 100일 이용권(챌린지)은 앰플리튜드에서 따로 와서 구독을 못 읽어도 더한다
 const total = (subs, challenge) =>
-  (subs ? subs.yearly + subs.monthly + subs.promo : 0) + challenge;
+  (subs ? subs.yearly + subs.monthly : 0) + challenge;
 
-// 구독 블록 — 연간 / 월간 / 100일 / 프로모션. 연간은 결제한 사람만(무료체험 제외, 해지예정은 포함).
+// 구독 블록 — 연간 / 월간 / 100일. 연간은 결제한 사람만(무료체험 제외, 해지예정은 포함).
 // RevenueCat만 못 읽은 경우엔 나머지 지표를 살리고 구독 줄만 비운다. 100일은 출처가 달라 그대로 남는다
 const subscriptionLines = (subs, prevSubs, challenge, prevChallenge) => {
   const prev = prevSubs ?? {};
@@ -123,7 +123,6 @@ const subscriptionLines = (subs, prevSubs, challenge, prevChallenge) => {
     bullet(`연간 ${subs.yearly}명`, subs.yearly, prev.yearly),
     bullet(`월간 ${subs.monthly}명`, subs.monthly, prev.monthly),
     challengeLine,
-    bullet(`프로모션 ${subs.promo}명`, subs.promo, prev.promo),
   ];
 };
 
