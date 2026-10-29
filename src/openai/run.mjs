@@ -23,7 +23,7 @@ export const runReport = async ({ send = false, env = process.env, now = new Dat
         throw new ReportError('이전 전송 결과가 불확실합니다. Discord를 확인하기 전에는 재전송하지 않습니다.');
       }
     }
-    const report = await collectReport({ organizationId: env.OPENAI_ORG_ID, adminKey: env.OPENAI_ADMIN_KEY, keyNames: parseKeyNames(env.OPENAI_KEY_NAMES), now, fetchImpl });
+    const report = await collectReport({ organizationId: env.OPENAI_ORG_ID, adminKey: env.OPENAI_ADMIN_KEY, openRouterManagementKey: env.OPENROUTER_MANAGEMENT_KEY, keyNames: parseKeyNames(env.OPENAI_KEY_NAMES), now, fetchImpl });
     if (!send) return { status: 'preview', report };
     if (!env.DISCORD_WEBHOOK_OPENAI) throw new ReportError('DISCORD_WEBHOOK_OPENAI 미설정');
     await writeFile(stateFile, JSON.stringify({ status: 'pending', date, startedAt: now.toISOString() }), { flag: 'wx', mode: 0o600 });
