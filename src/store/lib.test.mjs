@@ -56,6 +56,7 @@ test('ASC 리뷰 응답에서 리뷰 필드를 뽑아낸다', () => {
           title: '좋아여',
           body: '다른 앱들이랑 다른점이 있어서 좋은거같아요',
           reviewerNickname: '모오오오오오오오이',
+          createdDate: '2026-10-20T03:12:45-07:00',
           territory: 'KOR',
         },
       },
@@ -69,6 +70,7 @@ test('ASC 리뷰 응답에서 리뷰 필드를 뽑아낸다', () => {
       rating: 5,
       title: '좋아여',
       body: '다른 앱들이랑 다른점이 있어서 좋은거같아요',
+      createdAt: '2026-10-20T03:12:45-07:00',
     },
   ]);
 });
@@ -180,6 +182,19 @@ test('리뷰 embed는 별점 줄 아래 제목과 본문, 메타 순으로 담�
   assert.match(embed.description, /닉네임$/);
   assert.equal(embed.color, ratingColor(2));
   assert.equal(embed.author.name, 'App Store');
+});
+
+test('리뷰 embed의 시각은 작성 시각이고, 없으면 지금 시각이다', () => {
+  const review = { id: 'r1', author: '닉네임', rating: 5, title: '', body: '굿' };
+
+  const dated = buildReviewEmbed('appStore', {
+    ...review,
+    createdAt: '2026-10-20T10:12:45.000Z',
+  });
+  const undated = buildReviewEmbed('appStore', review);
+
+  assert.equal(dated.timestamp, '2026-10-20T10:12:45.000Z');
+  assert.ok(Date.now() - Date.parse(undated.timestamp) < 5000);
 });
 
 test('플레이 리뷰 embed는 기기·OS 메타를 함께 담는다', () => {

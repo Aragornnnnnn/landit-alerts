@@ -100,6 +100,12 @@ const fetchDeviceNames = async () => {
   }
 };
 
+// 플레이는 시각을 { seconds, nanos }로 준다 — 없으면 null (카드가 전송 시각으로 대체한다)
+export const parsePlayTimestamp = (lastModified) =>
+  lastModified?.seconds == null
+    ? null
+    : new Date(Number(lastModified.seconds) * 1000).toISOString();
+
 const API = `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PLAY_PACKAGE}`;
 
 export const fetchPlayReviews = async (serviceAccountJson, seenIds = []) => {
@@ -130,6 +136,7 @@ export const fetchPlayReviews = async (serviceAccountJson, seenIds = []) => {
         c.deviceMetadata?.productName ?? c.device ?? null,
       ),
       osVersion: osLabel(c.androidOsVersion),
+      createdAt: parsePlayTimestamp(c.lastModified),
     };
   });
 };
