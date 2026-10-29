@@ -32,6 +32,7 @@ export const prepareDelivery = async ({ env = process.env, now = new Date(), fet
   if (!env.DISCORD_WEBHOOK_OPENAI) throw new ReportError('Discord 웹훅 미설정');
   const report = await collectReport({
     adminKey: env.OPENAI_ADMIN_KEY, organizationId: env.OPENAI_ORG_ID,
+    openRouterManagementKey: env.OPENROUTER_MANAGEMENT_KEY,
     keyNames: parseKeyNames(env.OPENAI_KEY_NAMES), date, now, fetchImpl,
   });
   await mkdir(dirname(reportPath), { recursive: true, mode: 0o700 });

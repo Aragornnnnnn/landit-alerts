@@ -50,13 +50,14 @@ jobs:
           key: openai-report-v1-${{ steps.period.outputs.date }}-sent
           restore-keys: openai-report-v1-${{ steps.period.outputs.date }}-
 
-      - name: 비용 조회와 전송 준비
+      - name: OpenAI·OpenRouter 비용 조회와 통합 전송 준비
         id: prepare
         env:
           OPENAI_REPORT_DATE: ${{ steps.period.outputs.date }}
           OPENAI_ADMIN_KEY: ${{ secrets.OPENAI_ADMIN_KEY }}
           OPENAI_ORG_ID: ${{ secrets.OPENAI_ORG_ID }}
           OPENAI_KEY_NAMES: ${{ vars.OPENAI_KEY_NAMES }}
+          OPENROUTER_MANAGEMENT_KEY: ${{ secrets.OPENROUTER_MANAGEMENT_KEY }}
           DISCORD_WEBHOOK_OPENAI: ${{ secrets.DISCORD_WEBHOOK_OPENAI }}
         run: node src/openai/server.mjs prepare
 

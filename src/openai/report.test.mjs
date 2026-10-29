@@ -25,7 +25,7 @@ test('키 이름으로 모든 비용을 표시하고 잔액은 결제 링크로 
   assert.match(report.content, /\$1.5000/);
   assert.match(report.content, /2026-10-28 09:00–2026-10-29 09:00 KST/);
   assert.match(report.content, /잔액은 OpenAI 결제 화면에서 확인/);
-  assert.doesNotMatch(report.content, /key-prod|key-dev|잔액:|CSV/);
+  assert.doesNotMatch(report.content, /key-prod|key-dev|CSV/);
   assert.equal(report.csv, undefined);
   const unknown = await collectReport({ ...options, keyNames: {}, fetchImpl: async () => costReply([{ api_key_id: null, amount: { currency: 'usd', value: 1 } }, costs[0]]) });
   assert.match(unknown.content, /미등록 키/);
