@@ -1,12 +1,8 @@
-// RevenueCat v2 수집기 — 구독 중 인원을 연간·월간(결제한 사람)·프로모션으로 가르고 누적 매출을 읽는다.
-// 결제는 상품별 차트에서, 프로모션은 차트에 안 잡혀 고객 전수 조회로 그날 끝 기준으로 센다
+// RevenueCat v2 수집기 — 구독 중 인원을 연간·월간(결제한 사람)으로 가르고 누적 매출을 읽는다.
+// 프로모션은 세지 않는다 — 100일 이용권이 프로모션 권한으로 붙어 100일 줄과 같은 사람이 겹친다
 import { assertOk } from '../shared/http.mjs';
-import { TEAM_USER_IDS } from './amplitude.mjs';
 
 const API = 'https://api.revenuecat.com/v2/projects';
-// 고객 정보 조회는 분당 한도가 있다 — 워커 다섯이 이 간격을 지키면 초당 8건을 넘지 않는다
-const CUSTOMER_WORKERS = 5;
-const CUSTOMER_GAP_MS = 125;
 const RETRY_DELAYS_MS = [3000, 15000, 60000];
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -30,9 +26,6 @@ export const totalRevenue = (chart) => {
   return Math.round(chart.summary?.total?.Revenue ?? 0);
 };
 
-const kstDayEndMs = (isoDate) =>
-  new Date(`${isoDate}T23:59:59.999+09:00`).getTime();
-
 // 차트 값 중 해당 날짜(UTC 자정 epoch)의 값을 세그먼트 이름별로
 export const valuesAt = (chart, isoDate) => {
   const cohort = Date.parse(`${isoDate}T00:00:00Z`) / 1000;
@@ -45,25 +38,6 @@ export const valuesAt = (chart, isoDate) => {
     result[names[row.segment ?? 0]] = row.value;
   }
   return result;
-};
-
-// 그 시각에 아직 살아 있던 프로덕션 구독인가
-const aliveAt = (sub, at) => {
-  if (sub.environment !== 'production') return false;
-  const end = sub.ends_at ?? sub.current_period_ends_at;
-  return sub.starts_at <= at && (end == null || end > at);
-};
-
-// 그날 끝(KST)에 살아 있던 프로모션 구독 수. 샌드박스와 팀 계정은 뺀다.
-// 레비뉴캣 고객 id가 백엔드 user_profile_id라 앰플리튜드와 같은 팀 목록을 쓴다
-export const promoAt = (subscriptions, isoDate) => {
-  const at = kstDayEndMs(isoDate);
-  return subscriptions.filter(
-    (sub) =>
-      sub.store === 'promotional' &&
-      !TEAM_USER_IDS.includes(String(sub.customer_id)) &&
-      aliveAt(sub, at),
-  ).length;
 };
 
 export const createRevenueCatClient = ({ apiKey, projectId }) => {
@@ -99,60 +73,9 @@ export const createRevenueCatClient = ({ apiKey, projectId }) => {
     return values;
   };
 
-  // 고객 전부의 구독을 한 번만 긁어 둔다. 프로미스를 담아야 동시에 불러도 한 번만 돈다
-  let scanning;
-  const scanSubscriptions = () => (scanning ??= scanAll());
-
-  const scanAll = async () => {
-    const queue = [];
-    const found = [];
-    let listing = true;
-
-    // 목록이 실패해도 listing을 반드시 내려야 워커가 멈춘다
-    const listAll = async () => {
-      try {
-        let url = `${base}/customers?limit=100`;
-        while (url) {
-          const page = await getJson(url, 'RevenueCat 고객 목록');
-          queue.push(...page.items);
-          url = page.next_page && new URL(page.next_page, base).href;
-        }
-      } finally {
-        listing = false;
-      }
-    };
-
-    // 목록을 넘기는 동안 워커가 먼저 출발한다 — 페이지가 많아도 대기가 겹치지 않게
-    // 구독 조회가 실패하면 워커가 멈추고, 남은 워커도 목록이 끝나는 대로 빠져나온다
-    const worker = async () => {
-      while (listing || queue.length) {
-        const customer = queue.shift();
-        if (!customer) {
-          await sleep(CUSTOMER_GAP_MS);
-          continue;
-        }
-        const page = await getJson(
-          `${base}/customers/${customer.id}/subscriptions`,
-          'RevenueCat 고객 구독',
-        );
-        found.push(...page.items);
-        await sleep(CUSTOMER_GAP_MS);
-      }
-    };
-
-    await Promise.all([
-      listAll(),
-      ...Array.from({ length: CUSTOMER_WORKERS }, worker),
-    ]);
-    return found;
-  };
-
   // 그날 끝 기준 구독 중 인원
   const subscriptions = async (date) => {
-    const [actives, all] = await Promise.all([
-      chart('actives', { date, segment: 'product_id' }),
-      scanSubscriptions(),
-    ]);
+    const actives = await chart('actives', { date, segment: 'product_id' });
     const byPlan = (values) => {
       const out = { monthly: 0, yearly: 0 };
       for (const [label, value] of Object.entries(values)) {
@@ -162,12 +85,7 @@ export const createRevenueCatClient = ({ apiKey, projectId }) => {
       return out;
     };
     // actives는 결제 중인 구독만 센다 — 무료체험은 trials 차트에 따로 있어 여기 안 들어간다
-    const paid = byPlan(actives);
-    return {
-      yearly: paid.yearly,
-      monthly: paid.monthly,
-      promo: promoAt(all, date),
-    };
+    return byPlan(actives);
   };
 
   // 서비스 시작부터 그날까지 매출 합계(원). 레비뉴캣이 원화로 환산해 준다.

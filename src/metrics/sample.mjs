@@ -30,7 +30,6 @@ export const daily = {
   subscriptions: {
     yearly: 14,
     monthly: 30,
-    promo: 3,
   },
   challenge: 6,
   revenue: 853349,
@@ -44,7 +43,6 @@ export const previousDaily = {
   subscriptions: {
     yearly: 14,
     monthly: 29,
-    promo: 3,
   },
   challenge: 5,
   revenue: 803343,
@@ -105,7 +103,6 @@ export const weekly = {
   subscriptions: {
     yearly: 14,
     monthly: 30,
-    promo: 3,
   },
   challenge: 6,
   revenue: 853349,
@@ -117,7 +114,6 @@ export const previousWeekly = {
   subscriptions: {
     yearly: 12,
     monthly: 27,
-    promo: 5,
   },
   challenge: 4,
   revenue: 710763,
