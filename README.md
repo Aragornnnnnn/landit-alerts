@@ -98,6 +98,6 @@ npx vercel deploy --prod
 
 운영 도구는 앱과 수명이 다르고, 여기가 깨져도 앱 배포에 영향이 없어야 해서다. 퍼블릭 레포라 Actions 크론이 팀 CI 한도를 쓰지 않는 것도 있다.
 
-## OpenAI 일일 잔액·비용
+## OpenAI 일일 비용
 
-매일 한국 시간 오전 10시의 Safari 잔액 확인과 공식 Costs API 키별 비용 보고는 [OpenAI 보고 설정](docs/openai-report.md)을 따른다. 실행 코드는 `src/openai/`, 비밀값 등록은 `scripts/setup-openai.py`이며 예약 실행은 Codex 자동화에서 관리한다.
+매일 한국 시간 오전 10시에 Vercel 크론과 GitHub Actions가 공식 Costs API의 키별 비용을 Discord로 보낸다. 키 이름으로 표시하며 파일을 첨부하지 않고, 잔액은 결제 화면 링크로 안내한다. Mac·Codex·Safari는 필요 없다. [서버 설정과 중복 방지](docs/openai-report.md)를 참고한다.

@@ -1,68 +1,61 @@
-# OpenAI 매일 잔액·키별 비용 보고
+# OpenAI 키별 비용 서버 보고
 
-매일 **10:00 Asia/Seoul**에 이 채팅의 Codex heartbeat가 Safari 결제 화면을 읽고, 로컬 실행기로 Costs API를 조회해 Discord에 한 장을 보낸다. Safari 로그인 세션을 쓰므로 Mac과 Codex가 실행 가능해야 한다. 절전·종료·로그인 만료로 늦어지거나 조회가 실패할 수 있으며 정각 전달을 보장하지 않는다. 서버의 Vercel 크론이나 GitHub Actions에는 Safari 세션을 복사하지 않는다. 기존 알림 스케줄은 바꾸지 않는다.
+매일 **한국 시간 오전 10시**에 GitHub Actions 서버가 OpenAI Costs API를 조회해 지정 Discord 웹훅에 텍스트 한 장을 보낸다. **Mac·Codex·Safari는 필요 없다.** CSV와 다른 파일은 첨부하지 않는다. 잔액은 조회·추정하지 않고 OpenAI 결제 화면 링크를 제공한다.
 
-## 집계와 실패 처리
+## 보고 내용
 
-- 잔액은 `https://platform.openai.com/settings/organization/billing/overview`의 **API credit balance**다. 조직 이름과 General의 조직 ID를 확인하고 새로고침한다. 월 한도·자동충전 금액·누적 비용과 구분한다.
-- 잔액은 15분 이내의 확인 시각, USD, 조직 ID, 출처를 검증한다. 잔액을 못 읽으면 `status: unavailable`로 명시한다. 과거 잔액을 현재 잔액으로 재사용하거나 사용액을 빼서 추정하지 않는다.
-- 비용은 가장 최근에 완료된 **UTC 날짜 00:00 이상, 다음 날 00:00 미만**다. [공식 Costs API](https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/usage/methods/costs)에 시작·끝 Unix timestamp와 `group_by[]=api_key_id`를 전달한다. 반환된 버킷이 요청 구간 전체를 덮는지 확인한다. 다른 시간 범위로 반환되면 집계 실패로 보고한다. 실제 조회에서 API가 UTC 날짜로 버킷을 정렬함을 확인했다. 오전 10시 보고는 전날 09:00부터 당일 09:00 KST까지이며 보고서에 UTC와 KST 양쪽 구간을 표시한다. 한국 시간 자정 기준 전날 사용액으로 오인하지 않는다.
-- 비용은 API key **ID**별이다. 비밀 키 값은 출력하지 않는다. `null` 귀속은 미분류·공통 비용으로 별도 표시한다. 전체 항목은 CSV로 첨부하고, 본문에는 금액순으로 들어갈 만큼 표시한다. 조회 시점의 집계이며 지연 반영·조정될 수 있다.
-- Admin key가 없거나 API 조회가 실패해도 잔액 보고는 보낸다. 실패를 $0으로 표시하지 않는다. 잔액만 실패하면 키별 비용을 보낸다.
-- 같은 비용 날짜는 로컬 `.state/openai/YYYY-MM-DD.json`으로 중복을 막고, lock으로 동시 실행을 막는다. 수동 테스트도 같은 상태 경로를 쓰면 당일 중복을 막는다.
-- Discord에 보내기 직전에 `pending`, 성공 영수증을 받으면 `sent`와 메시지 ID를 저장한다. 타임아웃·영수증 누락·프로세스 종료 등으로 `pending`이 남으면 자동 재전송하지 않는다. 채널에서 실제 메시지를 확인한 후에만 해당 파일·중단된 lock을 복구한다. 저장소 이동 시 `.state/openai`를 함께 보존한다.
-- 보고 내용·키 ID·잔액·CSV는 공개 Actions 로그나 artifact에 올리지 않는다. 비밀값과 브라우저 세션도 커밋하지 않는다.
+- 가장 최근에 완료된 UTC 하루의 비용을 사용한다. 실제 API가 UTC 날짜 경계로 버킷을 정렬한다. 오전 10시 보고의 기간은 전날 09:00~당일 09:00 KST이며 UTC·KST를 본문에 모두 표시한다.
+- 전체 합계와 API 키별 금액을 표시한다. GitHub 변수 `OPENAI_KEY_NAMES`의 ID→이름 매핑으로 `prod_ai`, `develop_ai` 같은 이름을 표시한다. 이름이 없는 새 키는 `미등록 키 (키 ID)`, 귀속이 없는 비용은 `키 미분류·공통 비용`으로 표시한다. 비밀 키 값은 사용하지 않는다.
+- 키별 금액은 조회 시점 집계로, 지연 반영·조정으로 바뀔 수 있다. 조회 실패를 0달러로 바꾸지 않고 실패 이유를 Discord로 보낸다. 전체 본문이 Discord의 2,000자 한도를 넘으면 일부 항목을 조용히 버리지 않고 실행을 실패시킨다.
+- 관리자 키·웹훅·금액·보고 본문은 공개 Actions 로그·artifact·캐시에 저장하지 않는다.
 
-## 비밀값 등록
+## 예약 실행
 
-[OpenAI Admin keys](https://platform.openai.com/settings/organization/admin-keys)에서 대상 조직을 확인하고 보고용 키를 사용자가 직접 만든다. 일반 프로젝트 추론 키와 다르다. 발급 화면에서 권한 선택이 제공되면 조직 비용을 읽는 데 필요한 권한만 선택한다. 키는 채팅·스크린샷·커밋에 붙이지 않는다.
+`vercel.json`의 `/api/openai-cron`은 매일 UTC 00시(KST 09시대)에 호출된다. 기존 `CRON_SECRET`으로 요청을 검증하고 기존 `GH_WORKFLOW_TOKEN`으로 `main`의 `openai-report.yml`을 실행한다. GitHub 러너가 KST 10시까지 기다린 뒤 전송한다. 기존 지표 알림 크론은 유지한다.
 
-Mac의 터미널에서 저장소로 이동한 뒤 실행한다.
+Vercel Hobby의 호출 시각은 해당 시간 안에서 달라지므로 한 시간 앞서 실행해 대기한다. Actions의 UTC 01:17 스케줄은 Vercel 실패 시 예비 경로다. 서버 대기열·플랫폼 장애가 있으면 늦을 수 있어 정각 전달은 보장하지 않는다. 모든 경로는 동일한 concurrency 그룹과 날짜별 전송 상태를 사용한다.
 
-```sh
-python3 scripts/setup-openai.py
-```
+## 중복 방지
 
-Admin key·웹훅은 화면에 표시되지 않는 입력으로 받는다. 기존 웹훅·조직 ID는 유지한다. Admin key는 다시 입력해 교체할 수 있고 Enter를 누르면 기존 값을 사용한다. 앞뒤 공백과 감싸는 따옴표를 제거한 뒤, 접두사만으로 판정하지 않고 공식 Costs API의 읽기 요청으로 권한을 확인한다. 인증·조회 실패 시 기존 설정 파일을 바꾸지 않는다. `.env.openai`를 파일 권한 `600`으로 저장하며 Git에서 제외한다. 비밀값이 기록된 명령줄 인자나 shell history를 만들지 않는다.
+`.state/openai-server/delivery.json`만 캐시한다. 날짜별 캐시 키는 `openai-report-v1-YYYY-MM-DD-pending`과 `...-sent`다.
 
-| 환경변수 | 용도 |
+1. sent를 먼저 복원하고 없으면 같은 날짜의 pending을 복원한다. sent면 조회·전송을 건너뛰고, pending이면 이전 결과를 확인하기 전에는 중지한다.
+2. 비용을 조회해 임시 본문 파일을 만들고 날짜·실행 ID·pending 상태를 기록한다.
+3. pending 캐시를 저장하고 GitHub API에서 저장 여부를 확인한다. 확인 실패 시 전송하지 않는다.
+4. Discord 영수증을 받은 뒤 sent와 메시지 ID를 저장한다. 금액·본문은 캐시하지 않는다.
+5. 성공 캐시 저장에 실패하거나 Discord 응답이 끊기면 pending을 남긴다. Discord에서 실제 전송 여부를 확인한 후에만 캐시를 복구한다. 임의로 재실행해 중복 전송하지 않는다.
+
+당일 보고가 없고 pending만 남았다면 운영자가 Discord 확인 후 **해당 날짜의 pending 캐시만** 지우고 workflow_dispatch로 다시 실행할 수 있다. 이미 전송됐으면 재전송하지 않고 영수증 상태를 복구한다. 캐시 수동 삭제·만료 이후 과거 실행을 재현하면 중복 방지 보장은 없다. 스케줄은 현재 완료된 UTC 날짜만 다룬다.
+
+## 서버 설정
+
+GitHub 저장소 `Aragornnnnnn/landit-alerts`의 Actions Secrets.
+
+| Secret | 용도 |
 | --- | --- |
-| `OPENAI_ADMIN_KEY` | 비용 조회용 OpenAI Admin API key |
-| `OPENAI_ORG_ID` | Safari에서 확인한 대상 조직 ID. 요청 헤더에도 사용 |
-| `DISCORD_WEBHOOK_OPENAI` | 사용자가 지정한 보고 채널 웹훅 |
-| `OPENAI_STATE_DIR` | 선택. 중복 방지 상태 폴더. 기본 `.state/openai` |
+| `OPENAI_ADMIN_KEY` | OpenAI 조직 비용 조회용 관리자 키 |
+| `OPENAI_ORG_ID` | 대상 조직 ID |
+| `DISCORD_WEBHOOK_OPENAI` | 일일 비용을 보낼 Discord 웹훅 |
 
-## 잔액 입력과 실행
-
-Codex가 Safari에서 직접 확인한 값으로 `.state/openai-balance.json`을 만든다. 아래는 형식 예시이며 실제 값이나 최신 잔액으로 사용하면 안 된다.
+Actions 변수 `OPENAI_KEY_NAMES`에는 아래 형태의 JSON을 등록한다. 예시는 실제 키 ID가 아니다.
 
 ```json
-{
-  "source": "https://platform.openai.com/settings/organization/billing/overview",
-  "organizationId": "org-example",
-  "status": "ok",
-  "usd": 25.5,
-  "currency": "usd",
-  "observedAt": "2026-10-29T01:00:00.000Z"
-}
+{"key_example_prod":"prod_ai","key_example_dev":"develop_ai"}
 ```
 
-조회 불가 시 `status`를 `unavailable`로 하고 `usd`는 넣지 않는다. `observedAt`은 조회를 시도한 시각이다. 조직 ID는 등록된 대상 조직을 쓰되, 화면에서 다른 조직을 보고 있다면 먼저 대상을 다시 확인한다.
+Vercel에는 기존 `CRON_SECRET`, `GH_WORKFLOW_TOKEN`을 사용한다. 관리자 키는 GitHub에만 저장하며 Vercel로 복제하지 않는다. 크론 추가는 프로덕션 배포 후 적용된다. GitHub 워크플로는 기본 브랜치 `main`에서만 실행한다.
 
-```sh
-# API는 조회하지만 Discord에 보내지 않는 미리보기.
-node --env-file=.env.openai src/openai/run.mjs .state/openai-balance.json
+## 로컬 비밀값 등록과 확인
 
-# 실채널 전송. 같은 날짜의 성공 보고가 있으면 아무것도 하지 않는다.
-node --env-file=.env.openai src/openai/run.mjs .state/openai-balance.json --send
-```
+[OpenAI Admin keys](https://platform.openai.com/settings/organization/admin-keys)에서 사용자가 보고용 키를 발급한 뒤 `python3 scripts/setup-openai.py`를 실행하면 숨김 입력·비용 API 권한 확인 후 Git에서 제외되는 권한 600 파일 `.env.openai`에 저장한다. 이 명령만으로 서버 Secrets가 변경되지는 않는다.
 
-키 등록 뒤 최초 미리보기에서 실제 Costs API 인증·권한·UTC 경계·키별 결과를 확인한다. 미리보기는 금융 정보이므로 공개 로그에 남기지 않는다. 스케줄은 이 채팅의 Codex 자동화에서 관리하며, 저장소를 clone하는 것만으로 자동화가 생기지 않는다.
+로컬 미리보기는 `node --env-file=.env.openai src/openai/run.mjs`다. 서버 전송은 Actions의 `openai-report` 워크플로를 실행한다. 키 이름을 바꾸면 GitHub 변수도 갱신한다.
 
 ## 검증
 
 ```sh
 node --test 'src/**/*.test.mjs'
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts -p 'test_setup_openai.py'
 ```
 
-날짜 변경·윤년, API 페이지, 비용 구간 누락·중복, 미분류 비용, 오래된 잔액, 전송 실패, 중복·동시 실행, CSV 전체 항목과 멘션 차단을 테스트한다. 모의 API 테스트는 실제 계정의 조회 권한이나 실제 Discord 전달을 증명하지 않는다.
+날짜·버킷·페이지, 키 이름, 파일 첨부 금지, 조회 실패, 전송 예약/영수증, 복원된 pending, 크론 인증·dispatch를 검증한다. 실제 서버 실행·Discord 메시지·첨부 개수는 배포 후 별도로 확인한다.

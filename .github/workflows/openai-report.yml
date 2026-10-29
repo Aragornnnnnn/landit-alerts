@@ -1,0 +1,96 @@
+# Vercel이 09시대에 깨우고 GitHub 서버에서 10시까지 기다려 비용을 전송한다.
+name: openai-report
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Vercel 실패 시 예비 경로. 이미 전송한 UTC 날짜는 캐시로 건너뛴다.
+    - cron: '17 1 * * *'
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: openai-report
+  cancel-in-progress: false
+
+jobs:
+  send:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      OPENAI_STATE_DIR: .state/openai-server
+      OPENAI_REPORT_FILE: .state/openai-private-report.json
+      OPENAI_REPORT_RUN: ${{ github.run_id }}:${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 한국 시간 오전 10시까지 대기
+        run: |
+          target=$(TZ=Asia/Seoul date -d 'today 10:00' +%s)
+          remaining=$((target - $(date +%s)))
+          if [ "$remaining" -gt 0 ] && [ "$remaining" -le 4200 ]; then
+            sleep "$remaining"
+          fi
+
+      - name: 완료된 UTC 날짜 선택
+        id: period
+        run: |
+          node --input-type=module -e "import {previousDate} from './src/openai/report.mjs'; console.log('date='+previousDate(new Date()));" >> "$GITHUB_OUTPUT"
+
+      - name: 같은 날짜 전송 상태 복원
+        uses: actions/cache/restore@v4
+        with:
+          path: .state/openai-server
+          key: openai-report-v1-${{ steps.period.outputs.date }}-sent
+          restore-keys: openai-report-v1-${{ steps.period.outputs.date }}-
+
+      - name: 비용 조회와 전송 준비
+        id: prepare
+        env:
+          OPENAI_REPORT_DATE: ${{ steps.period.outputs.date }}
+          OPENAI_ADMIN_KEY: ${{ secrets.OPENAI_ADMIN_KEY }}
+          OPENAI_ORG_ID: ${{ secrets.OPENAI_ORG_ID }}
+          OPENAI_KEY_NAMES: ${{ vars.OPENAI_KEY_NAMES }}
+          DISCORD_WEBHOOK_OPENAI: ${{ secrets.DISCORD_WEBHOOK_OPENAI }}
+        run: node src/openai/server.mjs prepare
+
+      # 메시지·비용·키·웹훅은 캐시하지 않는다. 날짜와 pending 상태만 먼저 저장한다.
+      - name: 전송 예약 상태 저장
+        if: steps.prepare.outputs.ready == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .state/openai-server
+          key: openai-report-v1-${{ steps.period.outputs.date }}-pending
+
+      - name: 예약 상태가 서버에 저장됐는지 확인
+        if: steps.prepare.outputs.ready == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CACHE_KEY: openai-report-v1-${{ steps.period.outputs.date }}-pending
+        run: |
+          saved=$(gh cache list --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF" --key "$CACHE_KEY" --json key --jq '.[].key')
+          test "$saved" = "$CACHE_KEY"
+
+      - name: 파일 첨부 없이 Discord 전송
+        if: steps.prepare.outputs.ready == 'true'
+        env:
+          OPENAI_REPORT_DATE: ${{ steps.period.outputs.date }}
+          DISCORD_WEBHOOK_OPENAI: ${{ secrets.DISCORD_WEBHOOK_OPENAI }}
+        run: node src/openai/server.mjs send
+
+      - name: 성공 영수증 저장
+        if: steps.prepare.outputs.ready == 'true' && success()
+        uses: actions/cache/save@v4
+        with:
+          path: .state/openai-server
+          key: openai-report-v1-${{ steps.period.outputs.date }}-sent
+
+      - name: 임시 보고 본문 삭제
+        if: always()
+        run: rm -f "$OPENAI_REPORT_FILE"
