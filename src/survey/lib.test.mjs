@@ -69,17 +69,94 @@ test('빈 서술 답은 빈 필드 대신 줄표로 채운다', () => {
   assert.equal(embed.fields[0].value, '—');
 });
 
-test('survey_responses에 INSERT된 행만 응답으로 인정한다', () => {
-  const record = { user_id: 1, answers: { wish: 'x' } };
+test('결제자 설문은 결제자 설문 문항으로 카드를 만든다', () => {
+  const embed = buildSurveyEmbed({
+    ...row({
+      channel: '지인 추천',
+      disappointment: '대화가 짧아요',
+      premium_reason: '환급이 좋아서',
+      wish: '단어장',
+      liked_features: ['스몰톡'],
+    }),
+    survey: 'paid',
+  });
+
+  assert.equal(embed.title, '💳 결제자 설문 응답');
+  assert.deepEqual(
+    embed.fields.map((f) => f.name),
+    [
+      '어떤 이유로 프리미엄을 결제하시게 되었나요?',
+      '써 보니 어떤 기능이 가장 만족스러우세요?',
+      '더 있었으면 하는 기능이 있나요?',
+      '아쉬웠던 점을 알려주세요',
+      '랜딧을 어떻게 알게 되셨나요?',
+    ],
+  );
+});
+
+test('종류가 없는 행은 일반 설문으로 본다', () => {
+  const embed = buildSurveyEmbed(row({ wish: '없어요' }));
+
+  assert.equal(embed.title, '📝 새 설문 응답');
+  assert.equal(
+    embed.fields[0].name,
+    '마지막으로 랜딧에 바라는 점을 남겨주세요',
+  );
+});
+
+const hook = (type, record, old_record) => ({
+  type,
+  table: 'survey_responses',
+  record,
+  old_record,
+});
+
+test('한 번에 낸 응답은 INSERT 때 보낸다', () => {
+  // 완료 칸이 생기기 전 행과, 응답 번호 없이 한 번에 낸 행(completed 기본값 true)
+  const legacy = { user_id: 1, answers: { wish: 'x' } };
+  const whole = { ...legacy, completed: true };
+
+  assert.deepEqual(parseSurveyWebhook(hook('INSERT', legacy)), legacy);
+  assert.deepEqual(parseSurveyWebhook(hook('INSERT', whole)), whole);
+});
+
+test('중간 저장으로 처음 들어온 행은 보내지 않는다', () => {
+  const partial = {
+    user_id: 1,
+    completed: false,
+    answers: { premium_reason: 'x' },
+  };
+
+  assert.equal(parseSurveyWebhook(hook('INSERT', partial)), null);
+});
+
+test('중간 저장하던 응답이 완료로 바뀌는 UPDATE에서 한 번만 보낸다', () => {
+  const done = {
+    user_id: 1,
+    completed: true,
+    answers: { premium_reason: 'x' },
+  };
 
   assert.deepEqual(
-    parseSurveyWebhook({ type: 'INSERT', table: 'survey_responses', record }),
-    record,
+    parseSurveyWebhook(hook('UPDATE', done, { completed: false })),
+    done,
   );
+  // 아직 진행 중인 덮어쓰기와, 이미 완료된 행의 재저장은 보내지 않는다
   assert.equal(
-    parseSurveyWebhook({ type: 'UPDATE', table: 'survey_responses', record }),
+    parseSurveyWebhook(
+      hook('UPDATE', { ...done, completed: false }, { completed: false }),
+    ),
     null,
   );
+  assert.equal(
+    parseSurveyWebhook(hook('UPDATE', done, { completed: true })),
+    null,
+  );
+});
+
+test('다른 테이블이나 빈 payload는 응답으로 보지 않는다', () => {
+  const record = { user_id: 1, answers: { wish: 'x' } };
+
   assert.equal(
     parseSurveyWebhook({ type: 'INSERT', table: 'letters', record }),
     null,

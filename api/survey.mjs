@@ -1,4 +1,4 @@
-// 슈퍼베이스 Database Webhook 수신 엔드포인트 (Vercel 서버리스 함수) — 새 설문 응답을 디스코드로 보낸다
+// 슈퍼베이스 Database Webhook 수신 엔드포인트 (Vercel 서버리스 함수) — 완료된 설문 응답을 디스코드로 보낸다
 import { timingSafeEqual } from 'node:crypto';
 
 import { sendEmbed } from '../src/shared/discord.mjs';
