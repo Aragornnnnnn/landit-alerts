@@ -1,11 +1,12 @@
 # 설문 응답 알림
 
-설문(landit-fe `features/survey`)에 응답이 저장되면 `#유료화-전-설문` 채널에 질문·답변 형식의 카드 한 장을 보낸다.
+설문(landit-fe `features/survey`) 응답이 완료되면 `#유료화-전-설문` 채널에 질문·답변 형식의 카드 한 장을 보낸다. 일반 설문과 결제자 설문(`survey = 'paid'`)이 같은 채널로 오고, 카드 제목으로 구분한다.
 
 ## 왜 이 방식인가
 
 - 응답은 슈퍼베이스 `survey_responses` 테이블에 직접 저장된다(PostgREST). 백엔드를 거치지 않는다.
-- 그래서 슈퍼베이스 Database Webhook이 우리 Vercel 함수(`api/survey.mjs`)로 INSERT를 쏘고, 우리가 디스코드 형식으로 바꿔 보낸다. Sentry 알림과 같은 구조다.
+- 그래서 슈퍼베이스 Database Webhook이 우리 Vercel 함수(`api/survey.mjs`)로 INSERT·UPDATE를 쏘고, 우리가 디스코드 형식으로 바꿔 보낸다. Sentry 알림과 같은 구조다.
+- 화면은 문항을 넘길 때마다 같은 행을 덮어쓰고(`completed = false`) 다 내면 `completed = true`로 마친다. 그래서 완료된 순간에만 보낸다. 한 번에 낸 INSERT이거나, `completed`가 거짓에서 참으로 바뀐 UPDATE다.
 - 웹훅 URL은 공개라 슈퍼베이스 쪽 HTTP 헤더에 넣어 둔 비밀값(`x-survey-secret`)이 맞을 때만 받는다.
 
 ## 카드 형식
@@ -15,16 +16,16 @@
 - "기타"를 고른 문항은 직접 쓴 내용을 함께 보여준다.
 - 답이 없는 문항은 줄을 만들지 않는다.
 
-문항 목록·순서·id는 landit-fe의 `features/survey/model/questions.ts`와 같아야 한다.
-설문 문항을 바꾸면 `src/survey/lib.mjs`의 `QUESTIONS`도 같이 고친다.
+문항 목록·순서·id는 landit-fe의 `features/survey/model/questions.ts`(일반)·`paid-questions.ts`(결제자)와 같아야 한다.
+설문 문항을 바꾸면 `src/survey/lib.mjs`의 `GENERAL_QUESTIONS`·`PAID_QUESTIONS`도 같이 고친다.
 
 ## 구조
 
 ```text
-survey_responses INSERT
+survey_responses INSERT·UPDATE
   → POST https://landit-alerts.vercel.app/api/survey
     ├─ x-survey-secret 헤더가 SURVEY_WEBHOOK_SECRET과 다르면 401
-    ├─ type이 INSERT가 아니거나 테이블이 다르면 200 skipped
+    ├─ 테이블이 다르거나 방금 완료된 응답이 아니면 200 skipped
     └─ embed 생성 → DISCORD_WEBHOOK_SURVEY로 전송
 ```
 
@@ -53,7 +54,7 @@ npx vercel deploy --prod --token $TOKEN
 1. **디스코드 웹훅** — `#유료화-전-설문` 채널 편집 > 연동 > 웹후크 > 새 웹후크. URL 복사.
 2. **환경변수 등록·배포** — 위 명령. 비밀값은 길고 무작위한 문자열을 새로 만든다.
 3. **Database Webhook** — 슈퍼베이스 > Database > Webhooks > Create a new hook.
-   - Table: `survey_responses`, Events: **Insert**만.
+   - Table: `survey_responses`, Events: **Insert**와 **Update**.
    - Type: HTTP Request, Method: POST, URL: `https://landit-alerts.vercel.app/api/survey`.
    - HTTP Headers에 `x-survey-secret` = 2번에서 등록한 값.
 4. **확인** — 설문을 한 번 제출하거나, 웹훅 화면의 로그에서 200 응답을 본다.
