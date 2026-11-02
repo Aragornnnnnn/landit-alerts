@@ -31,8 +31,8 @@ const PAID_QUESTIONS = [
     id: 'premium_reason',
     title: '어떤 이유로 프리미엄을 결제하시게 되었나요?',
   },
-  { id: 'decision_moment', title: '결제를 결심한 순간은 언제였나요?' },
-  { id: 'liked_features', title: '써 보니 어떤 기능이 만족스러우세요?' },
+  { id: 'liked_features', title: '써 보니 어떤 기능이 가장 만족스러우세요?' },
+  { id: 'wish', title: '더 있었으면 하는 기능이 있나요?' },
   { id: 'disappointment', title: '써 보니 아쉬운 점은 없으셨나요?' },
   { id: 'channel', title: '랜딧을 어떻게 알게 되셨나요?' },
 ];
