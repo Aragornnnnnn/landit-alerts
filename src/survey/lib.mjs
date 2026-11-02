@@ -12,7 +12,7 @@ const GENERAL_QUESTIONS = [
   { id: 'features', title: '랜딧에서 주로 어떤 기능을 쓰세요?' },
   { id: 'usage_time', title: '주로 언제 랜딧을 쓰세요?' },
   { id: 'satisfaction', title: '랜딧, 전반적으로 어떠셨나요?', scale: true },
-  { id: 'satisfaction_reason', title: '그렇게 느끼신 이유를 알려주세요' },
+  { id: 'satisfaction_reason', title: '그렇게 느끼신 이유가 무엇인가요?' },
   {
     id: 'monthly_price_limit',
     title: '랜딧은 월 얼마부터 적정하다고 느끼세요?',
@@ -23,7 +23,7 @@ const GENERAL_QUESTIONS = [
     scale: true,
   },
   { id: 'has_recommended', title: '실제로 주변에 소개한 적이 있으세요?' },
-  { id: 'wish', title: '마지막으로 랜딧에 바라는 점을 남겨주세요' },
+  { id: 'wish', title: '마지막으로 랜딧에 바라는 점이 있나요?' },
 ];
 
 const PAID_QUESTIONS = [
@@ -31,9 +31,9 @@ const PAID_QUESTIONS = [
     id: 'premium_reason',
     title: '어떤 이유로 프리미엄을 결제하시게 되었나요?',
   },
-  { id: 'liked_features', title: '써 보니 어떤 기능이 가장 만족스러우세요?' },
-  { id: 'wish', title: '더 있었으면 하는 기능이 있나요?' },
-  { id: 'disappointment', title: '아쉬웠던 점을 알려주세요' },
+  { id: 'decision_moment', title: '결제를 결심한 순간은 언제였나요?' },
+  { id: 'liked_features', title: '써 보니 어떤 기능이 만족스러우세요?' },
+  { id: 'disappointment', title: '써 보니 아쉬운 점은 없으셨나요?' },
   { id: 'channel', title: '랜딧을 어떻게 알게 되셨나요?' },
 ];
 

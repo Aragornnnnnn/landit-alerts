@@ -22,7 +22,7 @@ test('문항 순서대로 질문·답변 필드를 만들고 안 답한 문항�
     [
       '랜딧을 어떻게 알게 되셨나요?',
       '랜딧, 전반적으로 어떠셨나요? (1~5)',
-      '마지막으로 랜딧에 바라는 점을 남겨주세요',
+      '마지막으로 랜딧에 바라는 점이 있나요?',
     ],
   );
   assert.equal(embed.fields[0].value, '지인 추천\n\u200b');
@@ -75,7 +75,7 @@ test('결제자 설문은 결제자 설문 문항으로 카드를 만든다', ()
       channel: '지인 추천',
       disappointment: '대화가 짧아요',
       premium_reason: '환급이 좋아서',
-      wish: '단어장',
+      decision_moment: '첫 대화 직후',
       liked_features: ['스몰톡'],
     }),
     survey: 'paid',
@@ -86,9 +86,9 @@ test('결제자 설문은 결제자 설문 문항으로 카드를 만든다', ()
     embed.fields.map((f) => f.name),
     [
       '어떤 이유로 프리미엄을 결제하시게 되었나요?',
-      '써 보니 어떤 기능이 가장 만족스러우세요?',
-      '더 있었으면 하는 기능이 있나요?',
-      '아쉬웠던 점을 알려주세요',
+      '결제를 결심한 순간은 언제였나요?',
+      '써 보니 어떤 기능이 만족스러우세요?',
+      '써 보니 아쉬운 점은 없으셨나요?',
       '랜딧을 어떻게 알게 되셨나요?',
     ],
   );
@@ -98,10 +98,7 @@ test('종류가 없는 행은 일반 설문으로 본다', () => {
   const embed = buildSurveyEmbed(row({ wish: '없어요' }));
 
   assert.equal(embed.title, '📝 새 설문 응답');
-  assert.equal(
-    embed.fields[0].name,
-    '마지막으로 랜딧에 바라는 점을 남겨주세요',
-  );
+  assert.equal(embed.fields[0].name, '마지막으로 랜딧에 바라는 점이 있나요?');
 });
 
 const hook = (type, record, old_record) => ({
