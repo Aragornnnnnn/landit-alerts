@@ -1,6 +1,6 @@
 # 설문 응답 알림
 
-설문(landit-fe `features/survey`) 응답이 완료되면 `#유료화-전-설문` 채널에 질문·답변 형식의 카드 한 장을 보낸다. 일반 설문과 결제자 설문(`survey = 'paid'`)이 같은 채널로 오고, 카드 제목으로 구분한다.
+설문(landit-fe `features/survey`) 응답이 완료되면 질문·답변 형식의 카드 한 장을 보낸다. 일반 설문은 `#유료화-전-설문` 채널로, 결제자 설문(`survey = 'paid'`)은 따로 둔 결제자 설문 채널로 간다. 카드 제목도 서로 다르다.
 
 ## 왜 이 방식인가
 
@@ -26,7 +26,7 @@ survey_responses INSERT·UPDATE
   → POST https://landit-alerts.vercel.app/api/survey
     ├─ x-survey-secret 헤더가 SURVEY_WEBHOOK_SECRET과 다르면 401
     ├─ 테이블이 다르거나 방금 완료된 응답이 아니면 200 skipped
-    └─ embed 생성 → DISCORD_WEBHOOK_SURVEY로 전송
+    └─ embed 생성 → 결제자 설문이면 DISCORD_WEBHOOK_SURVEY_PAID, 아니면 DISCORD_WEBHOOK_SURVEY로 전송
 ```
 
 - 코드는 `api/survey.mjs`(수신)와 `src/survey/lib.mjs`(순수 로직)에 있다.
@@ -34,16 +34,18 @@ survey_responses INSERT·UPDATE
 
 ## Vercel 환경변수
 
-| 이름                     | 내용                                            |
-| ------------------------ | ----------------------------------------------- |
-| `SURVEY_WEBHOOK_SECRET`  | 슈퍼베이스 웹훅 헤더에 넣어 둔 값과 같은 문자열 |
-| `DISCORD_WEBHOOK_SURVEY` | `#유료화-전-설문` 채널 웹훅 URL                 |
+| 이름                          | 내용                                               |
+| ----------------------------- | -------------------------------------------------- |
+| `SURVEY_WEBHOOK_SECRET`       | 슈퍼베이스 웹훅 헤더에 넣어 둔 값과 같은 문자열    |
+| `DISCORD_WEBHOOK_SURVEY`      | `#유료화-전-설문` 채널 웹훅 URL                    |
+| `DISCORD_WEBHOOK_SURVEY_PAID` | 결제자 설문 채널 웹훅 URL. 없으면 위 채널로 보낸다 |
 
 등록은 [reply.md](reply.md)의 방식과 같다.
 
 ```bash
 printf '%s' "$값" | npx vercel env add SURVEY_WEBHOOK_SECRET production --token $TOKEN
 printf '%s' "$웹훅URL" | npx vercel env add DISCORD_WEBHOOK_SURVEY production --token $TOKEN
+printf '%s' "$결제자웹훅URL" | npx vercel env add DISCORD_WEBHOOK_SURVEY_PAID production --token $TOKEN
 npx vercel deploy --prod --token $TOKEN
 ```
 
@@ -51,7 +53,7 @@ npx vercel deploy --prod --token $TOKEN
 
 운영 프로젝트에만 건다. develop 프로젝트에 걸면 테스트 응답이 팀 채널에 온다.
 
-1. **디스코드 웹훅** — `#유료화-전-설문` 채널 편집 > 연동 > 웹후크 > 새 웹후크. URL 복사.
+1. **디스코드 웹훅** — `#유료화-전-설문` 채널 편집 > 연동 > 웹후크 > 새 웹후크. URL 복사. 결제자 설문 채널에도 같은 방법으로 하나 만든다.
 2. **환경변수 등록·배포** — 위 명령. 비밀값은 길고 무작위한 문자열을 새로 만든다.
 3. **Database Webhook** — 슈퍼베이스 > Database > Webhooks > Create a new hook.
    - Table: `survey_responses`, Events: **Insert**와 **Update**.

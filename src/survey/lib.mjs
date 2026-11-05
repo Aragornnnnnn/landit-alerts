@@ -91,6 +91,11 @@ export const buildSurveyEmbed = ({
   };
 };
 
+// 결제자 설문은 따로 둔 채널로 보낸다. 그 웹훅이 아직 등록되지 않았으면 일반 설문 채널로 보내 응답을 잃지 않는다
+export const pickSurveyWebhook = ({ survey }, env) =>
+  (survey === 'paid' && env.DISCORD_WEBHOOK_SURVEY_PAID) ||
+  env.DISCORD_WEBHOOK_SURVEY;
+
 // 화면은 문항을 넘길 때마다 같은 행을 덮어쓰고(completed=false) 다 내면 completed=true로 마친다.
 // 그래서 완료된 순간에 한 번만 보낸다 — 한 번에 낸 INSERT, 또는 완료로 바뀐 UPDATE.
 // completed 칸이 없던 때의 행은 언제나 다 낸 응답이다.

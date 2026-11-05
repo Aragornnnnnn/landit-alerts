@@ -1,8 +1,12 @@
-// 설문 알림 순수 로직(웹훅 해석·embed 생성) 테스트
+// 설문 알림 순수 로직(웹훅 해석·embed 생성·채널 선택) 테스트
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { buildSurveyEmbed, parseSurveyWebhook } from './lib.mjs';
+import {
+  buildSurveyEmbed,
+  parseSurveyWebhook,
+  pickSurveyWebhook,
+} from './lib.mjs';
 
 const row = (answers) => ({
   user_id: 7,
@@ -99,6 +103,24 @@ test('종류가 없는 행은 일반 설문으로 본다', () => {
 
   assert.equal(embed.title, '📝 새 설문 응답');
   assert.equal(embed.fields[0].name, '마지막으로 랜딧에 바라는 점이 있나요?');
+});
+
+test('결제자 설문은 결제자 채널로, 나머지는 일반 설문 채널로 보낸다', () => {
+  const env = {
+    DISCORD_WEBHOOK_SURVEY: 'general-hook',
+    DISCORD_WEBHOOK_SURVEY_PAID: 'paid-hook',
+  };
+
+  assert.equal(pickSurveyWebhook({ survey: 'paid' }, env), 'paid-hook');
+  assert.equal(pickSurveyWebhook({ survey: 'general' }, env), 'general-hook');
+  // survey 칸이 없던 때의 행
+  assert.equal(pickSurveyWebhook({}, env), 'general-hook');
+});
+
+test('결제자 채널 웹훅이 없으면 결제자 설문도 일반 설문 채널로 보낸다', () => {
+  const env = { DISCORD_WEBHOOK_SURVEY: 'general-hook' };
+
+  assert.equal(pickSurveyWebhook({ survey: 'paid' }, env), 'general-hook');
 });
 
 const hook = (type, record, old_record) => ({
