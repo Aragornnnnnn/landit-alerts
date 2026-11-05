@@ -61,6 +61,24 @@ npx vercel deploy --prod --token $TOKEN
    - HTTP Headers에 `x-survey-secret` = 2번에서 등록한 값.
 4. **확인** — 설문을 한 번 제출하거나, 웹훅 화면의 로그에서 200 응답을 본다.
 
+## 쓰다가 나간 응답
+
+시작하고 10분이 지나도록 제출하지 않은 응답은 `🚪 쓰다가 나감` 카드로 한 번 보낸다. 거기까지 쓴 답을 담고, 채널은 완료 카드와 같다.
+
+- 나가는 순간에는 DB에 아무 일도 일어나지 않아 웹훅으로 잡을 수 없다. 그래서 운영 슈퍼베이스의 pg_cron이 매분 찾아 `/api/survey`로 보낸다(`type: SURVEY_ABANDONED`). 카드는 시작 후 10~11분에 온다.
+- GitHub Actions 크론을 쓰지 않는 것은 예약 실행이 몇 시간씩 밀려서다.
+- 10분 넘게 걸려 제출하면 이탈 카드 뒤에 완료 카드도 온다. 이탈 카드는 "10분 안에 제출하지 않았다"는 뜻이다.
+- 이미 보낸 응답은 `landit_alerts.survey_abandoned_alert`에 남겨 다시 보내지 않는다. 설치 전부터 있던 미완료 응답은 알리지 않는다.
+- 한 번에 3건까지 보내고 나머지는 다음 검사에서 보낸다. 전송 실패를 자동으로 다시 보내지는 않는다.
+
+설치는 운영 프로젝트에서 수신 함수를 배포한 뒤에 한다.
+
+1. Vault에 `landit_survey_webhook_secret` 이름으로 `SURVEY_WEBHOOK_SECRET`과 같은 값을 저장한다.
+2. SQL Editor에서 [`supabase/survey-abandoned.sql`](../supabase/survey-abandoned.sql)을 실행한다.
+3. 이어서 [`supabase/survey-abandoned-cron.sql`](../supabase/survey-abandoned-cron.sql)을 실행한다.
+
+멈출 때는 `SELECT cron.unschedule('landit-survey-abandoned');`를 실행한다. 검증은 빈 임시 DB에서 `psql -v ON_ERROR_STOP=1 -f scripts/test-survey-abandoned.sql`로 한다. 운영 DB에서는 돌리지 않는다.
+
 ## 밀린 응답 일괄 전송
 
 웹훅을 걸기 전에 들어온 응답은 오래된 순으로 한 번에 보낼 수 있다.

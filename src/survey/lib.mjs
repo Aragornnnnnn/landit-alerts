@@ -91,6 +91,27 @@ export const buildSurveyEmbed = ({
   };
 };
 
+const ABANDONED_TITLES = {
+  general: '🚪 설문 쓰다가 나감',
+  paid: '🚪 결제자 설문 쓰다가 나감',
+};
+const ABANDONED_COLOR = 0x95a5a6;
+
+// 제출하지 않은 응답의 카드 — 거기까지 쓴 답을 완료 카드와 같은 모양으로 보여준다
+export const buildAbandonedEmbed = (record) => ({
+  ...buildSurveyEmbed(record),
+  title: ABANDONED_TITLES[record.survey] ?? ABANDONED_TITLES.general,
+  color: ABANDONED_COLOR,
+});
+
+// supabase/survey-abandoned.sql의 검사 함수가 보낸 이탈 응답만 꺼낸다. 아니면 null
+export const parseAbandonedWebhook = (payload) =>
+  payload?.type === 'SURVEY_ABANDONED' &&
+  payload.table === 'survey_responses' &&
+  payload.record?.answers
+    ? payload.record
+    : null;
+
 // 결제자 설문은 따로 둔 채널로 보낸다. 그 웹훅이 아직 등록되지 않았으면 일반 설문 채널로 보내 응답을 잃지 않는다
 export const pickSurveyWebhook = ({ survey }, env) =>
   (survey === 'paid' && env.DISCORD_WEBHOOK_SURVEY_PAID) ||

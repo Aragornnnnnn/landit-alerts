@@ -1,9 +1,11 @@
-// 슈퍼베이스 Database Webhook 수신 엔드포인트 (Vercel 서버리스 함수) — 완료된 설문 응답을 디스코드로 보낸다
+// 슈퍼베이스 Database Webhook 수신 엔드포인트 (Vercel 서버리스 함수) — 완료되거나 이탈한 설문 응답을 디스코드로 보낸다
 import { timingSafeEqual } from 'node:crypto';
 
 import { sendEmbed } from '../src/shared/discord.mjs';
 import {
+  buildAbandonedEmbed,
   buildSurveyEmbed,
+  parseAbandonedWebhook,
   parseSurveyWebhook,
   pickSurveyWebhook,
 } from '../src/survey/lib.mjs';
@@ -22,13 +24,14 @@ export default async (req, res) => {
     return res.status(401).json({ error: 'unauthorized' });
   }
 
-  const record = parseSurveyWebhook(req.body);
+  const abandoned = parseAbandonedWebhook(req.body);
+  const record = abandoned ?? parseSurveyWebhook(req.body);
   // 우리 관심사가 아닌 이벤트는 조용히 받아 준다 — 슈퍼베이스가 재시도하지 않게
   if (!record) return res.status(200).json({ skipped: true });
 
   await sendEmbed(
     pickSurveyWebhook(record, process.env),
-    buildSurveyEmbed(record),
+    abandoned ? buildAbandonedEmbed(record) : buildSurveyEmbed(record),
   );
   return res.status(200).json({ sent: true });
 };
