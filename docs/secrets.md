@@ -27,6 +27,7 @@
 | `FEEDBACK_WEBHOOK_SECRET` / `DISCORD_WEBHOOK_FEEDBACK` | 피드백 웹훅 검증·앱-피드백 채널 웹훅     | [feedback.md](feedback.md) |
 | `AMPLITUDE_API_KEY` / `AMPLITUDE_SECRET_KEY`           | 피드백 카드의 리플레이 찾기              | [feedback.md](feedback.md) |
 | `SURVEY_WEBHOOK_SECRET` / `DISCORD_WEBHOOK_SURVEY`     | 설문 웹훅 검증·유료화-전-설문 채널 웹훅  | [survey.md](survey.md)     |
+| `DISCORD_WEBHOOK_SURVEY_PAID`                          | 결제자 설문 채널 웹훅                    | [survey.md](survey.md)     |
 | `REFERRAL_WEBHOOK_SECRET` / `DISCORD_WEBHOOK_REFERRAL` | 레퍼럴 웹훅 검증·초대 등록 채널 웹훅     | [referral.md](referral.md) |
 | `SENTRY_CLIENT_SECRET` / `SENTRY_CHANNELS`             | Sentry 서명 검증·프로젝트별 채널 웹훅    | [sentry.md](sentry.md)     |
 | `TRIAGE_DISPATCH_TOKEN`                                | (선택) landit-triage 분석 요청           | [sentry.md](sentry.md)     |
