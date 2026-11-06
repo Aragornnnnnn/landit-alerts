@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
+  buildAbandonedEmbed,
   buildSurveyEmbed,
+  parseAbandonedWebhook,
   parseSurveyWebhook,
   pickSurveyWebhook,
 } from './lib.mjs';
@@ -121,6 +123,35 @@ test('결제자 채널 웹훅이 없으면 결제자 설문도 일반 설문 채
   const env = { DISCORD_WEBHOOK_SURVEY: 'general-hook' };
 
   assert.equal(pickSurveyWebhook({ survey: 'paid' }, env), 'general-hook');
+});
+
+test('이탈 카드는 설문 종류별 제목에 거기까지 쓴 답을 담는다', () => {
+  const paid = buildAbandonedEmbed({
+    ...row({ premium_reason: '환급이 좋아서' }),
+    survey: 'paid',
+  });
+  const general = buildAbandonedEmbed(row({ channel: '지인 추천' }));
+
+  assert.equal(paid.title, '🚪 결제자 설문 쓰다가 나감');
+  assert.deepEqual(
+    paid.fields.map((f) => f.value),
+    ['환급이 좋아서'],
+  );
+  assert.equal(general.title, '🚪 설문 쓰다가 나감');
+});
+
+test('이탈 이벤트만 이탈 응답으로 읽고 완료 판정과 섞지 않는다', () => {
+  const record = { user_id: 1, completed: false, answers: { wish: 'x' } };
+  const payload = {
+    type: 'SURVEY_ABANDONED',
+    table: 'survey_responses',
+    record,
+  };
+
+  assert.deepEqual(parseAbandonedWebhook(payload), record);
+  assert.equal(parseSurveyWebhook(payload), null);
+  assert.equal(parseAbandonedWebhook({ ...payload, type: 'UPDATE' }), null);
+  assert.equal(parseAbandonedWebhook({ ...payload, table: 'letters' }), null);
 });
 
 const hook = (type, record, old_record) => ({

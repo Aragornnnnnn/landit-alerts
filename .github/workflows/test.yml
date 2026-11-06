@@ -58,3 +58,14 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: local-test-only
           PGDATABASE: referral_trigger_test
+
+      - name: 빈 별도 DB에서 설문 이탈 검사 검증
+        run: |
+          createdb survey_abandoned_test
+          PGDATABASE=survey_abandoned_test psql -v ON_ERROR_STOP=1 -f scripts/test-survey-abandoned.sql
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: local-test-only
+          PGDATABASE: referral_trigger_test
