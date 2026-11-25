@@ -1,0 +1,15 @@
+[Unit]
+Description=Landit RDS notification dispatcher
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+DynamicUser=yes
+EnvironmentFile=/opt/landit/alerts.env
+ExecStart=/usr/bin/python3 /opt/landit/alerts/dispatch-webhooks.py
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+TimeoutStartSec=10min

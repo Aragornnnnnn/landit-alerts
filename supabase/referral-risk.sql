@@ -97,12 +97,58 @@ END;
 $$;
 REVOKE ALL ON FUNCTION landit_alerts.referral_delivery_ok(integer,text) FROM PUBLIC;
 
+-- 기존 Supabase 전송을 유지하며, RDS 설치본은 이 함수들만 전송 큐로 교체한다.
+CREATE OR REPLACE FUNCTION landit_alerts.referral_webhook_secret()
+RETURNS text LANGUAGE plpgsql SET search_path = '' AS $$
+DECLARE
+  secret_value text;
+BEGIN
+  SELECT decrypted_secret INTO secret_value FROM vault.decrypted_secrets
+  WHERE name='landit_referral_webhook_secret';
+  IF secret_value IS NULL OR secret_value='' THEN
+    RAISE EXCEPTION 'referral risk webhook secret missing';
+  END IF;
+  RETURN secret_value;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION landit_alerts.validate_referral_transport()
+RETURNS void LANGUAGE plpgsql SET search_path = '' AS $$
+BEGIN
+  PERFORM landit_alerts.referral_webhook_secret();
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION landit_alerts.enqueue_referral_webhook(payload jsonb)
+RETURNS bigint LANGUAGE plpgsql SET search_path = '' AS $$
+BEGIN
+  RETURN net.http_post(
+    url := 'https://landit-alerts.vercel.app/api/referral',
+    headers := jsonb_build_object('Content-Type','application/json','x-referral-secret',
+                                    landit_alerts.referral_webhook_secret()),
+    body := payload,
+    timeout_milliseconds := 10000
+  );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION landit_alerts.referral_http_responses()
+RETURNS TABLE (id bigint, status_code integer, content text)
+LANGUAGE plpgsql SET search_path = '' AS $$
+BEGIN
+  RETURN QUERY SELECT h.id, h.status_code, h.content FROM net._http_response h;
+END;
+$$;
+REVOKE ALL ON FUNCTION landit_alerts.referral_webhook_secret() FROM PUBLIC;
+REVOKE ALL ON FUNCTION landit_alerts.validate_referral_transport() FROM PUBLIC;
+REVOKE ALL ON FUNCTION landit_alerts.enqueue_referral_webhook(jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION landit_alerts.referral_http_responses() FROM PUBLIC;
+
 CREATE OR REPLACE FUNCTION landit_alerts.scan_referral_risk()
 RETURNS integer LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE
   checked_at timestamptz := now();
   candidate record;
-  webhook_secret text;
   event_id bigint;
   queued_request bigint;
   sent_count integer := 0;
@@ -115,15 +161,11 @@ BEGIN
   SET delivery_status=CASE WHEN landit_alerts.referral_delivery_ok(h.status_code,h.content)
                           THEN 'delivered' ELSE 'failed' END,
       http_status=h.status_code
-  FROM net._http_response h WHERE e.request_id=h.id AND e.delivery_status='queued';
+  FROM landit_alerts.referral_http_responses() h WHERE e.request_id=h.id AND e.delivery_status='queued';
   UPDATE landit_alerts.referral_risk_event SET delivery_status='unknown'
   WHERE delivery_status='queued' AND queued_at < checked_at-interval '15 minutes';
 
-  SELECT decrypted_secret INTO webhook_secret FROM vault.decrypted_secrets
-  WHERE name='landit_referral_webhook_secret';
-  IF webhook_secret IS NULL OR webhook_secret='' THEN
-    RAISE EXCEPTION 'referral risk webhook secret missing';
-  END IF;
+  PERFORM landit_alerts.validate_referral_transport();
 
   FOR candidate IN SELECT * FROM landit_alerts.evaluate_referral_risk(checked_at) ORDER BY rule_code,inviter_id LOOP
     IF EXISTS (SELECT 1 FROM landit_alerts.referral_risk_event e
@@ -148,18 +190,15 @@ BEGIN
   LOOP
     event_id := candidate.id;
     SELECT u.nickname INTO nickname FROM public.user_profile u WHERE u.id=candidate.inviter_id;
-    queued_request := net.http_post(
-      url := 'https://landit-alerts.vercel.app/api/referral',
-      headers := jsonb_build_object('Content-Type','application/json','x-referral-secret',webhook_secret),
-      body := jsonb_build_object('type','REFERRAL_RISK','schema','landit_alerts',
+    queued_request := landit_alerts.enqueue_referral_webhook(
+      jsonb_build_object('type','REFERRAL_RISK','schema','landit_alerts',
         'table','referral_risk_event','record',jsonb_build_object(
           'id',event_id::text,'rule_code',candidate.rule_code,
           'inviter_id',candidate.inviter_id::text,'inviter_nickname',nickname,
           'detected_at',candidate.detected_at,'observed_count',candidate.observed_count,
           'matched_count',candidate.matched_count,'window_minutes',candidate.window_minutes,
           'min_count',candidate.min_count,'threshold_percent',candidate.threshold_percent,
-          'evidence_referral_ids',candidate.evidence_referral_ids)),
-      timeout_milliseconds := 10000);
+          'evidence_referral_ids',candidate.evidence_referral_ids)));
     UPDATE landit_alerts.referral_risk_event SET request_id=queued_request,
       delivery_status='queued',queued_at=checked_at WHERE id=event_id;
     sent_count := sent_count+1;
