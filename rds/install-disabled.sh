@@ -34,15 +34,20 @@ if ! command -v python3.11 >/dev/null || ! python3.11 -m pip --version >/dev/nul
 fi
 
 install -d -m 0755 "$runtime_dir"
-python3.11 -m venv "$runtime_dir/venv"
-PIP_DISABLE_PIP_VERSION_CHECK=1 "$runtime_dir/venv/bin/python" -m pip install \
-  -r "$source_dir/integration-requirements.txt" > "$runtime_dir/install.log" 2>&1 || {
+(
+  umask 022
+  python3.11 -m venv "$runtime_dir/venv" &&
+    PIP_DISABLE_PIP_VERSION_CHECK=1 "$runtime_dir/venv/bin/python" -m pip install \
+      -r "$source_dir/integration-requirements.txt"
+) > "$runtime_dir/install.log" 2>&1 || {
     echo '연동 서비스 의존성 설치에 실패했습니다. 호스트 로그를 확인하세요.' >&2
     exit 1
   }
+# 이전 설치에서 제한된 가상환경 권한을 systemd의 동적 사용자도 읽을 수 있게 한다.
+chmod -R a+rX "$runtime_dir/venv"
 "$runtime_dir/venv/bin/python" -m pip check
 install -m 0644 "$source_dir/integration_api.py" "$source_dir/dispatch-webhooks.py" "$runtime_dir/"
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$runtime_dir" "$runtime_dir/venv/bin/python" \
+runuser -u nobody -- env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$runtime_dir" "$runtime_dir/venv/bin/python" \
   -c 'from integration_api import create_app; assert callable(create_app)'
 
 # systemd-analyze에서 서비스의 실제 경로를 검사한 후 활성화 없이 등록한다.
