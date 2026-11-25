@@ -13,13 +13,17 @@ BEGIN;
 
 CREATE TABLE IF NOT EXISTS landit_alerts.rds_webhook_outbox (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  channel text NOT NULL CHECK (channel IN ('feedback', 'referral')),
+  channel text NOT NULL,
   payload jsonb,
   status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'sending', 'complete', 'unknown')),
   claimed_at timestamptz,
   http_status integer,
   confirmed_sent boolean NOT NULL DEFAULT false
 );
+ALTER TABLE landit_alerts.rds_webhook_outbox DROP CONSTRAINT IF EXISTS rds_webhook_outbox_channel_check;
+ALTER TABLE landit_alerts.rds_webhook_outbox ADD CONSTRAINT rds_webhook_outbox_channel_check
+  CHECK (channel IN ('feedback', 'referral', 'survey'));
+
 CREATE INDEX IF NOT EXISTS rds_webhook_pending ON landit_alerts.rds_webhook_outbox(id) WHERE status = 'pending';
 ALTER TABLE landit_alerts.rds_webhook_outbox ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON landit_alerts.rds_webhook_outbox FROM PUBLIC;
@@ -65,6 +69,32 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION landit_alerts.capture_survey()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE
+  prior_record jsonb;
+BEGIN
+  IF NEW.completed IS NOT TRUE THEN
+    RETURN NEW;
+  END IF;
+  IF TG_OP = 'UPDATE' THEN
+    IF OLD.completed IS DISTINCT FROM false THEN
+      RETURN NEW;
+    END IF;
+    prior_record := jsonb_build_object('completed', OLD.completed);
+  END IF;
+  INSERT INTO landit_alerts.rds_webhook_outbox(channel, payload)
+  VALUES ('survey', jsonb_build_object('type',TG_OP,'schema','public','table','survey_responses',
+    'old_record', prior_record,
+    'record', jsonb_build_object('id',NEW.id,'user_id',NEW.user_id,'survey',NEW.survey,
+      'email',NEW.email,'answers',NEW.answers,'created_at',NEW.created_at,'completed',NEW.completed)));
+  RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+  RAISE WARNING 'survey notification enqueue failed (SQLSTATE=%)', SQLSTATE;
+  RETURN NEW;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION landit_alerts.capture_referral()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE
@@ -93,9 +123,13 @@ $$;
 
 REVOKE ALL ON FUNCTION landit_alerts.capture_feedback() FROM PUBLIC;
 REVOKE ALL ON FUNCTION landit_alerts.capture_referral() FROM PUBLIC;
+REVOKE ALL ON FUNCTION landit_alerts.capture_survey() FROM PUBLIC;
 DROP TRIGGER IF EXISTS "feedback-discord" ON public.mailbox_feedback;
 CREATE TRIGGER "feedback-discord" AFTER INSERT ON public.mailbox_feedback
 FOR EACH ROW EXECUTE FUNCTION landit_alerts.capture_feedback();
+DROP TRIGGER IF EXISTS "survey-discord" ON public.survey_responses;
+CREATE TRIGGER "survey-discord" AFTER INSERT OR UPDATE ON public.survey_responses
+FOR EACH ROW EXECUTE FUNCTION landit_alerts.capture_survey();
 DROP TRIGGER IF EXISTS landit_referral_insert_alert ON public.referral;
 CREATE TRIGGER landit_referral_insert_alert AFTER INSERT ON public.referral
 FOR EACH ROW EXECUTE FUNCTION landit_alerts.capture_referral();

@@ -49,7 +49,10 @@ class DispatcherTest(unittest.TestCase):
             def open(self, req, timeout):
                 return Reply(b'{"accepted":true}')
 
-        env = {"FEEDBACK_WEBHOOK_SECRET": "synthetic", "REFERRAL_WEBHOOK_SECRET": "synthetic"}
+        env = {
+            "FEEDBACK_WEBHOOK_SECRET": "synthetic", "REFERRAL_WEBHOOK_SECRET": "synthetic",
+            "SURVEY_WEBHOOK_SECRET": "synthetic",
+        }
         with self.assertRaises(RuntimeError):
             dispatcher.run(execute, Success(), env)
         self.assertIn("SELECT landit_alerts.finish_webhook(5,200,true);", statements)

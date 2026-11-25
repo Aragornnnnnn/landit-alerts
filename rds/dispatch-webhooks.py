@@ -9,6 +9,7 @@ BASE_URL = "https://landit-alerts.vercel.app/api"
 CHANNELS = {
     "feedback": ("x-feedback-secret", "FEEDBACK_WEBHOOK_SECRET", "accepted"),
     "referral": ("x-referral-secret", "REFERRAL_WEBHOOK_SECRET", "sent"),
+    "survey": ("x-survey-secret", "SURVEY_WEBHOOK_SECRET", "sent"),
 }
 
 
