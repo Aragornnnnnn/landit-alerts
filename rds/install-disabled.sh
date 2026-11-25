@@ -15,7 +15,8 @@ if [[ $EUID != 0 || ! "$revision" =~ ^[a-f0-9]{40}$ ]]; then
 fi
 
 for unit in "${units[@]}"; do
-  if systemctl is-active --quiet "$unit" || systemctl is-enabled --quiet "$unit"; then
+  mode=$(systemctl show -p UnitFileState --value "$unit")
+  if systemctl is-active --quiet "$unit" || [[ -n "$mode" && "$mode" != disabled && "$mode" != static ]]; then
     echo "$unit 실행 또는 자동 시작 설정을 확인하세요." >&2
     exit 1
   fi

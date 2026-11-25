@@ -4,6 +4,8 @@ RDS의 INSERT 트리거가 편지함 피드백, 추천인 등록과 설문 완�
 
 ## 최초 적용
 
+전환 EC2에는 체크아웃한 커밋에서 `sudo bash rds/install-disabled.sh "$(git rev-parse HEAD)"`로 Python 3.11 실행 환경과 systemd 유닛을 먼저 설치할 수 있다. 이 명령은 서비스와 타이머를 시작하지 않는다. 최종 DB 복원, 네트워크와 환경 변수 설정 후 아래 절차에서 시작한다.
+
 1. 작업창 전까지 기존 Supabase 트리거와 예약 작업을 유지한다. 최종 복원에 `public` 업무 데이터와 별도로 `landit_alerts.referral_risk_rule`, `landit_alerts.referral_risk_event`의 설정·이력을 포함한다. Supabase 관리 트리거, Vault, `net` 스키마는 대상에 복원하지 않는다.
 2. 권한 있는 RDS 관리자로 복원한 RDS에 `psql -v ON_ERROR_STOP=1 -f rds/notification-outbox.sql`과 `rds/integration.sql`을 적용한다. 위험 알림의 기존 요청 번호가 신규 번호와 겹치지 않는지 확인하려면 운영 이력을 먼저 복원해야 한다. 기존 함수가 복원됐다면 설치본의 RDS 전송 함수를 사용한다.
 3. `landit_alerts_dispatcher` 전용 LOGIN 계정을 발급한다. RDS TLS 연결용 `PGHOST`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`, `PGSSLMODE=verify-full`, `PGSSLROOTCERT`를 설정한다. `FEEDBACK_WEBHOOK_SECRET`, `REFERRAL_WEBHOOK_SECRET`, `SURVEY_WEBHOOK_SECRET`은 기존 Vercel 값과 일치하도록 호스트의 root 전용 `/opt/landit/alerts.env`에 보관한다. CA 파일은 서비스가 읽을 수 있게 둔다. 앱·푸시 조회 계정에는 이 발송 권한을 주지 않는다.
