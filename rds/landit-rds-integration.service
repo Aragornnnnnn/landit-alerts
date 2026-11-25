@@ -1,0 +1,19 @@
+[Unit]
+Description=Landit survey and metrics RDS integration
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+DynamicUser=yes
+WorkingDirectory=/opt/landit/alerts
+EnvironmentFile=/opt/landit/rds-integration.env
+ExecStart=/opt/landit/alerts/venv/bin/python -m uvicorn integration_api:create_app --factory --host 172.30.86.1 --port 18092 --limit-concurrency 16 --timeout-keep-alive 3 --no-proxy-headers --no-access-log
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+
+[Install]
+WantedBy=multi-user.target
