@@ -69,3 +69,14 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: local-test-only
           PGDATABASE: referral_trigger_test
+
+      - name: 빈 별도 DB에서 RDS 설문·지표 권한과 알림 검증
+        run: |
+          createdb rds_notification_test
+          PGDATABASE=rds_notification_test psql -v ON_ERROR_STOP=1 -f scripts/test-rds-notification-outbox.sql
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: local-test-only
+          PGDATABASE: referral_trigger_test
