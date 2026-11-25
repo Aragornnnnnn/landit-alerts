@@ -19,6 +19,7 @@ import {
   buildFailureMessage,
   buildWeeklyMessage,
 } from './lib.mjs';
+import { createRdsClient } from './rds.mjs';
 import { createRevenueCatClient } from './revenuecat.mjs';
 import { createSupabaseClient } from './supabase.mjs';
 
@@ -69,6 +70,23 @@ const optionalClient = (keys, create, label) => {
   return undefined;
 };
 
+const rdsUrl = process.env.LANDIT_METRICS_RDS_URL;
+const rdsToken = process.env.LANDIT_METRICS_RDS_TOKEN;
+const recordsClient = rdsUrl || rdsToken
+  ? optionalClient(
+      ['LANDIT_METRICS_RDS_URL', 'LANDIT_METRICS_RDS_TOKEN'],
+      () => createRdsClient({ url: rdsUrl, token: rdsToken }),
+      '스트릭',
+    )
+  : optionalClient(
+      ['SUPABASE_URL', 'SUPABASE_SECRET_KEY'],
+      () => createSupabaseClient({
+        url: process.env.SUPABASE_URL,
+        secretKey: process.env.SUPABASE_SECRET_KEY,
+      }),
+      '스트릭',
+    );
+
 const clients = {
   amplitude: createAmplitudeClient({
     apiKey: process.env.AMPLITUDE_API_KEY,
@@ -78,15 +96,7 @@ const clients = {
     apiKey: process.env.REVENUECAT_API_KEY,
     projectId: process.env.REVENUECAT_PROJECT_ID,
   }),
-  supabase: optionalClient(
-    ['SUPABASE_URL', 'SUPABASE_SECRET_KEY'],
-    () =>
-      createSupabaseClient({
-        url: process.env.SUPABASE_URL,
-        secretKey: process.env.SUPABASE_SECRET_KEY,
-      }),
-    '스트릭',
-  ),
+  supabase: recordsClient,
 };
 
 // 기간 이름 — 상태 파일에 이걸로 적어 두고 같은 기간을 두 번 보내지 않는다

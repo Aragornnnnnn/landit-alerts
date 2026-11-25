@@ -37,6 +37,9 @@ jobs:
       # 아래 둘은 없어도 지표는 나간다 — 스트릭·누적 줄만 빠진다
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      LANDIT_METRICS_RDS_URL: ${{ vars.LANDIT_METRICS_RDS_URL }}
+      LANDIT_METRICS_RDS_TOKEN: ${{ secrets.LANDIT_METRICS_RDS_TOKEN }}
+      METRICS_DATE: ${{ inputs.date }}
     steps:
       - uses: actions/checkout@v4
 
@@ -70,7 +73,7 @@ jobs:
 
       - name: 일일 지표 전송
         if: github.event_name == 'schedule' || inputs.mode == 'daily'
-        run: node src/metrics/run.mjs daily ${{ inputs.date }}
+        run: node src/metrics/run.mjs daily "$METRICS_DATE"
 
       # 일일이 실패해도 주간은 따로 보낸다 (조회 실패는 기간마다 갈린다)
       - name: 주간 지표 전송
@@ -78,7 +81,7 @@ jobs:
           !cancelled() &&
           (inputs.mode == 'weekly' ||
             (github.event_name == 'schedule' && steps.day.outputs.monday == 'true'))
-        run: node src/metrics/run.mjs weekly ${{ inputs.date }}
+        run: node src/metrics/run.mjs weekly "$METRICS_DATE"
 
       - name: 보낸 기간 저장
         if: always()
